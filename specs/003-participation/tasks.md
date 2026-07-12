@@ -11,14 +11,14 @@
 
 **Purpose**: Vocabulary + view extensions shared by both mentions and attachments.
 
-- [ ] T001 [P] Extend `topic/vocab.go`: add `mentions,omitempty` to `TurnPayload` and
+- [X] T001 [P] Extend `topic/vocab.go`: add `mentions,omitempty` to `TurnPayload` and
   `CommentPayload`; add `NotifyPayload{Topic,OpID,Author}`, `AttachmentPayload{Name,Object,Digest,
   Size,ContentType,Anchor}`, and constants `TypeMentionNotify = "mention.notify"`,
   `TypeAttachmentAdd = "attachment.add"`. (FR-002/003/008)
-- [ ] T002 Extend `topic/view.go`: add `Attachment` type and `MaterializedTopic.Attachments`; in
+- [X] T002 Extend `topic/view.go`: add `Attachment` type and `MaterializedTopic.Attachments`; in
   `apply`, handle `attachment.add` (append to Attachments, count as content op), extend the dangling
   check to attachments. (FR-012/013/010)
-- [ ] T003 Extend `topic/view_test.go`: pure fold — an `attachment.add` becomes an Attachment,
+- [X] T003 Extend `topic/view_test.go`: pure fold — an `attachment.add` becomes an Attachment,
   activates the topic, and a bad-anchor attachment is flagged dangling. (SC-004)
 
 **Checkpoint**: `go test ./topic/...` green (pure); existing 002 tests still pass.

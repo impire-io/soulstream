@@ -135,6 +135,40 @@ func TestApplyLifecycleClosed(t *testing.T) {
 	}
 }
 
+func TestApplyAttachment(t *testing.T) {
+	mt := apply("t", seq(
+		baseline("base"),
+		mkRec("a1", TypeAttachmentAdd, []string{"base"}, AttachmentPayload{
+			Name: "q2.csv", Object: "attachments/t/obj-1", Digest: "SHA-256=xyz", Size: 42, ContentType: "text/csv",
+		}),
+	))
+	if mt.Lifecycle != Active {
+		t.Errorf("attachment should activate the topic: %q", mt.Lifecycle)
+	}
+	if len(mt.Attachments) != 1 {
+		t.Fatalf("attachments = %d, want 1", len(mt.Attachments))
+	}
+	a := mt.Attachments[0]
+	if a.Name != "q2.csv" || a.Object != "attachments/t/obj-1" || a.Size != 42 || a.ContentType != "text/csv" {
+		t.Errorf("attachment metadata wrong: %+v", a)
+	}
+	if len(mt.Contributions) != 0 {
+		t.Errorf("attachment should not appear as a contribution: %+v", mt.Contributions)
+	}
+}
+
+func TestApplyAttachmentDanglingAnchor(t *testing.T) {
+	mt := apply("t", seq(
+		baseline("base"),
+		mkRec("a1", TypeAttachmentAdd, []string{"base"}, AttachmentPayload{
+			Name: "x", Object: "o", Anchor: "no-such-op",
+		}),
+	))
+	if len(mt.Attachments) != 1 || !mt.Attachments[0].Dangling {
+		t.Errorf("attachment with missing anchor not flagged dangling: %+v", mt.Attachments)
+	}
+}
+
 func TestApplyMalformedFirstOp(t *testing.T) {
 	mt := apply("t", seq(
 		mkRec("turn1", TypeTurnPost, nil, TurnPayload{Body: "no baseline"}),
