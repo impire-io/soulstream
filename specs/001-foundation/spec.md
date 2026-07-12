@@ -11,6 +11,16 @@ This feature delivers the **wire layer** of Soulstream: the smallest working sli
 
 The consumers of this feature are **library integrators** (people building clients, adapters, and agents on top of Soulstream) and the **realm operator** (whoever administers the NATS account). The value is that both can rely on one provably-correct realm setup and one provably-lossless record format, so that no later feature has to re-litigate "how is a realm shaped?" or "what does an operation look like on the wire?".
 
+## Clarifications
+
+### Session 2026-07-12
+
+- Q: What exact format is an operation identity? → A: A standard **UUIDv4 rendered lowercase, hyphenated `8-4-4-4-12`** (e.g., `9f86d081-b6c4-4a3e-9e0c-1f2a3b4c5d6e`). It is unique without coordination, transport-token-safe, and collision-safe within a realm's duplicate window. The abbreviated identities shown in the reference design are illustrative for readability, not a truncation rule to reproduce.
+- Q: What is the exact persona-name grammar? → A: **Lowercase alphanumerics in hyphen-separated groups** — `^[a-z0-9]+(-[a-z0-9]+)*$` — length **1–64** characters. No uppercase, no leading/trailing/consecutive hyphens, no dots (dots are subject separators), no whitespace, and none of the transport wildcards `*`/`>`. The same grammar validates realm names and topic-id slugs.
+- Q: When an existing realm artefact drifts from mandated settings, does provisioning fix it? → A: **No. Provisioning is create-or-report and never modifies an existing stream or object store in place.** It creates only missing artefacts and reports the conformance of existing ones (conformant vs. the specific nonconformity). Any reconfiguration of an existing artefact is an explicit, separate operator action outside this feature — mixing "safe auto-fix" with the history-destroying cases (age expiry added, rollup disabled) is exactly the ambiguity the design refuses.
+- Q: What does "verify the author on read" mean in the transport-scoped default, where a plain stream message carries no trusted publisher identity? → A: **Write-side enforcement is mandatory; read-side verification is structural plus optional cross-check.** A persona-bound client stamps only its own configured persona name and refuses to publish an operation attributed to a different author. On read, the library validates that the author is present and a well-formed persona name, and — when the caller supplies a trusted-identity resolver — cross-checks the claimed author against it and flags mismatches. The library does not claim to detect spoofing it cannot observe in the plain transport-scoped model; that is the operator's auth-callout or the deferred signature's job.
+- Q: Where does the realm name (bound into every canonical record) come from? → A: **From explicit, required client configuration.** A JetStream client cannot reliably read its own NATS account name, and the realm name must be stable for future signing, so it is supplied when the client is constructed, validated as a lowercase slug, and bound verbatim into every canonical record.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Provision a realm from nothing (Priority: P1)
@@ -109,7 +119,7 @@ A library integrator relies on the library to reject malformed persona names whe
 - **FR-005**: The library MUST provision a realm's `soulstream-objects` object store.
 - **FR-006**: Provisioning MUST be idempotent: running it against an already-conformant realm changes nothing, succeeds, and reports each artefact's current state.
 - **FR-007**: Provisioning MUST create only the parts that are missing, leaving present-and-conformant parts untouched.
-- **FR-008**: When an existing artefact drifts from the mandated settings in a way that risks history loss to "correct" (age-based expiry present, rollup disabled), the library MUST report the drift as a conformance problem and MUST NOT silently mutate that setting.
+- **FR-008**: Provisioning MUST NOT modify an existing stream or object store in place. It is **create-or-report**: it creates only missing artefacts and, for existing ones, reports conformance without mutating any setting — including safe-looking drift, because the history-destroying cases (age-based expiry present, rollup disabled) make in-place reconfiguration a one-way risk. Reconfiguring an existing artefact is an explicit operator action outside this feature.
 - **FR-009**: Provisioning MUST report a structured result naming, per artefact, whether it was created, already present and conformant, or present but non-conformant (with the specific nonconformity).
 
 **The operation record**
@@ -117,7 +127,7 @@ A library integrator relies on the library to reject malformed persona names whe
 - **FR-010**: The library MUST represent an operation as a record carried entirely in message headers with a pure-data payload; no protocol metadata is ever embedded in the payload.
 - **FR-011**: The record MUST carry: an operation identity, a wire-format version, an author, an ordered set of parent operation identities, an operation type, an author-claimed timestamp, and an optional signature slot.
 - **FR-012**: The operation identity MUST double as the message's duplicate-detection identity, so that a retried publish of the same identity is de-duplicated by the server rather than creating a second operation.
-- **FR-013**: The library MUST generate operation identities that are unique per operation without coordination.
+- **FR-013**: The library MUST generate operation identities that are unique per operation without coordination, each a UUIDv4 rendered lowercase and hyphenated (`8-4-4-4-12`).
 - **FR-014**: The library MUST serialise a record to wire form and parse wire form back to a record such that the two directions are exact inverses for every field.
 - **FR-015**: An empty set of parents MUST serialise to an **absent** parents header (not an empty value), and an absent parents header MUST parse to an empty set — the two states are equivalent and must never be confused with each other.
 - **FR-016**: Parsing MUST reject a message that is missing a required field, carries an unsupported version, or carries a malformed timestamp — each with an error naming the specific violation.
@@ -134,8 +144,9 @@ A library integrator relies on the library to reject malformed persona names whe
 
 **Identity basics**
 
-- **FR-024**: The library MUST validate persona names as lowercase, transport-token-safe slugs, accepting valid names and rejecting invalid ones with a reason.
-- **FR-025**: On reading an operation, the library MUST detect when the claimed author does not match the identity that actually delivered the operation, and MUST reject or flag such an operation rather than trust it silently.
+- **FR-024**: The library MUST validate persona names against the grammar `^[a-z0-9]+(-[a-z0-9]+)*$`, length 1–64, accepting valid names and rejecting invalid ones with a reason. The same grammar validates realm names and topic-id slugs.
+- **FR-025**: The library MUST enforce honest attribution on the **write** side: a persona-bound client stamps only its own configured persona name and MUST refuse to publish an operation attributed to a different author. On **read**, the library MUST validate that the author is present and a well-formed persona name, and — when the caller supplies a trusted-identity resolver — MUST cross-check the claimed author against it and flag mismatches. The library MUST NOT claim to detect spoofing unobservable in the plain transport-scoped model (that is the operator's auth-callout or the deferred signature's role).
+- **FR-028**: The realm name MUST be supplied as required client configuration, validated as a lowercase slug (FR-024 grammar), and bound verbatim into every canonical record (FR-022); the library MUST NOT attempt to infer it from the NATS account.
 
 **Discipline & non-goals**
 
