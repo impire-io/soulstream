@@ -85,17 +85,17 @@ all unit-testable with no server.
 **Independent Test**: Post baseline+turns+comment; replay+materialise; contributions in stream order,
 comment anchored, lifecycle `active`.
 
-- [ ] T015 [US2] `topic/post.go`: `Handle.Post(ctx, type, payload, anchor)` — build a record (author,
+- [X] T015 [US2] `topic/post.go`: `Handle.Post(ctx, type, payload, anchor)` — build a record (author,
   op-id, ts, parents=observed frontier), enforce attribution via the client, `PublishMsg` to OPS,
   advance the local frontier; plus `PostTurn`, `AddComment`. Warn (not block) if known-closed. (FR-001/002/003/022)
-- [ ] T016 [US2] `topic/materialise.go`: `Handle.Materialise(ctx)` — empty guard via
+- [X] T016 [US2] `topic/materialise.go`: `Handle.Materialise(ctx)` — empty guard via
   `GetLastMsgForSubject` (ErrMsgNotFound → empty/malformed view), else drain an ordered consumer
   (FilterSubjects=[opsSubject], DeliverAll) via `Messages()`/`Next()` until `NumPending==0`, parse each
   record, call the pure `apply`, cache the frontier on the handle. (FR-011/012/014/015)
-- [ ] T017 [US2] Integration test `topic/materialise_test.go`: post baseline+turns+comment; materialise;
+- [X] T017 [US2] Integration test `topic/materialise_test.go`: post baseline+turns+comment; materialise;
   assert stream-order contributions, comment `Anchor`==turn id, lifecycle `active`; materialise twice →
   identical view (SC-002); dangling comment flagged (SC-003).
-- [ ] T018 [P] [US2] ELI5 doc `docs/materialisation.md`: materialising as "reading the notebook front to
+- [X] T018 [P] [US2] ELI5 doc `docs/materialisation.md`: materialising as "reading the notebook front to
   back to see where things stand right now". (Constitution III)
 
 **Checkpoint**: Conversation posts and materialises deterministically.
