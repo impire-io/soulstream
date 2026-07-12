@@ -121,10 +121,10 @@ lossless; the canonical record carries realm + topic.
 
 ### Implementation for User Story 4
 
-- [ ] T028 [US4] `record/canonical.go`: `Record.Canonical(realm, topic string) ([]byte, error)` — build the canonical object `{v,realm,topic,id,author,parents,ts,type,data[,sig]}` (payload parsed to a JSON value under `data`; `sig` omitted when empty), `json.Marshal` → `jcs.Transform`. (FR-019/021/022/023)
-- [ ] T029 [US4] Determinism test `record/canonical_test.go`: construct the same logical record with fields supplied in different orders (and map-based payloads) → assert byte-identical `Canonical` output. (SC-004, FR-020)
-- [ ] T030 [US4] Losslessness + binding test: assert every wire field maps to exactly one canonical key and back; assert `realm` and `topic` are present and bind (changing either changes the bytes). (FR-021/022)
-- [ ] T031 [P] [US4] ELI5 doc `docs/canonical-record.md`: canonical form as "re-typing the slip onto a standard government form so any two people who fill it from the same facts get the exact same page — that sameness is what a signature will one day sign". (Constitution III)
+- [X] T028 [US4] `record/canonical.go`: `Record.Canonical(realm, topic string) ([]byte, error)` — build the canonical object `{v,realm,topic,id,author,parents,ts,type,data[,sig]}` (payload parsed to a JSON value under `data`; `sig` omitted when empty), `json.Marshal` → `jcs.Transform`. (FR-019/021/022/023)
+- [X] T029 [US4] Determinism test `record/canonical_test.go`: construct the same logical record with fields supplied in different orders (and map-based payloads) → assert byte-identical `Canonical` output. (SC-004, FR-020)
+- [X] T030 [US4] Losslessness + binding test: assert every wire field maps to exactly one canonical key and back; assert `realm` and `topic` are present and bind (changing either changes the bytes). (FR-021/022)
+- [X] T031 [P] [US4] ELI5 doc `docs/canonical-record.md`: canonical form as "re-typing the slip onto a standard government form so any two people who fill it from the same facts get the exact same page — that sameness is what a signature will one day sign". (Constitution III)
 
 **Checkpoint**: Canonical output is deterministic, lossless, and realm/topic-bound.
 
