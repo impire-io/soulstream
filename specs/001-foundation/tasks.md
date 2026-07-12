@@ -140,10 +140,10 @@ client's persona → refused; with a resolver returning a different identity →
 
 ### Implementation for User Story 5
 
-- [ ] T032 [US5] `identity/author.go`: `EnforceAuthor(ownPersona, recordAuthor string) error` (→ `ErrForeignAuthor`); `Resolver` interface (`DeliveredBy(headers) (persona, ok)`); `VerifyAuthor(claimedAuthor, headers, r Resolver) error` — always `CheckName(claimedAuthor)`, and when a resolver resolves an identity require equality (→ `ErrAuthorMismatch`). (FR-025)
-- [ ] T033 [US5] Wire write-side enforcement into `realm/connect.go`/publish path: when `Config.Persona` is set, a publish helper calls `EnforceAuthor(cfg.Persona, record.Author)` before any send (this feature has no publish op yet, so expose it as a guard method + unit-test it directly). (FR-025)
-- [ ] T034 [US5] Test `identity/author_test.go`: `EnforceAuthor` accepts self / rejects foreign; `VerifyAuthor` passes with no resolver (shape-only), passes on match, returns `ErrAuthorMismatch` on mismatch. (SC-005)
-- [ ] T035 [P] [US5] ELI5 doc `docs/persona-and-attribution.md`: personas as "everyone signs their own name; the library won't let you sign someone else's, and if a trusted doorman is on duty it double-checks the name at the door". (Constitution III)
+- [X] T032 [US5] `identity/author.go`: `EnforceAuthor(ownPersona, recordAuthor string) error` (→ `ErrForeignAuthor`); `Resolver` interface (`DeliveredBy(headers) (persona, ok)`); `VerifyAuthor(claimedAuthor, headers, r Resolver) error` — always `CheckName(claimedAuthor)`, and when a resolver resolves an identity require equality (→ `ErrAuthorMismatch`). (FR-025)
+- [X] T033 [US5] Wire write-side enforcement into `realm/connect.go`/publish path: when `Config.Persona` is set, a publish helper calls `EnforceAuthor(cfg.Persona, record.Author)` before any send (this feature has no publish op yet, so expose it as a guard method + unit-test it directly). (FR-025)
+- [X] T034 [US5] Test `identity/author_test.go`: `EnforceAuthor` accepts self / rejects foreign; `VerifyAuthor` passes with no resolver (shape-only), passes on match, returns `ErrAuthorMismatch` on mismatch. (SC-005)
+- [X] T035 [P] [US5] ELI5 doc `docs/persona-and-attribution.md`: personas as "everyone signs their own name; the library won't let you sign someone else's, and if a trusted doorman is on duty it double-checks the name at the door". (Constitution III)
 
 **Checkpoint**: Name validation and both sides of attribution are enforced and tested.
 

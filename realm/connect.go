@@ -68,6 +68,18 @@ func (c *Client) Provision(ctx context.Context) (*ProvisionReport, error) {
 	return ProvisionOn(ctx, c.js)
 }
 
+// EnforceAuthor is the write-side attribution guard. When the client is persona-bound
+// (Config.Persona set), it returns an error unless author is that persona, so the
+// client can only ever publish as itself. A read-only client (no persona) permits any
+// author — enforcing attribution is not its job. Publish paths in later features call
+// this before sending.
+func (c *Client) EnforceAuthor(author string) error {
+	if c.cfg.Persona == "" {
+		return nil
+	}
+	return identity.EnforceAuthor(c.cfg.Persona, author)
+}
+
 // Realm returns the client's realm name.
 func (c *Client) Realm() string { return c.cfg.Realm }
 
