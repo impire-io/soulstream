@@ -74,6 +74,7 @@ spec-driven flow in [specs/](./specs/). Delivered so far:
 
 - **001-foundation** ([spec](./specs/001-foundation/spec.md)) — realm provisioning and the operation record.
 - **002-topics** ([spec](./specs/002-topics/spec.md) · [quickstart](./specs/002-topics/quickstart.md)) — the op-log engine.
+- **003-participation** ([spec](./specs/003-participation/spec.md) · [quickstart](./specs/003-participation/quickstart.md)) — mentions & attachments.
 
 Packages, split so the pure surfaces need no server to test:
 
@@ -82,11 +83,11 @@ Packages, split so the pure surfaces need no server to test:
 | [`record`](./record) | The operation record: `Build`/`Parse` (wire ⇆ struct, exact inverses), UUIDv4 op-ids, and the RFC 8785 (JCS) canonical form bound to realm + topic. | No |
 | [`identity`](./identity) | Persona/realm/topic slug validation, and attribution (write-side `EnforceAuthor`, read-side `VerifyAuthor`). | No |
 | [`realm`](./realm) | Connect (named NATS context or an existing connection) and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store), **create-or-report** — never modifies an existing artefact in place. | Yes |
-| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed), sub-topics, and the discovery `Board`. The pure fold (`apply`) is server-free. | Yes |
+| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed), sub-topics, discovery `Board`, **mentions** (`@name` → `mention.notify` inbox, `FollowInbox`), and **attachments** (`Attach`/`GetAttachment`/`VerifyDigest` over the object store). The pure fold (`apply`) is server-free. | Yes |
 
 Plain-words docs for each concept live in [docs/](./docs/) — the realm, the operation
 record, the canonical record, provisioning, personas & attribution, the topic,
-materialisation, lifecycle, sub-topics, and discovery.
+materialisation, lifecycle, sub-topics, discovery, mentions, and attachments.
 
 ### Build & test
 

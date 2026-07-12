@@ -86,11 +86,11 @@ the digest; a missing object errors cleanly.
 
 ## Phase 6: Polish
 
-- [ ] T014 [P] Update `README.md`: note mentions + attachments on the `topic` row; add the two docs.
-- [ ] T015 Extend `topic/quickstart_test.go` (or add `participation_test.go`) mirroring the 003
+- [X] T014 [P] Update `README.md`: note mentions + attachments on the `topic` row; add the two docs.
+- [X] T015 Extend `topic/quickstart_test.go` (or add `participation_test.go`) mirroring the 003
   quickstart: mention → inbox, attach → materialise → get + verify.
-- [ ] T016 Run `go mod tidy`; `go vet ./...` clean.
-- [ ] T017 Final gate: `make check` green — all tests pass (none skipped), lint 0. (SC-005)
+- [X] T016 Run `go mod tidy`; `go vet ./...` clean.
+- [X] T017 Final gate: `make check` green — all tests pass (none skipped), lint 0. (SC-005)
 
 ---
 
