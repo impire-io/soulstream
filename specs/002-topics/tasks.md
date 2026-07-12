@@ -108,10 +108,10 @@ comment anchored, lifecycle `active`.
 
 **Independent Test**: Follow a topic; from another connection post a turn; the follower's view updates.
 
-- [ ] T019 [US3] `topic/follow.go`: `Handle.Follow(ctx, onOp)` — one ordered consumer (DeliverAll)
+- [X] T019 [US3] `topic/follow.go`: `Handle.Follow(ctx, onOp)` — one ordered consumer (DeliverAll)
   via `Messages()`; apply history then keep applying live ops, advancing the frontier and calling
   `onOp` with the updated view after each; a goroutine calls `it.Stop()` on `ctx.Done()`. (FR-017/018)
-- [ ] T020 [US3] Integration test `topic/follow_test.go`: open a follower; from a second connection post
+- [X] T020 [US3] Integration test `topic/follow_test.go`: open a follower; from a second connection post
   a turn; assert the follower's view gains the turn without a full re-replay and its frontier advances;
   no gap/duplicate at the replay/live seam. (SC-004)
 

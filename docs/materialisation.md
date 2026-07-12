@@ -26,6 +26,15 @@ As you read, you also learn where the **pen is right now** — the most recent p
 with nothing written after them. That's the *frontier*. When you add your own page, it
 picks up right there, so everyone can later tell what you had seen when you wrote it.
 
+## Following along live
+
+You don't have to re-read the whole notebook every time to stay current. You can
+**follow** a topic: you read it once, and then every new page that anyone adds is handed
+to you the moment it's written, and your picture updates. It's like watching the notebook
+over someone's shoulder — there's no gap between "catching up" and "keeping up", because
+it's the same single stream of pages. A human's screen refreshes; an agent wakes up and
+reacts.
+
 ## Order, for now
 
 Right now pages are read in the exact order the server stored them. If two people happen
