@@ -11,6 +11,12 @@ func (h *Handle) Materialise(ctx context.Context) (*MaterializedTopic, error) {
 		return nil, err
 	}
 	mt := apply(h.path, recs)
+
+	// Enrich the view with the topic's announcement (from its INFO subject).
+	if ann, err := fetchAnnouncement(ctx, h.client, h.path); err == nil && ann != nil {
+		mt.Announcement = ann
+	}
+
 	h.adopt(mt)
 	return mt, nil
 }
