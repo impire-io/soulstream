@@ -2,9 +2,53 @@ package topic
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 )
+
+func TestFetchInbox(t *testing.T) {
+	ctx := context.Background()
+	c := provisionedClient(t, "daan")
+
+	// Empty inbox.
+	got, err := FetchInbox(ctx, c, "bookkeeper-agent", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("empty inbox returned %d, want 0", len(got))
+	}
+
+	// Post three notifications.
+	for i := range 3 {
+		if err := publishNotify(ctx, c, "bookkeeper-agent", NotifyPayload{
+			Topic: "vat", OpID: fmt.Sprintf("op-%d", i), Author: "daan",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err = FetchInbox(ctx, c, "bookkeeper-agent", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("inbox returned %d, want 3", len(got))
+	}
+	if got[0].OpID != "op-2" {
+		t.Errorf("inbox not newest-first: %+v", got)
+	}
+
+	// Honour the limit.
+	got, err = FetchInbox(ctx, c, "bookkeeper-agent", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].OpID != "op-2" {
+		t.Errorf("limited inbox = %+v, want 2 newest-first", got)
+	}
+}
 
 func TestMentionNotifiesInbox(t *testing.T) {
 	ctx := context.Background()
