@@ -56,22 +56,22 @@ all unit-testable with no server.
 **Independent Test**: StartTopic against an embedded server; Board shows it with metadata and
 `proposed`; the ops subject's first message is the baseline.
 
-- [ ] T009 [US1] `topic/start.go`: `StartTopicInput`, `StartTopic(ctx, c, in)` — generate id, publish
+- [X] T009 [US1] `topic/start.go`: `StartTopicInput`, `StartTopic(ctx, c, in)` — generate id, publish
   `topic.announce` to INFO and the initial inline `baseline` to OPS (baseline first), reject oversize
   inline state (FR-028), return a `*Handle`; `Open` already exists. Honour `Parent` to nest the path
   (full sub-topic behaviour tested in US5). (FR-004/005/006/007/028)
-- [ ] T010 [US1] `topic/board.go`: `Board(ctx, c)` via `stream.Info(WithSubjectFilter("…INFO.>"))` +
+- [X] T010 [US1] `topic/board.go`: `Board(ctx, c)` via `stream.Info(WithSubjectFilter("…INFO.>"))` +
   `GetLastMsgForSubject` per subject → `[]BoardEntry` (one per topic; empty realm → empty). Parent
   relationship + `ParentKnown` (full sub-topic view in US5). (FR-025/027)
-- [ ] T011 [US1] Integration test `topic/start_test.go`: StartTopic on an embedded server; assert INFO
+- [X] T011 [US1] Integration test `topic/start_test.go`: StartTopic on an embedded server; assert INFO
   has the announce, OPS first message is the baseline, and the returned handle path is a valid slug;
   and a StartTopic whose inline state exceeds the threshold is rejected with a clear error pointing to
   the deferred manifest-baseline capability. (FR-028)
-- [ ] T012 [US1] Integration test `topic/board_test.go`: start several topics; Board lists each once with
+- [X] T012 [US1] Integration test `topic/board_test.go`: start several topics; Board lists each once with
   correct metadata and `proposed`; empty realm yields an empty board. (SC-001)
-- [ ] T013 [P] [US1] ELI5 doc `docs/topic.md`: a topic as "a shared workbench / a group notebook with
+- [X] T013 [P] [US1] ELI5 doc `docs/topic.md`: a topic as "a shared workbench / a group notebook with
   a cover page (the announcement) and pages (the ops)". (Constitution III)
-- [ ] T014 [P] [US1] ELI5 doc `docs/discovery.md`: the board as "the notice board in the hallway —
+- [X] T014 [P] [US1] ELI5 doc `docs/discovery.md`: the board as "the notice board in the hallway —
   one card per topic, showing its name and status". (Constitution III)
 
 **Checkpoint**: A topic can be started and discovered; docs shipped.
