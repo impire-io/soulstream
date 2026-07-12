@@ -1,50 +1,117 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+==================
+Version change: (template, unversioned) → 1.0.0 (initial ratification)
+Modified principles: n/a — all template placeholders replaced with concrete text
+Added sections:
+  - Core Principles: I. NATS-Native First; II. Smallest Viable Implementation;
+    III. Documentation Is a First-Class Citizen (ELI5)
+  - Technology Constraints
+  - Development Workflow & Quality Gates
+  - Governance
+Removed sections:
+  - Two unused placeholder principle slots (template offered five; project defines three)
+Templates:
+  - ✅ .specify/templates/plan-template.md — Constitution Check gate filled with concrete
+    principle-derived gates
+  - ✅ .specify/templates/tasks-template.md — documentation made a per-story task type,
+    not polish-only
+  - ✅ .specify/templates/spec-template.md — no changes required (technology-agnostic,
+    already aligned with minimal-scope and measurable-outcome requirements)
+  - ⚠ .specify/templates/commands/ — directory does not exist; nothing to update
+Follow-up TODOs: none
+-->
+
+# Soulstream Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. NATS-Native First
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+NATS is the platform, not a dependency. A working soulstream is a NATS server with
+JetStream, a stream, credentials, and the protocol — nothing else.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- Every capability MUST be implemented with built-in NATS and JetStream primitives
+  (streams, consumers, KV, Object Store, subject hierarchies, headers) before any
+  custom mechanism is considered.
+- Designs MUST evaluate current NATS server features before proposing custom code.
+  This explicitly includes the newer server capabilities: atomic batch publishing,
+  batched direct get (multi-get), message scheduling, per-message TTLs, and
+  optimistic concurrency via `Nats-Expected-Last-Subject-Sequence`.
+- Infrastructure that duplicates a NATS capability — databases, coordinators, API
+  tiers, external queues — is prohibited. If NATS can express it, NATS MUST express it.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: The protocol's premise is that the "what is needed" list stays short.
+Every custom component added beside NATS is a component that can fail, drift, or
+require operation independently of the stream that is the system of record.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Smallest Viable Implementation
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+- Every feature MUST be the smallest implementation that satisfies its specification.
+  Anything not required by an acceptance scenario is cut or deferred.
+- Speculative generality is prohibited: no configuration options, abstraction layers,
+  or plugin points added "for later". Add them when a concrete need exists.
+- Growth MUST be expressed as new vocabulary over the existing log, never as new
+  machinery. If a design addition does not survive the "what is needed for a working
+  soulstream" list staying short, it goes in `extensions/` or it goes nowhere.
+- Scope creep is a review blocker, not a style concern. Reviewers MUST reject
+  additions that exceed the spec, however well-built.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+**Rationale**: The original idea was once buried under its own elaborations. Keeping
+each change minimal is how the core stays answerable to "what is needed" and how
+extensions stay genuinely optional.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### III. Documentation Is a First-Class Citizen (ELI5)
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- The `docs/` folder MUST explain every concept in the system simply enough for a
+  five-year-old to follow: plain words, one concept per page, an everyday analogy
+  before any technical detail.
+- No feature is complete until its concepts are documented. Docs ship in the same
+  change as the behavior they describe — documentation is a task inside every story,
+  never a polish phase afterthought.
+- Stale documentation is a bug with the same severity as a failing test and MUST be
+  fixed before merge.
+- Plain words beat invented terms (the new-term test: if the plain word works, use
+  it). New terminology MUST carry meaning a plain word cannot.
+
+**Rationale**: A protocol lives or dies by whether newcomers — human or AI — can
+understand it. If a concept cannot be explained simply, that is a signal the concept
+itself is too complicated.
+
+## Technology Constraints
+
+- **NATS server**: target a modern release (2.12+ as of ratification) so batch
+  publishing, multi-get, and message scheduling are available. Any feature relying on
+  a specific server capability MUST state its minimum server version in its plan.
+- **Persistence**: JetStream only (streams, KV, Object Store). No external databases.
+- **Coordination**: deterministic rules, idempotent operations, and optimistic
+  concurrency. Elections and consensus rounds are banned in the protocol.
+- **Clients**: official, maintained NATS client libraries only. Deprecated clients
+  (e.g., `nats.ws`) MUST NOT be used.
+
+## Development Workflow & Quality Gates
+
+- Work follows the spec-driven flow: specification → plan → tasks → implementation.
+  No implementation begins without a spec and plan for the feature.
+- Every plan MUST pass the Constitution Check gate before research and again after
+  design. Violations are either removed or justified in Complexity Tracking.
+- Before merge, everything MUST be green: all tests pass (none skipped), linting
+  clean, formatting applied, artifacts build.
+- Every user story's task list MUST include its `docs/` task (Principle III).
+- Commits are signed.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution supersedes all other practices for Soulstream. On conflict with
+  README, CLAUDE.md, or any template, the constitution wins.
+- **Amendments**: made by editing this file (typically via `/speckit-constitution`),
+  and MUST include an updated Sync Impact Report and a version bump.
+- **Versioning policy** (semantic versioning):
+  - MAJOR — backward-incompatible governance changes: removing or redefining a principle.
+  - MINOR — a new principle or section, or materially expanded guidance.
+  - PATCH — clarifications, wording, and non-semantic refinements.
+- **Compliance review**: every plan's Constitution Check enforces Principles I–III;
+  every review verifies the change is NATS-native, minimal, and documented. Complexity
+  MUST be justified or removed.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-07-12 | **Last Amended**: 2026-07-12
