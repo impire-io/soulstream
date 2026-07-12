@@ -48,34 +48,20 @@ func Board(ctx context.Context, c *realm.Client) ([]BoardEntry, error) {
 
 	entries := make([]BoardEntry, 0, len(paths))
 	for _, path := range paths {
-		raw, err := stream.GetLastMsgForSubject(ctx, InfoSubject(path))
+		ann, err := fetchAnnouncement(ctx, c, path)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrMsgNotFound) {
-				continue
-			}
-			return nil, fmt.Errorf("topic: last announce for %s: %w", path, err)
+			return nil, err
 		}
-
-		rec, err := record.Parse(raw.Header, raw.Data)
-		if err != nil {
-			continue // skip a malformed announcement rather than fail the whole board
+		if ann == nil {
+			continue // no (or malformed) announcement — skip rather than fail the board
 		}
-		var ap AnnouncePayload
-		_ = json.Unmarshal(rec.Payload, &ap)
 
 		parent := ParentPath(path)
 		entry := BoardEntry{
-			Path: path,
-			Announcement: Announcement{
-				TopicID:       ap.TopicID,
-				Name:          ap.Name,
-				SubjectMatter: ap.SubjectMatter,
-				Parent:        ap.Parent,
-				Expected:      ap.Expected,
-				Tags:          ap.Tags,
-			},
-			Parent:      parent,
-			ParentKnown: parent == "" || known[parent],
+			Path:         path,
+			Announcement: *ann,
+			Parent:       parent,
+			ParentKnown:  parent == "" || known[parent],
 		}
 
 		// Lifecycle where derivable: materialise the topic's ops.
@@ -87,4 +73,36 @@ func Board(ctx context.Context, c *realm.Client) ([]BoardEntry, error) {
 	}
 
 	return entries, nil
+}
+
+// fetchAnnouncement returns the latest announcement for a topic-path from its INFO
+// subject, or nil (no error) when there is none or it is malformed.
+func fetchAnnouncement(ctx context.Context, c *realm.Client, path string) (*Announcement, error) {
+	stream, err := c.JetStream().Stream(ctx, realm.StreamName)
+	if err != nil {
+		return nil, fmt.Errorf("topic: look up stream: %w", err)
+	}
+	raw, err := stream.GetLastMsgForSubject(ctx, InfoSubject(path))
+	if err != nil {
+		if errors.Is(err, jetstream.ErrMsgNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("topic: last announce for %s: %w", path, err)
+	}
+	rec, err := record.Parse(raw.Header, raw.Data)
+	if err != nil {
+		return nil, nil
+	}
+	var ap AnnouncePayload
+	if json.Unmarshal(rec.Payload, &ap) != nil {
+		return nil, nil
+	}
+	return &Announcement{
+		TopicID:       ap.TopicID,
+		Name:          ap.Name,
+		SubjectMatter: ap.SubjectMatter,
+		Parent:        ap.Parent,
+		Expected:      ap.Expected,
+		Tags:          ap.Tags,
+	}, nil
 }

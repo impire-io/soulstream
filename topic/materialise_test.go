@@ -31,6 +31,9 @@ func TestMaterialiseConversation(t *testing.T) {
 	if mt.Lifecycle != Active {
 		t.Errorf("lifecycle = %q, want active", mt.Lifecycle)
 	}
+	if mt.Announcement == nil || mt.Announcement.Name != "chat" {
+		t.Errorf("materialise should include the announcement, got %+v", mt.Announcement)
+	}
 	if len(mt.Contributions) != 3 {
 		t.Fatalf("contributions = %d, want 3", len(mt.Contributions))
 	}

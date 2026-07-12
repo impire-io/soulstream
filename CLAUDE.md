@@ -1,10 +1,12 @@
 <!-- SPECKIT START -->
-Active feature: **003-participation** — mentions (@name → mention.notify inbox) and
-attachments (object store put/get + attachment.add), extending the `topic` package.
+Active feature: **004-cli** — a human CLI (`cmd/soulstream` + testable `internal/cli`)
+over the library: provision/board/start/show/watch/post/comment/attach/get/close/inbox.
 
 For technologies, project structure, shell commands, and other context, read the
-current plan: [specs/003-participation/plan.md](specs/003-participation/plan.md)
-(spec: `specs/003-participation/spec.md`). Done: `001-foundation`, `002-topics` (merged).
+current plan: [specs/004-cli/plan.md](specs/004-cli/plan.md)
+(spec: `specs/004-cli/spec.md`). Done: `001`–`003` merged (the library layer is complete).
+CLI logic lives in `internal/cli` with an injectable `Run(ctx, args, stdout, stderr, connect)`
+so it tests against an embedded server; `cmd/soulstream/main.go` is a thin wrapper.
 
 Project conventions:
 - Go 1.26; module `github.com/impire/soulstream`.
