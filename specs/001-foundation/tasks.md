@@ -56,14 +56,14 @@ and the `soulstream-objects` bucket. Report shows both `created`.
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] `realm/spec.go`: the non-configurable `RealmSpec` — stream name `SOULSTREAM`, subjects `["SOULSTREAM.>"]`, `LimitsPolicy`, `MaxAge 0`, `AllowRollup true`, `Duplicates 2*time.Minute`, `FileStorage`; object-store bucket `soulstream-objects`. (FR-003/004/005)
-- [ ] T010 [P] [US1] `realm/report.go`: `Artefact`, `Outcome` (`created`/`conformant`/`nonconformant`), `ArtefactResult{Artefact,Outcome,Nonconformities}`, `ProvisionReport{Results}` with `Conformant() bool`. (FR-009)
-- [ ] T011 [US1] `realm/provision.go`: `ProvisionOn(ctx, js jetstream.JetStream) (*ProvisionReport, error)` — for each artefact do a lookup (`js.Stream` / `js.ObjectStore`); on `ErrStreamNotFound`/`ErrBucketNotFound` create it and report `created`; on found (US1 scope) report `conformant`. Never call Update/CreateOrUpdate. (FR-006/007/008)
-- [ ] T012 [US1] `realm/connect.go`: `Config{ContextName,Realm,Persona}`, `Client`, `Connect(ctx, cfg)` — validate `cfg.Realm` (and `cfg.Persona` if set) via `identity.CheckName`, connect with `natscontext.Connect(cfg.ContextName)`, build `jetstream.New(nc)`, fail fast before any write; `Client.Provision(ctx)` delegates to `ProvisionOn`; `Close`, `Realm()`. (FR-001/002/028)
-- [ ] T012a [US1] Test `realm/connect_test.go`: invalid `cfg.Realm`/`cfg.Persona` rejected before any server contact; a non-existent context name errors from `natscontext.Connect` without partial mutation. (FR-002, US1 scenarios 2–3)
-- [ ] T013 [US1] Integration test `realm/provision_test.go` (fresh case): using `natstest`, connect directly, `ProvisionOn` a clean server, assert both `created` and read back the stream config field-by-field against `RealmSpec` and the bucket exists. (SC-001)
-- [ ] T014 [P] [US1] ELI5 doc `docs/realm.md`: the realm as "a private workshop — one account, one workbench-log, one supply cupboard", plain words + everyday analogy. (Constitution III)
-- [ ] T015 [P] [US1] ELI5 doc `docs/provisioning.md`: provisioning as "setting up the empty workshop; if it already exists we look, we don't rearrange". (Constitution III)
+- [X] T009 [P] [US1] `realm/spec.go`: the non-configurable `RealmSpec` — stream name `SOULSTREAM`, subjects `["SOULSTREAM.>"]`, `LimitsPolicy`, `MaxAge 0`, `AllowRollup true`, `Duplicates 2*time.Minute`, `FileStorage`; object-store bucket `soulstream-objects`. (FR-003/004/005)
+- [X] T010 [P] [US1] `realm/report.go`: `Artefact`, `Outcome` (`created`/`conformant`/`nonconformant`), `ArtefactResult{Artefact,Outcome,Nonconformities}`, `ProvisionReport{Results}` with `Conformant() bool`. (FR-009)
+- [X] T011 [US1] `realm/provision.go`: `ProvisionOn(ctx, js jetstream.JetStream) (*ProvisionReport, error)` — for each artefact do a lookup (`js.Stream` / `js.ObjectStore`); on `ErrStreamNotFound`/`ErrBucketNotFound` create it and report `created`; on found (US1 scope) report `conformant`. Never call Update/CreateOrUpdate. (FR-006/007/008)
+- [X] T012 [US1] `realm/connect.go`: `Config{ContextName,Realm,Persona}`, `Client`, `Connect(ctx, cfg)` — validate `cfg.Realm` (and `cfg.Persona` if set) via `identity.CheckName`, connect with `natscontext.Connect(cfg.ContextName)`, build `jetstream.New(nc)`, fail fast before any write; `Client.Provision(ctx)` delegates to `ProvisionOn`; `Close`, `Realm()`. (FR-001/002/028)
+- [X] T012a [US1] Test `realm/connect_test.go`: invalid `cfg.Realm`/`cfg.Persona` rejected before any server contact; a non-existent context name errors from `natscontext.Connect` without partial mutation. (FR-002, US1 scenarios 2–3)
+- [X] T013 [US1] Integration test `realm/provision_test.go` (fresh case): using `natstest`, connect directly, `ProvisionOn` a clean server, assert both `created` and read back the stream config field-by-field against `RealmSpec` and the bucket exists. (SC-001)
+- [X] T014 [P] [US1] ELI5 doc `docs/realm.md`: the realm as "a private workshop — one account, one workbench-log, one supply cupboard", plain words + everyday analogy. (Constitution III)
+- [X] T015 [P] [US1] ELI5 doc `docs/provisioning.md`: provisioning as "setting up the empty workshop; if it already exists we look, we don't rearrange". (Constitution III)
 
 **Checkpoint**: A fresh realm is provisioned and verified; `docs/realm.md` + `docs/provisioning.md` exist.
 
