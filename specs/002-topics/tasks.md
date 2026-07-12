@@ -126,12 +126,12 @@ comment anchored, lifecycle `active`.
 **Independent Test**: Start (proposed) → turn (active) → transition closed; materialise after each;
 two concurrent closes converge.
 
-- [ ] T021 [US4] `topic/lifecycle.go`: `Handle.Transition(ctx, to)` — reject a `to` the MVP does not
+- [X] T021 [US4] `topic/lifecycle.go`: `Handle.Transition(ctx, to)` — reject a `to` the MVP does not
   define (naming allowed states), else post a `life.transition`. (Derivation already in `apply`.) (FR-020/021)
-- [ ] T022 [US4] Integration test `topic/lifecycle_test.go`: proposed→active→closed derived correctly;
+- [X] T022 [US4] Integration test `topic/lifecycle_test.go`: proposed→active→closed derived correctly;
   two concurrent `closed` transitions converge to `closed` (idempotent); invalid transition rejected;
   posting a content op to a closed topic warns (surfaced), not blocked. (SC-005, FR-021/022)
-- [ ] T023 [P] [US4] ELI5 doc `docs/lifecycle.md`: proposed/active/closed as "a project's life —
+- [X] T023 [P] [US4] ELI5 doc `docs/lifecycle.md`: proposed/active/closed as "a project's life —
   suggested, being worked on, wrapped up — and how we can tell just by reading the notebook". (Constitution III)
 
 **Checkpoint**: Lifecycle derives and transitions correctly.
