@@ -145,14 +145,14 @@ two concurrent closes converge.
 **Independent Test**: Announce a sub-topic with parent; its subjects are nested; it materialises
 independently; the board shows the parent relationship.
 
-- [ ] T024 [US5] Integration test `topic/subtopic_test.go`: StartTopic with `Parent` set; assert the
+- [X] T024 [US5] Integration test `topic/subtopic_test.go`: StartTopic with `Parent` set; assert the
   ops/info subjects are `…<parent>.<child>`; materialise the sub-topic independently; deep nesting
   needs no code change. (SC-006, FR-023/024)
-- [ ] T025 [US5] Extend `topic/board.go`: populate `BoardEntry.Parent`/`ParentKnown` from the path;
+- [X] T025 [US5] Extend `topic/board.go`: populate `BoardEntry.Parent`/`ParentKnown` from the path;
   flag (don't drop) a sub-topic whose parent path is absent. (FR-026)
-- [ ] T026 [US5] Integration test in `topic/board_test.go`: a parent with sub-topics — each discoverable,
+- [X] T026 [US5] Integration test in `topic/board_test.go`: a parent with sub-topics — each discoverable,
   parent relationship visible, unknown-parent flagged.
-- [ ] T027 [P] [US5] ELI5 doc `docs/sub-topics.md`: a sub-topic as "a sticky-note thread clipped inside
+- [X] T027 [P] [US5] ELI5 doc `docs/sub-topics.md`: a sub-topic as "a sticky-note thread clipped inside
   a page, kept separate but findable under its parent". (Constitution III)
 
 **Checkpoint**: Sub-topics nest, materialise independently, and show on the board.
