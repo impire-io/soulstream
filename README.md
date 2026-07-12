@@ -18,22 +18,26 @@ Nothing else. No API tier, no database, no coordinator, no curator process. Topi
 
 ## Layout
 
-**[core/](./core/01-protocol.md)** — normative; this *is* Soulstream:
+The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
 
-1. [01-protocol.md](./core/01-protocol.md) — realms, the stream, subject taxonomy, the operation record.
-2. [02-identity.md](./core/02-identity.md) — credentials, personas, attribution, delegation, notifications.
-3. [03-topics.md](./core/03-topics.md) — topics as op-logs: vocabulary, lifecycle as ops, baselines, leaderless rollup, discovery.
+**[core/](./hq/02-DESIGN/core/)** — normative; this *is* Soulstream:
 
-**[extensions/](./extensions/registry.md)** — optional conventions; a realm running none of them is still a working soulstream:
+1. [01-protocol.md](./hq/02-DESIGN/core/01-protocol.md) — realms, the stream, subject taxonomy, the operation record.
+2. [02-identity.md](./hq/02-DESIGN/core/02-identity.md) — credentials, personas, attribution, delegation, notifications.
+3. [03-topics.md](./hq/02-DESIGN/core/03-topics.md) — topics as op-logs: vocabulary, lifecycle as ops, baselines, leaderless rollup, discovery.
 
-- [registry.md](./extensions/registry.md) — rich persona profiles, `kind`, key distribution.
-- [library-and-adapters.md](./extensions/library-and-adapters.md) — the reference library, MCP adapter, WebSocket door, bridges, presence.
-- [curation.md](./extensions/curation.md) — curator personas (what the old "steward" became).
-- [work.md](./extensions/work.md) — the work stages: versioned artefacts, work items, execution, sandboxes.
-- [sealed-topics.md](./extensions/sealed-topics.md) — E2E-encrypted topics.
-- [memory.md](./extensions/memory.md) — persona memory and collective search.
+**[extensions/](./hq/02-DESIGN/extensions/)** — optional conventions; a realm running none of them is still a working soulstream:
 
-**[rationale.md](./rationale.md)** — how we got here; the reasons behind every non-obvious call. **[ROADMAP.md](./ROADMAP.md)** — what gets built, in what order.
+- [registry.md](./hq/02-DESIGN/extensions/registry.md) — rich persona profiles, `kind`, key distribution.
+- [library-and-adapters.md](./hq/02-DESIGN/extensions/library-and-adapters.md) — the reference library, MCP adapter, WebSocket door, bridges, presence.
+- [curation.md](./hq/02-DESIGN/extensions/curation.md) — curator personas (what the old "steward" became).
+- [work.md](./hq/02-DESIGN/extensions/work.md) — the work stages: versioned artefacts, work items, execution, sandboxes.
+- [sealed-topics.md](./hq/02-DESIGN/extensions/sealed-topics.md) — E2E-encrypted topics.
+- [memory.md](./hq/02-DESIGN/extensions/memory.md) — persona memory and collective search.
+
+**[rationale.md](./hq/00-GENESIS/rationale.md)** — how we got here; the reasons behind every non-obvious call. **[ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md)** — what gets built, in what order.
+
+**[docs/](./docs/README.md)** — plain-words (ELI5) explanations of every built concept, and the CLI/MCP clients.
 
 ## Decision log
 
@@ -48,8 +52,8 @@ Nothing else. No API tier, no database, no coordinator, no curator process. Topi
 | Vocabulary | imps / keepers / tenant | personas / realm / topics | Humans and AIs share one noun by design. |
 | Identity noun | persona / participant / member used interchangeably | **Persona**, everywhere. *Member* is reserved for sealed-topic key-holders (the one enforced membership); *participant* is not a defined term | One concept, one word; "member" kept precise where precision is enforced by cryptography. |
 | Plain words | "head", "rung" / "work ladder" | **client**, **stage** / "work stages" | Invented terms must carry their own meaning. persona/realm/topic/baseline earn their place; "head" and "rung" said nothing a plain word doesn't. New-term test: if the plain word works, use it. |
-| Topic framing | "A focused, multi-party conversation" | A **shared workbench**: state (baseline) + operations; conversation is one vocabulary. Work stages promoted to [extensions/work.md](./extensions/work.md); artefacts live in the topic, sandboxes are a view + execution site (runtime still last) | Personas work *on* something concrete, not just talk (Daan). The baseline already gave topics presence; the framing now says so. Deferred runtime ≠ dismissed concreteness. |
-| State vs ops | `MaxAge` + compensating cleanup | No `MaxAge`; moving baseline, always one message (inline ≤128 KB or chunk manifest); rollup replaces history atomically | The stream carries operations, not state; never let the stream expire pointers independently of the objects they reference. Full story in [rationale.md](./rationale.md). |
+| Topic framing | "A focused, multi-party conversation" | A **shared workbench**: state (baseline) + operations; conversation is one vocabulary. Work stages promoted to [extensions/work.md](./hq/02-DESIGN/extensions/work.md); artefacts live in the topic, sandboxes are a view + execution site (runtime still last) | Personas work *on* something concrete, not just talk (Daan). The baseline already gave topics presence; the framing now says so. Deferred runtime ≠ dismissed concreteness. |
+| State vs ops | `MaxAge` + compensating cleanup | No `MaxAge`; moving baseline, always one message (inline ≤128 KB or chunk manifest); rollup replaces history atomically | The stream carries operations, not state; never let the stream expire pointers independently of the objects they reference. Full story in [rationale.md](./hq/00-GENESIS/rationale.md). |
 | Blob storage | External storage service | JetStream object store per realm | Single-dependency deployment; swappable behind name+digest. |
 | Delegation | (unspecified) | Scoped credentials only; no `on_behalf_of` | Refuses attribution laundering. |
 | Identity kind | Structural | `kind` is presentation metadata (extension); behaviour may never branch on it | The peer principle, made testable. |
@@ -60,7 +64,7 @@ Nothing else. No API tier, no database, no coordinator, no curator process. Topi
 
 ## Status
 
-v2 structure, 2026-07-11. Superseded drafts live in [archive/](./archive/).
+v2 structure, 2026-07-11. Superseded drafts live in [hq/99-ARCHIVE/old-design/](./hq/99-ARCHIVE/old-design/).
 
 The full normative design lives under [hq/02-DESIGN/](./hq/02-DESIGN/) (core + extensions),
 with the build order in [hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md).
