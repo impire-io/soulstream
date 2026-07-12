@@ -55,6 +55,26 @@ alone.
   sequence. Announcement revisions via `topic.info.update` + `Nats-Rollup: sub` are deferred; MVP
   publishes one `topic.announce` per topic and the projection tolerates (takes the last of)
   duplicates.
+- Q: How is a topic-id generated? → A: **`<slug>-<suffix>`**, where `<slug>` is the display name
+  slugified to the naming grammar (lowercased, non-`[a-z0-9]` runs collapsed to single hyphens,
+  trimmed, truncated to keep room), and `<suffix>` is **4 random `[a-z0-9]` characters**. Example:
+  "Q2 VAT filing" → `q2-vat-filing-x7m2`. The whole id satisfies the foundation's slug grammar; the
+  suffix makes coordination-free uniqueness overwhelmingly likely without a registry.
+- Q: What are the op payload schemas this cycle? → A: **`turn.post`**: `{"body": "<text>"}`.
+  **`comment.add`**: `{"body": "<text>", "anchor": {"kind": "op", "op_id": "<uuid>"}}`.
+  **`life.transition`**: `{"to": "<state>"}` (optionally `"from"`). **`baseline`**: `{"state":
+  <json>, "frontier": ["<op-id>", …]}` (state is opaque JSON, near-empty at birth). **`topic.announce`**:
+  `{"topic_id", "name", "subject_matter", "expected": [...], "tags": [...], "parent": <id|null>}`.
+- Q: How is the frontier computed for parents? → A: **Leaves = (observed op-ids) − (op-ids
+  referenced as any observed op's parent).** At birth the only observed op is the baseline, so the
+  frontier is `[baseline-op-id]` and the first content op parents onto it. Sequential posting yields
+  a single-element frontier; genuinely concurrent ops yield several leaves — exactly the multi-parent
+  merge case the DAG records for the future.
+- Q: How are replay (cold materialise) and live following kept seam-free? → A: **One ordered
+  JetStream consumer from the subject start (deliver-all).** It delivers historical messages then
+  live ones in one continuous, ordered stream, so "materialise" and "follow" share a single code
+  path and there is no replay/live seam to reconcile: cold materialisation just processes the
+  historical prefix and stops when caught up; following keeps the same consumer open.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -225,8 +245,9 @@ independently; confirm the board shows the parent/child relationship.
   tags, expected personas (a hint only), and parent (null for a top-level topic).
 - **FR-005**: Starting a topic MUST publish an initial `baseline` as the **first** message on the
   topic's ops subject; from birth the ops subject's shape is baseline-first, ops-after.
-- **FR-006**: The library MUST generate topic-ids as readable slugs with a short random suffix,
-  unique without coordination; the display name lives in the announcement, not the id.
+- **FR-006**: The library MUST generate topic-ids as `<slug>-<suffix>` — the display name slugified
+  to the naming grammar plus 4 random `[a-z0-9]` characters — unique without coordination; the whole
+  id satisfies the foundation's slug grammar, and the display name lives in the announcement, not the id.
 - **FR-007**: `expected` personas MUST be treated as a hint for clients, never a posting gate;
   posting rights are subject permissions only.
 
@@ -258,9 +279,10 @@ independently; confirm the board shows the parent/child relationship.
 
 **Live following**
 
-- **FR-017**: The library MUST support following a topic: after an initial materialisation, it MUST
-  apply subsequently-published ops incrementally, advancing the frontier, with no gap or duplicate
-  at the seam between replay and live.
+- **FR-017**: The library MUST support following a topic via a single ordered consumer delivering
+  history then live ops in one continuous stream, so cold materialisation and live following share
+  one code path and there is no replay/live seam to reconcile; following advances the frontier as
+  ops arrive.
 - **FR-018**: A handle's posted parents MUST reflect the frontier it has actually observed at post
   time (from its current view).
 
