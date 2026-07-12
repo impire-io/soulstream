@@ -20,11 +20,11 @@ constitution mandates all tests pass (none skipped), so every story ships tests 
 
 **Purpose**: A buildable, lintable, formatted empty Go module.
 
-- [ ] T001 Initialise the Go module: `go.mod` at repo root with `module github.com/impire/soulstream` and `go 1.26`.
-- [ ] T002 Add dependencies to `go.mod`/`go.sum` via `go get`: `github.com/nats-io/nats.go`, `github.com/synadia-io/orbit.go/natscontext`, `github.com/google/uuid`, `github.com/gowebpki/jcs`, and (test) `github.com/nats-io/nats-server/v2`.
-- [ ] T003 [P] Create `Makefile` at repo root with `fmt` (gofmt -w + goimports), `test` (`go test ./...`), `lint` (`golangci-lint run`), and a default `check: fmt test lint` target.
-- [ ] T004 [P] Create `.golangci.yml` at repo root enabling a sensible default linter set (govet, staticcheck, errcheck, ineffassign, revive/gofmt) for Go 1.26.
-- [ ] T005 [P] Create package skeletons with doc comments only: `record/doc.go`, `identity/doc.go`, `realm/doc.go`, `internal/natstest/doc.go`; and `docs/.gitkeep`.
+- [X] T001 Initialise the Go module: `go.mod` at repo root with `module github.com/impire/soulstream` and `go 1.26`.
+- [X] T002 Add dependencies to `go.mod`/`go.sum` via `go get`: `github.com/nats-io/nats.go`, `github.com/synadia-io/orbit.go/natscontext`, `github.com/google/uuid`, `github.com/gowebpki/jcs`, and (test) `github.com/nats-io/nats-server/v2`.
+- [X] T003 [P] Create `Makefile` at repo root with `fmt` (gofmt -w + goimports), `test` (`go test ./...`), `lint` (`golangci-lint run`), and a default `check: fmt test lint` target.
+- [X] T004 [P] Create `.golangci.yml` at repo root enabling a sensible default linter set (govet, staticcheck, errcheck, ineffassign, revive/gofmt) for Go 1.26.
+- [X] T005 [P] Create package skeletons with doc comments only: `record/doc.go`, `identity/doc.go`, `realm/doc.go`, `internal/natstest/doc.go`; and `docs/.gitkeep`.
 
 **Checkpoint**: `make fmt && make lint && go build ./...` succeed on an empty module.
 
@@ -37,9 +37,9 @@ identity) and the in-process test server (used by both provisioning stories).
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T006 [P] Implement the slug grammar in `identity/name.go`: `ValidName(string) bool` and `CheckName(string) error` returning a `*NameError{Name,Reason}` for the grammar `^[a-z0-9]+(-[a-z0-9]+)*$`, length 1–64 (rejecting empty, >64, uppercase, dot, whitespace, `*`/`>`, leading/trailing/double hyphen). (FR-024)
-- [ ] T007 [P] Table-driven test `identity/name_test.go`: exhaustive accept/reject matrix incl. `daan`, `invoice-agent`, `vat-q2-2026-x7m2` (accept) and `Daan`, `a.b`, `-x`, `x-`, `a--b`, ``, `>`, `a b`, 65-chars (reject with reason).
-- [ ] T008 Implement the test server helper in `internal/natstest/server.go`: `StartJetStream(t *testing.T) (url string, cleanup func())` using `server.NewServer(&server.Options{JetStream:true, StoreDir:t.TempDir(), Host:"127.0.0.1", Port:-1, NoLog:true, NoSigs:true})`, `go ns.Start()`, `ns.ReadyForConnections(10*time.Second)`, returning `ns.ClientURL()` and `ns.Shutdown`. (research §5)
+- [X] T006 [P] Implement the slug grammar in `identity/name.go`: `ValidName(string) bool` and `CheckName(string) error` returning a `*NameError{Name,Reason}` for the grammar `^[a-z0-9]+(-[a-z0-9]+)*$`, length 1–64 (rejecting empty, >64, uppercase, dot, whitespace, `*`/`>`, leading/trailing/double hyphen). (FR-024)
+- [X] T007 [P] Table-driven test `identity/name_test.go`: exhaustive accept/reject matrix incl. `daan`, `invoice-agent`, `vat-q2-2026-x7m2` (accept) and `Daan`, `a.b`, `-x`, `x-`, `a--b`, ``, `>`, `a b`, 65-chars (reject with reason).
+- [X] T008 Implement the test server helper in `internal/natstest/server.go`: `StartJetStream(t *testing.T) (url string, cleanup func())` using `server.NewServer(&server.Options{JetStream:true, StoreDir:t.TempDir(), Host:"127.0.0.1", Port:-1, NoLog:true, NoSigs:true})`, `go ns.Start()`, `ns.ReadyForConnections(10*time.Second)`, returning `ns.ClientURL()` and `ns.Shutdown`. (research §5)
 
 **Checkpoint**: `go test ./identity/... ./internal/...` green; the helper starts and tears down a JetStream server.
 
