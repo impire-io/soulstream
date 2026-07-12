@@ -27,12 +27,26 @@ func (h *Handle) Post(ctx context.Context, opType string, payload any) (string, 
 	return opID, nil
 }
 
-// PostTurn posts a turn.post — a contribution to the conversation.
+// PostTurn posts a turn.post — a contribution to the conversation. It parses @mentions
+// from the body, records them on the op, and notifies each mentioned persona's inbox.
 func (h *Handle) PostTurn(ctx context.Context, body string) (string, error) {
-	return h.Post(ctx, TypeTurnPost, TurnPayload{Body: body})
+	mentions := ParseMentions(body)
+	opID, err := h.Post(ctx, TypeTurnPost, TurnPayload{Body: body, Mentions: mentions})
+	if err != nil {
+		return "", err
+	}
+	return opID, h.notifyMentions(ctx, opID, mentions)
 }
 
-// AddComment posts a comment.add anchored to anchorOpID.
+// AddComment posts a comment.add anchored to anchorOpID, with the same @mention handling
+// as PostTurn.
 func (h *Handle) AddComment(ctx context.Context, body, anchorOpID string) (string, error) {
-	return h.Post(ctx, TypeCommentAdd, CommentPayload{Body: body, Anchor: Anchor{Kind: "op", OpID: anchorOpID}})
+	mentions := ParseMentions(body)
+	opID, err := h.Post(ctx, TypeCommentAdd, CommentPayload{
+		Body: body, Anchor: Anchor{Kind: "op", OpID: anchorOpID}, Mentions: mentions,
+	})
+	if err != nil {
+		return "", err
+	}
+	return opID, h.notifyMentions(ctx, opID, mentions)
 }

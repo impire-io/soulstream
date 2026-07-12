@@ -75,7 +75,7 @@ func TestMaterialiseDeterministicAcrossHandles(t *testing.T) {
 		t.Fatalf("contribution counts differ: %d vs %d", len(a.Contributions), len(b.Contributions))
 	}
 	for i := range a.Contributions {
-		if a.Contributions[i] != b.Contributions[i] {
+		if a.Contributions[i].OpID != b.Contributions[i].OpID || a.Contributions[i].StreamSeq != b.Contributions[i].StreamSeq {
 			t.Errorf("contribution %d differs between materialisations", i)
 		}
 	}

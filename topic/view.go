@@ -25,8 +25,9 @@ type Contribution struct {
 	Timestamp time.Time
 	Type      string // TypeTurnPost | TypeCommentAdd
 	Body      string
-	Anchor    string // comment's anchored op-id ("" for turns)
-	Dangling  bool   // comment anchor not present in the topic
+	Mentions  []string // persona names mentioned in the body
+	Anchor    string   // comment's anchored op-id ("" for turns)
+	Dangling  bool     // comment anchor not present in the topic
 	StreamSeq uint64
 }
 
@@ -105,7 +106,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 			_ = json.Unmarshal(r.Payload, &tp)
 			mt.Contributions = append(mt.Contributions, Contribution{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp, Type: r.Type,
-				Body: tp.Body, StreamSeq: sr.StreamSeq,
+				Body: tp.Body, Mentions: tp.Mentions, StreamSeq: sr.StreamSeq,
 			})
 		case TypeCommentAdd:
 			contentOps++
@@ -113,7 +114,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 			_ = json.Unmarshal(r.Payload, &cp)
 			mt.Contributions = append(mt.Contributions, Contribution{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp, Type: r.Type,
-				Body: cp.Body, Anchor: cp.Anchor.OpID, StreamSeq: sr.StreamSeq,
+				Body: cp.Body, Mentions: cp.Mentions, Anchor: cp.Anchor.OpID, StreamSeq: sr.StreamSeq,
 			})
 		case TypeAttachmentAdd:
 			contentOps++

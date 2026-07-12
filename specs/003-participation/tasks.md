@@ -30,18 +30,18 @@
 **Independent Test**: post a turn with `@bookkeeper-agent`; a follower on that inbox receives a
 `mention.notify`; the op payload lists the mention.
 
-- [ ] T004 [P] [US1] `topic/mention.go`: `ParseMentions(body) []string` (regex `@([a-z0-9]+(-[a-z0-9]+)*)`,
+- [X] T004 [P] [US1] `topic/mention.go`: `ParseMentions(body) []string` (regex `@([a-z0-9]+(-[a-z0-9]+)*)`,
   de-dup, `identity.ValidName`); rewire `PostTurn`/`AddComment` to fill `mentions` and, after
   publishing, call the notify helper. (FR-001/002/003/005/006)
-- [ ] T005 [P] [US1] `topic/notify.go`: `NotifySubject(persona)`, `Notification` type, an internal
+- [X] T005 [P] [US1] `topic/notify.go`: `NotifySubject(persona)`, `Notification` type, an internal
   `publishNotify`, and `FollowInbox(ctx, c, persona, onNotify)` (ordered consumer, DeliverAll,
   parse `mention.notify`, cancellable). (FR-003/004)
-- [ ] T006 [P] [US1] `topic/mention_test.go`: pure parse matrix — `@Daan`/`@@`/`@ x` yield nothing,
+- [X] T006 [P] [US1] `topic/mention_test.go`: pure parse matrix — `@Daan`/`@@`/`@ x` yield nothing,
   duplicates collapse, `@bookkeeper-agent!` → `bookkeeper-agent`, self-mention parsed. (SC-002)
-- [ ] T007 [US1] Integration test `topic/notify_test.go`: post a turn mentioning a second persona;
+- [X] T007 [US1] Integration test `topic/notify_test.go`: post a turn mentioning a second persona;
   a `FollowInbox` on that persona receives the notification (topic, op-id, author); the op payload's
   `mentions` lists the persona. (SC-001)
-- [ ] T008 [P] [US1] ELI5 doc `docs/mentions.md`: mentions as "tapping someone on the shoulder; the
+- [X] T008 [P] [US1] ELI5 doc `docs/mentions.md`: mentions as "tapping someone on the shoulder; the
   ping lands in their pigeonhole even if they're out". (Constitution III)
 
 **Checkpoint**: Mentions parse, record, and notify an inbox.

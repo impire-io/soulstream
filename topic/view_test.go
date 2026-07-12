@@ -191,7 +191,7 @@ func TestApplyDeterministic(t *testing.T) {
 		t.Fatal("apply not deterministic")
 	}
 	for i := range a.Contributions {
-		if a.Contributions[i] != b.Contributions[i] {
+		if a.Contributions[i].OpID != b.Contributions[i].OpID || a.Contributions[i].Body != b.Contributions[i].Body {
 			t.Errorf("contribution %d differs", i)
 		}
 	}
