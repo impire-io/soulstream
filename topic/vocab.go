@@ -10,6 +10,8 @@ const (
 	TypeTurnPost       = "turn.post"
 	TypeCommentAdd     = "comment.add"
 	TypeLifeTransition = "life.transition"
+	TypeAttachmentAdd  = "attachment.add"
+	TypeMentionNotify  = "mention.notify"
 )
 
 // Lifecycle is a topic's derived state.
@@ -41,7 +43,8 @@ type BaselinePayload struct {
 
 // TurnPayload is the turn.post payload.
 type TurnPayload struct {
-	Body string `json:"body"`
+	Body     string   `json:"body"`
+	Mentions []string `json:"mentions,omitempty"`
 }
 
 // Anchor references another operation by its op-id.
@@ -52,12 +55,31 @@ type Anchor struct {
 
 // CommentPayload is the comment.add payload.
 type CommentPayload struct {
-	Body   string `json:"body"`
-	Anchor Anchor `json:"anchor"`
+	Body     string   `json:"body"`
+	Anchor   Anchor   `json:"anchor"`
+	Mentions []string `json:"mentions,omitempty"`
 }
 
 // TransitionPayload is the life.transition payload.
 type TransitionPayload struct {
 	To   Lifecycle `json:"to"`
 	From Lifecycle `json:"from,omitempty"`
+}
+
+// AttachmentPayload is the attachment.add payload: a small, verifiable reference to a
+// blob in the realm's object store.
+type AttachmentPayload struct {
+	Name        string `json:"name"`
+	Object      string `json:"object"`
+	Digest      string `json:"digest"`
+	Size        uint64 `json:"size"`
+	ContentType string `json:"content_type,omitempty"`
+	Anchor      string `json:"anchor,omitempty"`
+}
+
+// NotifyPayload is the mention.notify payload, carried on a persona's notify subject.
+type NotifyPayload struct {
+	Topic  string `json:"topic"`
+	OpID   string `json:"op_id"`
+	Author string `json:"author"`
 }

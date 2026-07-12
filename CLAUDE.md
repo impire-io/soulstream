@@ -1,10 +1,10 @@
 <!-- SPECKIT START -->
-Active feature: **002-topics** — the op-log engine (announce/baseline/turn/comment/
-lifecycle, materialisation, live follow, sub-topics, discovery board) on the foundation.
+Active feature: **003-participation** — mentions (@name → mention.notify inbox) and
+attachments (object store put/get + attachment.add), extending the `topic` package.
 
 For technologies, project structure, shell commands, and other context, read the
-current plan: [specs/002-topics/plan.md](specs/002-topics/plan.md)
-(spec: `specs/002-topics/spec.md`). Done: `001-foundation` (merged).
+current plan: [specs/003-participation/plan.md](specs/003-participation/plan.md)
+(spec: `specs/003-participation/spec.md`). Done: `001-foundation`, `002-topics` (merged).
 
 Project conventions:
 - Go 1.26; module `github.com/impire/soulstream`.

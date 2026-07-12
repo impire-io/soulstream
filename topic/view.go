@@ -25,9 +25,25 @@ type Contribution struct {
 	Timestamp time.Time
 	Type      string // TypeTurnPost | TypeCommentAdd
 	Body      string
-	Anchor    string // comment's anchored op-id ("" for turns)
-	Dangling  bool   // comment anchor not present in the topic
+	Mentions  []string // persona names mentioned in the body
+	Anchor    string   // comment's anchored op-id ("" for turns)
+	Dangling  bool     // comment anchor not present in the topic
 	StreamSeq uint64
+}
+
+// Attachment is a materialised attachment.add — a reference to a blob in the object store.
+type Attachment struct {
+	OpID        string
+	Author      string
+	Timestamp   time.Time
+	Name        string
+	Object      string
+	Digest      string
+	Size        uint64
+	ContentType string
+	Anchor      string
+	Dangling    bool
+	StreamSeq   uint64
 }
 
 // MaterializedTopic is the pure projection of a topic's op-log.
@@ -37,6 +53,7 @@ type MaterializedTopic struct {
 	BaselineState json.RawMessage
 	Lifecycle     Lifecycle
 	Contributions []Contribution
+	Attachments   []Attachment
 	Frontier      []string // leaf op-ids
 	Malformed     string   // non-empty reason if the first op is not a baseline
 	Warnings      []string // e.g. ignored unknown op types
@@ -89,7 +106,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 			_ = json.Unmarshal(r.Payload, &tp)
 			mt.Contributions = append(mt.Contributions, Contribution{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp, Type: r.Type,
-				Body: tp.Body, StreamSeq: sr.StreamSeq,
+				Body: tp.Body, Mentions: tp.Mentions, StreamSeq: sr.StreamSeq,
 			})
 		case TypeCommentAdd:
 			contentOps++
@@ -97,7 +114,16 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 			_ = json.Unmarshal(r.Payload, &cp)
 			mt.Contributions = append(mt.Contributions, Contribution{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp, Type: r.Type,
-				Body: cp.Body, Anchor: cp.Anchor.OpID, StreamSeq: sr.StreamSeq,
+				Body: cp.Body, Mentions: cp.Mentions, Anchor: cp.Anchor.OpID, StreamSeq: sr.StreamSeq,
+			})
+		case TypeAttachmentAdd:
+			contentOps++
+			var ap AttachmentPayload
+			_ = json.Unmarshal(r.Payload, &ap)
+			mt.Attachments = append(mt.Attachments, Attachment{
+				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp,
+				Name: ap.Name, Object: ap.Object, Digest: ap.Digest, Size: ap.Size,
+				ContentType: ap.ContentType, Anchor: ap.Anchor, StreamSeq: sr.StreamSeq,
 			})
 		case TypeLifeTransition:
 			var lp TransitionPayload
@@ -114,11 +140,17 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 		mt.Lifecycle = Active
 	}
 
-	// Flag comments whose anchor op-id is not present in the topic.
+	// Flag comments and attachments whose anchor op-id is not present in the topic.
 	for i := range mt.Contributions {
 		c := &mt.Contributions[i]
 		if c.Type == TypeCommentAdd && c.Anchor != "" && !seen[c.Anchor] {
 			c.Dangling = true
+		}
+	}
+	for i := range mt.Attachments {
+		a := &mt.Attachments[i]
+		if a.Anchor != "" && !seen[a.Anchor] {
+			a.Dangling = true
 		}
 	}
 
