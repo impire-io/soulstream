@@ -80,6 +80,10 @@ func (c *Client) EnforceAuthor(author string) error {
 	return identity.EnforceAuthor(c.cfg.Persona, author)
 }
 
+// JetStream returns the client's JetStream handle, so higher-level engines (such as the
+// topic package) can build on the realm without re-connecting.
+func (c *Client) JetStream() jetstream.JetStream { return c.js }
+
 // Realm returns the client's realm name.
 func (c *Client) Realm() string { return c.cfg.Realm }
 

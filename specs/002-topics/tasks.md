@@ -11,7 +11,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create the `topic` package skeleton: `topic/doc.go` with the package overview (op-log
+- [X] T001 Create the `topic` package skeleton: `topic/doc.go` with the package overview (op-log
   engine on record/identity/realm; pure fold separated from NATS I/O).
 
 **Checkpoint**: `go build ./...` succeeds.
@@ -23,26 +23,26 @@
 **Purpose**: The pure core shared by every story — subjects, vocabulary, and the projection fold —
 all unit-testable with no server.
 
-- [ ] T002 [P] `topic/subjects.go`: `OpsSubject(path)`, `InfoSubject(path)`, `TopicPath` helpers
+- [X] T002 [P] `topic/subjects.go`: `OpsSubject(path)`, `InfoSubject(path)`, `TopicPath` helpers
   (parent/child join, split), and `NewTopicID(name string) string` = slug(name)+"-"+4 random `[a-z0-9]`
   (result satisfies `identity.ValidName`). (FR-006/023)
-- [ ] T003 [P] `topic/subjects_test.go`: subject builders for top-level and nested paths; `NewTopicID`
+- [X] T003 [P] `topic/subjects_test.go`: subject builders for top-level and nested paths; `NewTopicID`
   produces valid slugs with a 4-char suffix, unique across many calls, from messy display names.
-- [ ] T004 [P] `topic/vocab.go`: op-type + lifecycle constants; typed payload structs with JSON
+- [X] T004 [P] `topic/vocab.go`: op-type + lifecycle constants; typed payload structs with JSON
   (Announce, Baseline{State,Frontier}, Turn{Body}, Comment{Body,Anchor{Kind,OpID}}, Transition{To,From})
   plus marshal/unmarshal helpers. (FR-008/009/010)
-- [ ] T005 [P] `topic/vocab_test.go`: payload round-trip (marshal→unmarshal) for each type; anchor shape.
-- [ ] T006 `topic/view.go`: the view types (`MaterializedTopic`, `Contribution`, `Announcement`,
+- [X] T005 [P] `topic/vocab_test.go`: payload round-trip (marshal→unmarshal) for each type; anchor shape.
+- [X] T006 `topic/view.go`: the view types (`MaterializedTopic`, `Contribution`, `Announcement`,
   `BoardEntry`, `Lifecycle`) and the **pure fold** `apply(records []record.Record) *MaterializedTopic`:
   order by stream seq (caller supplies in order), require baseline first (else `Malformed`), extract
   turns/comments, anchor comments (flag `Dangling` when the anchor op-id is absent), ignore unknown
   types (collect a warning), derive lifecycle (proposed/active/closed), compute frontier (observed −
   referenced parents). (FR-011..016, FR-019)
-- [ ] T007 `topic/view_test.go`: pure fold over synthetic `record.Record` slices — ordering; baseline
+- [X] T007 `topic/view_test.go`: pure fold over synthetic `record.Record` slices — ordering; baseline
   required; turns+comments extracted; comment anchored; dangling flagged; unknown type ignored with
   warning; lifecycle proposed→active→closed; frontier = leaves; malformed when first op isn't baseline.
   (SC-002/003/005/007)
-- [ ] T008 `topic/handle.go`: `Handle` struct (client, path, observed frontier), `Open(c, path)`,
+- [X] T008 `topic/handle.go`: `Handle` struct (client, path, observed frontier), `Open(c, path)`,
   `Path()`, and internal frontier update from a materialised view. (No posting yet — that's US2.)
 
 **Checkpoint**: `go test ./topic/...` green (pure tests only); no server needed yet.

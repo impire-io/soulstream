@@ -1,0 +1,102 @@
+package topic
+
+import (
+	"crypto/rand"
+	"strings"
+
+	"github.com/impire/soulstream/identity"
+)
+
+// Subject prefixes and wildcards for the topic taxonomy.
+const (
+	OpsSubjectPrefix    = "SOULSTREAM.TOPICS.OPS."
+	InfoSubjectPrefix   = "SOULSTREAM.TOPICS.INFO."
+	InfoSubjectWildcard = "SOULSTREAM.TOPICS.INFO.>"
+)
+
+// OpsSubject returns the ops subject for a topic-path.
+func OpsSubject(path string) string { return OpsSubjectPrefix + path }
+
+// InfoSubject returns the info subject for a topic-path.
+func InfoSubject(path string) string { return InfoSubjectPrefix + path }
+
+// ChildPath joins a parent topic-path and a child topic-id ("" parent → top-level).
+func ChildPath(parent, childID string) string {
+	if parent == "" {
+		return childID
+	}
+	return parent + "." + childID
+}
+
+// ParentPath returns the parent portion of a topic-path, or "" if it is top-level.
+func ParentPath(path string) string {
+	if i := strings.LastIndex(path, "."); i >= 0 {
+		return path[:i]
+	}
+	return ""
+}
+
+// IDFromPath returns this topic's own id (the last segment of the path).
+func IDFromPath(path string) string {
+	if i := strings.LastIndex(path, "."); i >= 0 {
+		return path[i+1:]
+	}
+	return path
+}
+
+const (
+	idSuffixLen = 4
+	idAlphabet  = "abcdefghijklmnopqrstuvwxyz0123456789"
+)
+
+// NewTopicID builds a topic-id from a display name: a slug of the name plus a 4-char
+// random suffix. The result always satisfies the foundation's slug grammar, so it is a
+// valid path segment, and the suffix makes coordination-free uniqueness overwhelmingly
+// likely without a registry.
+func NewTopicID(name string) string {
+	slug := slugify(name)
+	if slug == "" {
+		slug = "topic"
+	}
+	// Leave room for "-" + suffix within the name-length budget.
+	if maxSlug := identity.MaxNameLen - idSuffixLen - 1; len(slug) > maxSlug {
+		slug = strings.Trim(slug[:maxSlug], "-")
+		if slug == "" {
+			slug = "topic"
+		}
+	}
+	return slug + "-" + randomSuffix()
+}
+
+// slugify lowercases s and collapses every run of non-[a-z0-9] into a single hyphen,
+// with no leading/trailing hyphen — matching the slug grammar.
+func slugify(s string) string {
+	s = strings.ToLower(s)
+	var b strings.Builder
+	prevHyphen := false
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevHyphen = false
+		default:
+			if b.Len() > 0 && !prevHyphen {
+				b.WriteByte('-')
+				prevHyphen = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func randomSuffix() string {
+	buf := make([]byte, idSuffixLen)
+	if _, err := rand.Read(buf); err != nil {
+		// crypto/rand should never fail; fall back to a fixed marker rather than panic.
+		return "0000"
+	}
+	for i := range buf {
+		buf[i] = idAlphabet[int(buf[i])%len(idAlphabet)]
+	}
+	return string(buf)
+}
