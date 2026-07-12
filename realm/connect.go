@@ -34,13 +34,8 @@ type Client struct {
 // invalid, the context is missing, the server is unreachable, or JetStream is
 // unavailable.
 func Connect(ctx context.Context, cfg Config) (*Client, error) {
-	if err := identity.CheckName(cfg.Realm); err != nil {
-		return nil, fmt.Errorf("realm: invalid realm name: %w", err)
-	}
-	if cfg.Persona != "" {
-		if err := identity.CheckName(cfg.Persona); err != nil {
-			return nil, fmt.Errorf("realm: invalid persona name: %w", err)
-		}
+	if err := validateConfig(cfg); err != nil {
+		return nil, err // fail fast, before any server contact
 	}
 
 	nc, _, err := natscontext.Connect(cfg.ContextName, nats.Name("soulstream/"+cfg.Realm))
@@ -48,6 +43,32 @@ func Connect(ctx context.Context, cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("realm: connect via context %q: %w", cfg.ContextName, err)
 	}
 
+	return finishConnect(ctx, nc, cfg)
+}
+
+// NewClient builds a realm client from an existing NATS connection, for callers that
+// already hold one (higher-level engines, tests). It validates the config and confirms
+// JetStream is available. The client takes ownership of nc and closes it on Close.
+func NewClient(ctx context.Context, nc *nats.Conn, cfg Config) (*Client, error) {
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
+	}
+	return finishConnect(ctx, nc, cfg)
+}
+
+func validateConfig(cfg Config) error {
+	if err := identity.CheckName(cfg.Realm); err != nil {
+		return fmt.Errorf("realm: invalid realm name: %w", err)
+	}
+	if cfg.Persona != "" {
+		if err := identity.CheckName(cfg.Persona); err != nil {
+			return fmt.Errorf("realm: invalid persona name: %w", err)
+		}
+	}
+	return nil
+}
+
+func finishConnect(ctx context.Context, nc *nats.Conn, cfg Config) (*Client, error) {
 	js, err := jetstream.New(nc)
 	if err != nil {
 		nc.Close()
@@ -79,6 +100,10 @@ func (c *Client) EnforceAuthor(author string) error {
 	}
 	return identity.EnforceAuthor(c.cfg.Persona, author)
 }
+
+// JetStream returns the client's JetStream handle, so higher-level engines (such as the
+// topic package) can build on the realm without re-connecting.
+func (c *Client) JetStream() jetstream.JetStream { return c.js }
 
 // Realm returns the client's realm name.
 func (c *Client) Realm() string { return c.cfg.Realm }
