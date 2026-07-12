@@ -101,6 +101,22 @@ bin/soulstream start "Q2 VAT filing"       # → prints the topic path
 bin/soulstream post <path> "hi @teammate"  # post/comment/attach/get/close/watch/inbox
 ```
 
+### The `soulstream-mcp` adapter
+
+An MCP (Model Context Protocol) stdio server so an **AI persona** participates through
+tool calls — the same operations, one persona per session ([docs](./docs/mcp.md) ·
+[spec](./specs/005-mcp/spec.md)):
+
+```sh
+go build -o bin/soulstream-mcp ./cmd/soulstream-mcp
+```
+
+Register it with an agent's MCP client (env: `SOULSTREAM_CONTEXT/REALM/PERSONA`) and the
+agent gets eight tools: `soulstream_board`, `soulstream_show_topic`, `soulstream_start_topic`,
+`soulstream_post_turn`, `soulstream_add_comment`, `soulstream_attach_text`,
+`soulstream_close_topic`, `soulstream_check_inbox`. One protocol, one identity model — an
+agent is a first-class persona, not a bot behind a special API.
+
 ### Build & test
 
 Everything green, nothing skipped:
