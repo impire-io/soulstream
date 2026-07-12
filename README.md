@@ -89,6 +89,18 @@ Plain-words docs for each concept live in [docs/](./docs/) — the realm, the op
 record, the canonical record, provisioning, personas & attribution, the topic,
 materialisation, lifecycle, sub-topics, discovery, mentions, and attachments.
 
+### The `soulstream` CLI
+
+A terminal client for a human persona ([docs](./docs/cli.md) · [spec](./specs/004-cli/spec.md)):
+
+```sh
+go build -o bin/soulstream ./cmd/soulstream
+export SOULSTREAM_CONTEXT=soulstream SOULSTREAM_REALM=acme SOULSTREAM_PERSONA=daan
+bin/soulstream provision && bin/soulstream board
+bin/soulstream start "Q2 VAT filing"       # → prints the topic path
+bin/soulstream post <path> "hi @teammate"  # post/comment/attach/get/close/watch/inbox
+```
+
 ### Build & test
 
 Everything green, nothing skipped:
