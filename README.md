@@ -69,22 +69,24 @@ with the build order in [hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION
 
 ## The reference library (Go)
 
-The wire layer is being built as a Go module (`github.com/impire/soulstream`) under the
-spec-driven flow in [specs/](./specs/). The first feature, **001-foundation**
-([spec](./specs/001-foundation/spec.md) · [plan](./specs/001-foundation/plan.md) ·
-[quickstart](./specs/001-foundation/quickstart.md)), delivers realm provisioning and the
-operation record.
+The library is being built as a Go module (`github.com/impire/soulstream`) under the
+spec-driven flow in [specs/](./specs/). Delivered so far:
 
-Three packages, split so the record surface needs no server to test:
+- **001-foundation** ([spec](./specs/001-foundation/spec.md)) — realm provisioning and the operation record.
+- **002-topics** ([spec](./specs/002-topics/spec.md) · [quickstart](./specs/002-topics/quickstart.md)) — the op-log engine.
+
+Packages, split so the pure surfaces need no server to test:
 
 | Package | What it does | Imports NATS? |
 |---|---|---|
 | [`record`](./record) | The operation record: `Build`/`Parse` (wire ⇆ struct, exact inverses), UUIDv4 op-ids, and the RFC 8785 (JCS) canonical form bound to realm + topic. | No |
 | [`identity`](./identity) | Persona/realm/topic slug validation, and attribution (write-side `EnforceAuthor`, read-side `VerifyAuthor`). | No |
-| [`realm`](./realm) | Connect from a named NATS context and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store), **create-or-report** — never modifies an existing artefact in place. | Yes |
+| [`realm`](./realm) | Connect (named NATS context or an existing connection) and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store), **create-or-report** — never modifies an existing artefact in place. | Yes |
+| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed), sub-topics, and the discovery `Board`. The pure fold (`apply`) is server-free. | Yes |
 
-Plain-words docs for each concept live in [docs/](./docs/) (the realm, the operation
-record, the canonical record, provisioning, personas & attribution).
+Plain-words docs for each concept live in [docs/](./docs/) — the realm, the operation
+record, the canonical record, provisioning, personas & attribution, the topic,
+materialisation, lifecycle, sub-topics, and discovery.
 
 ### Build & test
 

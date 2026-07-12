@@ -161,13 +161,13 @@ independently; the board shows the parent relationship.
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T028 [P] Update the module `README.md` with the `topic` package (start/converse/follow/close/
+- [X] T028 [P] Update the module `README.md` with the `topic` package (start/converse/follow/close/
   sub-topics/board) and link the 002 spec.
-- [ ] T029 [US*] Quickstart walkthrough test `topic/quickstart_test.go`: mirror
+- [X] T029 [US*] Quickstart walkthrough test `topic/quickstart_test.go`: mirror
   `specs/002-topics/quickstart.md` end to end against the embedded server (start → converse → close →
   sub-topic → board), guarding public signatures from drift.
-- [ ] T030 Run `go mod tidy`; `go vet ./...` clean.
-- [ ] T031 Final gate: `make check` green — fmt, build, all tests (none skipped), lint 0 issues. (SC-007)
+- [X] T030 Run `go mod tidy`; `go vet ./...` clean.
+- [X] T031 Final gate: `make check` green — fmt, build, all tests (none skipped), lint 0 issues. (SC-007)
 
 ---
 
