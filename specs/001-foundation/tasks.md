@@ -60,6 +60,7 @@ and the `soulstream-objects` bucket. Report shows both `created`.
 - [ ] T010 [P] [US1] `realm/report.go`: `Artefact`, `Outcome` (`created`/`conformant`/`nonconformant`), `ArtefactResult{Artefact,Outcome,Nonconformities}`, `ProvisionReport{Results}` with `Conformant() bool`. (FR-009)
 - [ ] T011 [US1] `realm/provision.go`: `ProvisionOn(ctx, js jetstream.JetStream) (*ProvisionReport, error)` — for each artefact do a lookup (`js.Stream` / `js.ObjectStore`); on `ErrStreamNotFound`/`ErrBucketNotFound` create it and report `created`; on found (US1 scope) report `conformant`. Never call Update/CreateOrUpdate. (FR-006/007/008)
 - [ ] T012 [US1] `realm/connect.go`: `Config{ContextName,Realm,Persona}`, `Client`, `Connect(ctx, cfg)` — validate `cfg.Realm` (and `cfg.Persona` if set) via `identity.CheckName`, connect with `natscontext.Connect(cfg.ContextName)`, build `jetstream.New(nc)`, fail fast before any write; `Client.Provision(ctx)` delegates to `ProvisionOn`; `Close`, `Realm()`. (FR-001/002/028)
+- [ ] T012a [US1] Test `realm/connect_test.go`: invalid `cfg.Realm`/`cfg.Persona` rejected before any server contact; a non-existent context name errors from `natscontext.Connect` without partial mutation. (FR-002, US1 scenarios 2–3)
 - [ ] T013 [US1] Integration test `realm/provision_test.go` (fresh case): using `natstest`, connect directly, `ProvisionOn` a clean server, assert both `created` and read back the stream config field-by-field against `RealmSpec` and the bucket exists. (SC-001)
 - [ ] T014 [P] [US1] ELI5 doc `docs/realm.md`: the realm as "a private workshop — one account, one workbench-log, one supply cupboard", plain words + everyday analogy. (Constitution III)
 - [ ] T015 [P] [US1] ELI5 doc `docs/provisioning.md`: provisioning as "setting up the empty workshop; if it already exists we look, we don't rearrange". (Constitution III)
@@ -105,8 +106,9 @@ headers) with no server, asserting full field equality and the absent-vs-empty-p
 - [ ] T025 [US3] Round-trip test `record/record_test.go`: matrix {0,1,many parents} × {sig, no-sig} × {with/without unknown headers}; assert `Parse(Build(r)) == r`; assert empty parents ⇒ no header and absent header ⇒ empty slice; assert unknown headers survive. (SC-003, FR-015/017)
 - [ ] T026 [US3] Negative test `record/record_test.go`: missing field, `Version==2`, malformed timestamp, bad author each rejected with the specific sentinel. (SC-005, FR-016)
 - [ ] T027 [P] [US3] ELI5 doc `docs/operation-record.md`: the record as "a delivery slip — the details are written on the label (headers), the box (payload) holds only the goods; the tracking number is also the anti-duplicate stamp". (Constitution III)
+- [ ] T027a [US3] Dedup integration test `realm/dedup_test.go`: provision via `natstest`, `Build()` a record, publish its headers+payload to a subject under `SOULSTREAM.>` twice with the same `Nats-Msg-Id` (== record ID) inside the duplicate window, assert exactly one message lands on the stream. Proves op-id doubles as the idempotency key. (FR-012, US3 scenario 3, SC-006)
 
-**Checkpoint**: Record build/parse round-trips across the full matrix with no server.
+**Checkpoint**: Record build/parse round-trips across the full matrix with no server; a retried publish is de-duplicated to one message.
 
 ---
 
