@@ -61,3 +61,41 @@ Nothing else. No API tier, no database, no coordinator, no curator process. Topi
 ## Status
 
 v2 structure, 2026-07-11. Superseded drafts live in [archive/](./archive/).
+
+The full normative design lives under [hq/02-DESIGN/](./hq/02-DESIGN/) (core + extensions),
+with the build order in [hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md).
+
+---
+
+## The reference library (Go)
+
+The wire layer is being built as a Go module (`github.com/impire/soulstream`) under the
+spec-driven flow in [specs/](./specs/). The first feature, **001-foundation**
+([spec](./specs/001-foundation/spec.md) · [plan](./specs/001-foundation/plan.md) ·
+[quickstart](./specs/001-foundation/quickstart.md)), delivers realm provisioning and the
+operation record.
+
+Three packages, split so the record surface needs no server to test:
+
+| Package | What it does | Imports NATS? |
+|---|---|---|
+| [`record`](./record) | The operation record: `Build`/`Parse` (wire ⇆ struct, exact inverses), UUIDv4 op-ids, and the RFC 8785 (JCS) canonical form bound to realm + topic. | No |
+| [`identity`](./identity) | Persona/realm/topic slug validation, and attribution (write-side `EnforceAuthor`, read-side `VerifyAuthor`). | No |
+| [`realm`](./realm) | Connect from a named NATS context and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store), **create-or-report** — never modifies an existing artefact in place. | Yes |
+
+Plain-words docs for each concept live in [docs/](./docs/) (the realm, the operation
+record, the canonical record, provisioning, personas & attribution).
+
+### Build & test
+
+Everything green, nothing skipped:
+
+```sh
+make check     # fmt + tidy + build + test + lint
+# or individually:
+make test      # go test ./...   (record/identity need no server; realm uses an in-process one)
+make lint      # golangci-lint run
+```
+
+Requires Go 1.26+. The provisioning tests start an in-process JetStream server, so no
+external NATS is needed to run the suite.

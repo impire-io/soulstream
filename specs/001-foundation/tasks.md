@@ -151,10 +151,10 @@ client's persona → refused; with a resolver returning a different identity →
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T036 [P] Write module `README.md` (top-level) summarising the three packages, the quickstart, and the `make check` gate; link the spec.
-- [ ] T037 Run `go mod tidy`; ensure `go vet ./...` is clean.
-- [ ] T038 Validate `specs/001-foundation/quickstart.md` end-to-end against the built code (adjust any signature drift in docs to match the code).
-- [ ] T039 Final gate: `make fmt && make test && make lint` all green, no skipped tests, `go build ./...` clean. (SC-007)
+- [X] T036 [P] Write module `README.md` (top-level) summarising the three packages, the quickstart, and the `make check` gate; link the spec.
+- [X] T037 Run `go mod tidy`; ensure `go vet ./...` is clean.
+- [X] T038 Validate `specs/001-foundation/quickstart.md` end-to-end against the built code (adjust any signature drift in docs to match the code).
+- [X] T039 Final gate: `make fmt && make test && make lint` all green, no skipped tests, `go build ./...` clean. (SC-007)
 
 ---
 
