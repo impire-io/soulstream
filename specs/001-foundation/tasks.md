@@ -80,12 +80,12 @@ the bucket → run creates only the bucket, leaves the stream untouched. Pre-cre
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] `realm/conformance.go`: compare an existing stream's `CachedInfo().Config` to `RealmSpec`, returning one nonconformity string per mismatch — incl. `MaxAge != 0`, `!AllowRollup`, `Retention != Limits`, `Storage != File`, `Duplicates < 2m`, subjects != `["SOULSTREAM.>"]`. (FR-008)
-- [ ] T017 [US2] Extend `realm/provision.go`: on found artefacts call `conformance` and report `conformant` or `nonconformant` (with drift); the run still succeeds when nonconformant (report is informational). (FR-006/008/009)
-- [ ] T018 [US2] Integration tests in `realm/provision_test.go` (idempotent re-run): provision twice, assert second run reports both `conformant` and made zero changes (compare `CachedInfo` before/after). (SC-002)
-- [ ] T019 [US2] Integration test (partial): provision, then simulate the bucket missing (fresh server + only the stream created), assert the run creates the bucket and leaves the stream `conformant`/untouched.
-- [ ] T020 [US2] Integration test (drift): pre-create `SOULSTREAM` with `MaxAge` set and `AllowRollup` false, run provisioning, assert `nonconformant` with both drifts named and the stream config unchanged after the run.
-- [ ] T021 [P] [US2] Extend `docs/provisioning.md` with the "already-exists: look, don't rearrange" behaviour and the drift example (why we never auto-fix age-expiry).
+- [X] T016 [US2] `realm/conformance.go`: compare an existing stream's `CachedInfo().Config` to `RealmSpec`, returning one nonconformity string per mismatch — incl. `MaxAge != 0`, `!AllowRollup`, `Retention != Limits`, `Storage != File`, `Duplicates < 2m`, subjects != `["SOULSTREAM.>"]`. (FR-008)
+- [X] T017 [US2] Extend `realm/provision.go`: on found artefacts call `conformance` and report `conformant` or `nonconformant` (with drift); the run still succeeds when nonconformant (report is informational). (FR-006/008/009)
+- [X] T018 [US2] Integration tests in `realm/provision_test.go` (idempotent re-run): provision twice, assert second run reports both `conformant` and made zero changes (compare `CachedInfo` before/after). (SC-002)
+- [X] T019 [US2] Integration test (partial): provision, then simulate the bucket missing (fresh server + only the stream created), assert the run creates the bucket and leaves the stream `conformant`/untouched.
+- [X] T020 [US2] Integration test (drift): pre-create `SOULSTREAM` with `MaxAge` set and `AllowRollup` false, run provisioning, assert `nonconformant` with both drifts named and the stream config unchanged after the run.
+- [X] T021 [P] [US2] Extend `docs/provisioning.md` with the "already-exists: look, don't rearrange" behaviour and the drift example (why we never auto-fix age-expiry).
 
 **Checkpoint**: Idempotent re-run, partial completion, and drift reporting all verified; no in-place mutation.
 
