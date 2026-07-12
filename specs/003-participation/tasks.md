@@ -53,14 +53,14 @@
 **Independent Test**: attach a file; bytes land in the object store; `attachment.add` records
 name+digest+size; materialise shows it and the topic is active.
 
-- [ ] T009 [US2] `topic/attachment.go`: `Attach(ctx, name, contentType, data, anchor)` — reject empty
+- [X] T009 [US2] `topic/attachment.go`: `Attach(ctx, name, contentType, data, anchor)` — reject empty
   name; `os := c.JetStream().ObjectStore(realm.ObjectBucket)`; `PutBytes` under
   `attachments/<path>/<uuid>`; publish `attachment.add` with the returned digest+size. (FR-007/008/009/011)
-- [ ] T010 [US2] Integration test `topic/attachment_test.go`: attach a small file; assert the object
+- [X] T010 [US2] Integration test `topic/attachment_test.go`: attach a small file; assert the object
   exists with matching bytes, the `attachment.add` records name/digest/size/content-type, materialise
   lists the attachment with its anchor, and the topic is `active`; a zero-byte file is allowed; an
   empty name is rejected. (SC-004, FR-011)
-- [ ] T011 [P] [US2] ELI5 doc `docs/attachments.md`: attachments as "a shared filing cabinet; the
+- [X] T011 [P] [US2] ELI5 doc `docs/attachments.md`: attachments as "a shared filing cabinet; the
   notebook keeps a little claim ticket (name + fingerprint), the big thing lives in the cabinet".
   (Constitution III)
 
@@ -73,10 +73,10 @@ name+digest+size; materialise shows it and the topic is active.
 **Independent Test**: fetch the attachment's bytes by reference; they equal the original and match
 the digest; a missing object errors cleanly.
 
-- [ ] T012 [US3] Extend `topic/attachment.go`: `GetAttachment(ctx, c, object) ([]byte, error)`
+- [X] T012 [US3] Extend `topic/attachment.go`: `GetAttachment(ctx, c, object) ([]byte, error)`
   (map `ErrObjectNotFound` to a clear error) and `VerifyDigest(data, digest) bool`
   (`"SHA-256="+base64url(sha256(data))`). (FR-014/015/016)
-- [ ] T013 [US3] Integration test in `topic/attachment_test.go`: after attaching, `GetAttachment`
+- [X] T013 [US3] Integration test in `topic/attachment_test.go`: after attaching, `GetAttachment`
   returns the exact bytes, `VerifyDigest` passes for them and fails for other bytes, and fetching a
   non-existent object returns a not-found error (no panic). (SC-003/005)
 
