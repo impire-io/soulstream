@@ -24,8 +24,8 @@ stdlib), no scaffolding beyond files created by their own tasks.*
 
 **Purpose**: the NATS-free crypto primitives every story consumes.
 
-- [ ] T001 [P] Implement `identity.SigningKey` in identity/sign.go — `GenerateSigningKey`, `SigningKeyFromSeed` (32-byte check), `Seed`, `PublicKey` (std base64), `Sign` (base64 64-byte sig), package-level `VerifySignature` (malformed key/sig → false, never panic), `RotationProofBytes` (`"soulstream-key-rotation\n"+persona+"\n"+newPubB64`); tests in identity/sign_test.go (round-trip, wrong-key, malformed inputs, proof-bytes shape)
-- [ ] T002 [P] Implement `identity.Keyring` in identity/keyring.go — `Keys map[string][]string`, `Distrusted map[string]bool`, nil-keyring semantics documented on the type; test in identity/keyring_test.go
+- [X] T001 [P] Implement `identity.SigningKey` in identity/sign.go — `GenerateSigningKey`, `SigningKeyFromSeed` (32-byte check), `Seed`, `PublicKey` (std base64), `Sign` (base64 64-byte sig), package-level `VerifySignature` (malformed key/sig → false, never panic), `RotationProofBytes` (`"soulstream-key-rotation\n"+persona+"\n"+newPubB64`); tests in identity/sign_test.go (round-trip, wrong-key, malformed inputs, proof-bytes shape)
+- [X] T002 [P] Implement `identity.Keyring` in identity/keyring.go — `Keys map[string][]string`, `Distrusted map[string]bool`, nil-keyring semantics documented on the type; test in identity/keyring_test.go
 
 **Checkpoint**: `identity` still imports no NATS; `make check` green.
 
