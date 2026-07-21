@@ -112,6 +112,10 @@ func NewServer(c *realm.Client) *mcp.Server {
 		Name:        "soulstream_rollup_topic",
 		Description: "Compact a topic: fold its history into a fresh baseline. The conversation reads identically afterwards; replay just gets cheap.",
 	}, h.rollupTopic)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_discover",
+		Description: "Ask the realm whether topics about something already exist; whoever is answering discovery replies from their own view. An empty result just means nobody answered — the board tool always works.",
+	}, h.discover)
 
 	return s
 }

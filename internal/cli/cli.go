@@ -47,6 +47,10 @@ Commands:
   archive <path>                     archive a topic: final compaction, read-only forever
   watch <path>                       stream a topic live (Ctrl-C to stop)
   inbox                              stream your notifications live (Ctrl-C to stop)
+  discover <query> [--timeout d] [--limit n] [--json]
+                                     ask the realm: is there a topic about this?
+  respond                            answer discovery asks from your own board view
+                                     (Ctrl-C to stop)
   key init                           create this persona's signing key
   key show                           print this persona's public signing key
   key rotate                         switch to a new key (old key endorses it)
@@ -117,6 +121,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdRollup(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "archive":
 		return cmdArchive(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "discover":
+		return cmdDiscover(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "respond":
+		return cmdRespond(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "watch":
 		return cmdWatch(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "inbox":

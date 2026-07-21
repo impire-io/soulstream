@@ -37,6 +37,15 @@ func TestClientCarriesSigner(t *testing.T) {
 	}
 }
 
+// Conn exposes the raw connection for request-reply surfaces, same as JetStream()
+// exposes the stream-side handle.
+func TestClientExposesConn(t *testing.T) {
+	c := &Client{cfg: Config{Realm: "acme"}}
+	if c.Conn() != c.nc {
+		t.Error("Conn() did not return the underlying connection")
+	}
+}
+
 // Connect must error (never panic, never partially mutate) when the named context
 // does not exist / the server cannot be reached.
 func TestConnectMissingContextErrors(t *testing.T) {

@@ -12,6 +12,11 @@ const (
 	OpsSubjectPrefix    = "SOULSTREAM.TOPICS.OPS."
 	InfoSubjectPrefix   = "SOULSTREAM.TOPICS.INFO."
 	InfoSubjectWildcard = "SOULSTREAM.TOPICS.INFO.>"
+	// SvcSubjectPrefix is the request-reply service namespace: core NATS
+	// request-reply, never stored state.
+	SvcSubjectPrefix = "SOULSTREAM.SVC."
+	// SvcDiscoverSubject is where topic.discover requests are published.
+	SvcDiscoverSubject = SvcSubjectPrefix + "DISCOVER"
 )
 
 // OpsSubject returns the ops subject for a topic-path.
@@ -33,6 +38,10 @@ func canonicalBinding(subject string) string {
 		return strings.TrimPrefix(subject, InfoSubjectPrefix)
 	case strings.HasPrefix(subject, NotifySubjectPrefix):
 		return strings.TrimPrefix(subject, NotifySubjectPrefix)
+	case strings.HasPrefix(subject, SvcSubjectPrefix):
+		// Service messages bind to the service name. Replies travel on ephemeral
+		// inboxes but sign over the same service binding — see the discovery code.
+		return strings.TrimPrefix(subject, SvcSubjectPrefix)
 	default:
 		return ""
 	}
