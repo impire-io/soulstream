@@ -14,7 +14,7 @@ unsigned — no flag, no prompt.
 | `key init` | Generate a keypair for the session persona; write seed (0600). Refuses if the file exists. Prints the public key. | 0 / 1 |
 | `key show` | Print the persona's public key (from the key file). | 0; 1 if no key |
 | `key rotate` | Generate a new keypair, publish the rotation (proof by old key) to the directory, then replace the local seed file (old seed kept as `<file>.prev`). Requires an existing key and a published profile. | 0 / 1 |
-| `profile publish` | Publish the persona's profile (create-only). Flags: `--display-name`, `--kind` (human\|agent\|service, default human), `--description`, `--operated-by`. Includes the public key when a key file exists. Error if the profile already exists (message points at `key rotate` / metadata update path). | 0 / 1 |
+| `profile publish` | Publish or update the persona's profile (create-or-metadata-update, FR-004). Flags: `--display-name`, `--kind` (human\|agent\|service, default human), `--description`, `--operated-by`. Includes the public key when a key file exists; on an existing profile, metadata is updated and stored key material is preserved — a *different* local key is refused with a message pointing at `key rotate`. | 0 / 1 |
 | `profile show <persona>` | Print a persona's directory profile, its validated chain, and its pin state (pinned / extended / distrusted). | 0; 1 unknown persona |
 
 ### Changed commands
@@ -40,7 +40,7 @@ keys (`key init`/`rotate` are operator actions via the CLI).
 
 | Tool | Input | Output |
 |---|---|---|
-| `publish_profile` | `display_name?`, `kind?` (human\|agent\|service, default agent), `description?`, `operated_by?` | the published profile incl. public key; error if the profile already exists |
+| `publish_profile` | `display_name?`, `kind?` (human\|agent\|service, default agent), `description?`, `operated_by?` | the published profile incl. public key; create-or-metadata-update like the CLI — a key conflict with the stored profile is an error naming rotation |
 
 ### Changed tools
 

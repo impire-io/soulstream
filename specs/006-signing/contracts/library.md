@@ -51,14 +51,18 @@ func BuildKeyring(profiles []Profile, pinned map[string][]string) (*identity.Key
 
 // KV I/O (kv.go)
 func Publish(ctx context.Context, c *realm.Client, p Profile) error
-// first publish: KV Create — ErrProfileExists if the persona already has one
+// create-or-metadata-update (FR-004): absent persona ⇒ KV Create with p; existing
+// persona ⇒ stored signing_key/rotations are authoritative — metadata is updated with
+// Update(rev), an incoming nil or equal key preserves the stored key material, and an
+// incoming *different* key is refused with ErrKeyConflict (key changes go through
+// Rotate). This also implements the second-client-different-key edge case.
 func Rotate(ctx context.Context, c *realm.Client, key *identity.SigningKey, oldSeed []byte) (Profile, error)
 // reads own profile, appends rotation (proof by old key), Update(rev)
 func Lookup(ctx context.Context, c *realm.Client, persona string) (Profile, bool, error)
 // (Profile{}, false, nil) when the bucket or key is absent — absence is not an error
 func All(ctx context.Context, c *realm.Client) ([]Profile, error)
 // empty slice when the bucket is absent
-var ErrProfileExists error
+var ErrKeyConflict error
 ```
 
 ## realm

@@ -59,10 +59,11 @@ invalid anywhere → chain invalid → persona distrusted
 
 ### State transitions
 
-- **First publish**: KV `Create` — fails if key exists (edge case: second client must
-  not silently replace; the error says "profile exists; rotate instead").
-- **Metadata update** (no key change): KV `Update(rev)`; `signing_key` and `rotations`
-  must be unchanged.
+- **First publish** (no entry for the persona): KV `Create`.
+- **Publish onto an existing entry**: metadata update via KV `Update(rev)` — stored
+  `signing_key`/`rotations` are authoritative and preserved; an incoming *different*
+  key is refused ("key conflict; rotate instead"), which is how a second client with a
+  different key is stopped from silently replacing a published key.
 - **Rotation**: append one `{from: current, to: new, proof}` entry, set `signing_key`
   to the new key, KV `Update(rev)`.
 
