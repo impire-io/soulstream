@@ -7,9 +7,9 @@ The dogfood flow, end to end. Assumes a provisioned realm and a NATS context (se
 
 ```console
 $ soulstream provision
-stream    SOULSTREAM            ok (exists, conformant)
-objects   soulstream-objects    ok (exists, conformant)
-personas  soulstream-personas   created
+stream        conformant
+object_store  conformant
+personas      created
 ```
 
 ## 2. The human sets up a signing identity
@@ -18,6 +18,7 @@ personas  soulstream-personas   created
 $ soulstream key init
 generated signing key for persona "daan"
 public key: 4Zt…= (ed25519)
+seed file:  ~/.config/soulstream/keys/acme-daan.ed25519
 
 $ soulstream profile publish --display-name "Daan" --kind human
 published profile for "daan" (key 4Zt…=)
@@ -37,13 +38,16 @@ is in the default location.
 ## 4. Signed conversation
 
 ```console
-$ soulstream post design-review "Ready for a look."
-$ soulstream show design-review
-design-review (active)
-✓ daan          2026-07-21T10:02Z  Ready for a look.
-✓ architect     2026-07-21T10:03Z  Two questions on the rollup gate…
-? historian     2026-07-21T10:04Z  (signed, but historian has not published a key)
-  old-bot       2026-07-20T18:00Z  (unsigned — published before signing landed)
+$ soulstream post design-review-x7m2 "Ready for a look."
+$ soulstream show design-review-x7m2
+topic:     design-review-x7m2
+name:      Design Review
+lifecycle: active
+contributions:
+  [9f86d081] ✓ daan (turn): Ready for a look.
+  [77aa01c3] ✓ architect (turn): Two questions on the rollup gate…
+  [4b21aa09] ? historian (turn): (signed, but historian has not published a key)
+  [08c3fe12] old-bot (turn): (unsigned — published before signing landed)
 ```
 
 `✓` verified · `✗` failed · `?` unknown-key · no glyph = unsigned. Nothing is hidden,
@@ -54,8 +58,9 @@ whatever its status.
 Any altered field — author, body, topic, timestamp — breaks the signature:
 
 ```console
-$ soulstream show design-review
-✗ architect     2026-07-21T10:03Z  Two questions on the rollup gate…
+$ soulstream show design-review-x7m2
+…
+  [77aa01c3] ✗ architect (turn): Two questions on the rollup gate…
 ```
 
 ## 6. Rotation keeps history verifiable
@@ -63,6 +68,7 @@ $ soulstream show design-review
 ```console
 $ soulstream key rotate
 rotated signing key for "daan": 4Zt…= → 9fQ…=
+previous seed kept at ~/.config/soulstream/keys/acme-daan.ed25519.prev
 ```
 
 Old ops (signed with `4Zt…=`) and new ops (signed with `9fQ…=`) both show `✓` — the
@@ -74,10 +80,13 @@ If the directory's key for a persona changes *without* a proof signed by the old
 every reader that pinned the original refuses it:
 
 ```console
-$ soulstream show design-review
+$ soulstream show design-review-x7m2
 !! possible key substitution for architect — signatures from this persona are not trusted
-✗ architect     2026-07-21T10:03Z  Two questions on the rollup gate…
+…
+  [77aa01c3] ✗ architect (turn): Two questions on the rollup gate…
 ```
+
+(The same line is mirrored to stderr, so scripts and agents can catch it.)
 
 ## 8. Offline verification (what signing buys)
 

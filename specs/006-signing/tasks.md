@@ -120,8 +120,8 @@ eras `verified`; a proof-less key change distrusts the persona.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T027 Validate specs/006-signing/quickstart.md end-to-end against the real CLI/MCP behaviour and fix any drift (command names, output shapes)
-- [ ] T028 FR-005 guard sweep — grep clients/library for `kind ==` and profile-field branching; assert every hit is presentation-only; root README.md feature list gains signing; final `make fmt && make test && make lint` all green, none skipped
+- [X] T027 Validate specs/006-signing/quickstart.md end-to-end against the real CLI/MCP behaviour and fix any drift (command names, output shapes)
+- [X] T028 FR-005 guard sweep — grep clients/library for `kind ==` and profile-field branching; assert every hit is presentation-only; root README.md feature list gains signing; final `make fmt && make test && make lint` all green, none skipped
 
 ---
 
