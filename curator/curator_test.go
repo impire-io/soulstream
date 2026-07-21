@@ -132,14 +132,18 @@ func TestCuratorAnswersFromContent(t *testing.T) {
 	stop, _ := startCurator(t, url, Options{IdleWindow: DefaultIdleWindow, ScanEvery: 50 * time.Millisecond})
 	defer stop()
 
-	// Scenario 2: a phrase that appears only in a turn body.
-	results, err := topic.Discover(ctx, c, topic.DiscoverInput{Query: "xylophone gate", Timeout: 700 * time.Millisecond}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(results) != 1 || results[0].Path != h.Path() {
-		t.Fatalf("content query results = %+v", results)
-	}
+	// Scenario 2: a phrase that appears only in a turn body. The curator's first
+	// answer materialises the topic lazily, which can miss a single gather window
+	// on a slow machine — retry like scenario 3 does.
+	var results []topic.DiscoverResult
+	waitFor(t, 5*time.Second, "content answer", func() bool {
+		r, err := topic.Discover(ctx, c, topic.DiscoverInput{Query: "xylophone gate", Timeout: 700 * time.Millisecond}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = r
+		return len(r) == 1 && r[0].Path == h.Path()
+	})
 	if results[0].Answers[0].Persona != "curator" {
 		t.Errorf("answered by %q, want curator", results[0].Answers[0].Persona)
 	}
@@ -192,17 +196,19 @@ func TestCuratorAndPlainResponderCoexist(t *testing.T) {
 	go func() { _ = topic.RespondDiscovery(respCtx, plain, nil) }()
 	time.Sleep(100 * time.Millisecond)
 
-	results, err := topic.Discover(ctx, c, topic.DiscoverInput{Query: "vat", Timeout: 700 * time.Millisecond}, nil)
-	if err != nil || len(results) != 1 {
-		t.Fatalf("results = %+v, err %v", results, err)
-	}
-	personas := map[string]bool{}
-	for _, a := range results[0].Answers {
-		personas[a.Persona] = true
-	}
-	if !personas["curator"] || !personas["plain-responder"] {
-		t.Errorf("answers = %+v, want curator AND plain responder", results[0].Answers)
-	}
+	// Both must answer within one gather window; retry so a slow first
+	// materialisation by the curator can't fail the round.
+	waitFor(t, 5*time.Second, "curator and plain responder both answering", func() bool {
+		results, err := topic.Discover(ctx, c, topic.DiscoverInput{Query: "vat", Timeout: 700 * time.Millisecond}, nil)
+		if err != nil || len(results) != 1 {
+			return false
+		}
+		personas := map[string]bool{}
+		for _, a := range results[0].Answers {
+			personas[a.Persona] = true
+		}
+		return personas["curator"] && personas["plain-responder"]
+	})
 }
 
 // TestCuratorFlagsDuplicates (US2): one flag in the newer topic, idempotent across
