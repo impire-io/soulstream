@@ -15,7 +15,7 @@ soulstream start design-notes --subject "design notes for the new gadget"
 ```sh
 # daan attaches the first draft
 soulstream --persona daan attach design-notes ./notes.md
-# → attached notes.md (op 1111-...)
+# → prints the object key; the revision's op-id shows up in `artefacts`
 
 # scribe revises it whole-file — anchored to the predecessor automatically
 soulstream --persona scribe revise design-notes ./notes-v2.md --of notes.md

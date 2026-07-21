@@ -22,7 +22,7 @@ No setup tasks — existing module, zero new dependencies, no scaffolding to cre
 
 **Purpose**: the shared vocabulary both work-item stories build on.
 
-- [ ] T001 Add `TypeWorkOpen`/`TypeWorkClaim`/`TypeWorkDone`/`TypeWorkAbandon`
+- [x] T001 Add `TypeWorkOpen`/`TypeWorkClaim`/`TypeWorkDone`/`TypeWorkAbandon`
       constants in `topic/vocab.go` and create `topic/work.go` with
       `WorkOpenPayload` and `WorkRefPayload` (reusing the existing `Anchor`
       struct) per data-model.md — payloads only, no behaviour yet.
@@ -42,32 +42,32 @@ survive a rollup unchanged.
 
 ### Implementation for User Story 1
 
-- [ ] T002 [P] [US1] Create `topic/artefact.go`: `Artefact` struct,
+- [x] T002 [P] [US1] Create `topic/artefact.go`: `Artefact` struct,
       `(*MaterializedTopic).Artefacts()` derivation (anchor-connectivity lineages,
       root identity, tip = highest attachments-slice index), `FindArtefact`
       resolver with `ErrAmbiguousArtefact`, and `(*Handle).Revise` (thin `Attach`
       wrapper, predecessor required) per contracts/library.md.
-- [ ] T003 [P] [US1] Server-free unit tests in `topic/artefact_test.go`: lineage
+- [x] T003 [P] [US1] Server-free unit tests in `topic/artefact_test.go`: lineage
       grouping; mid-chain anchor joins the root's lineage; anchor to non-attachment
       op or dangling anchor ⇒ standalone root; concurrent revisions of one tip ⇒
       stream-order winner; rename via revision changes artefact name; resolver by
       root id / member id / unique name; ambiguous name error lists roots.
-- [ ] T004 [US1] Extend `fullLog()` in `topic/rollup_fold_test.go` with a revision
+- [x] T004 [US1] Extend `fullLog()` in `topic/rollup_fold_test.go` with a revision
       chain and add round-trip assertions: `Artefacts()` of `apply(rollup(L)+tail)`
       equals `Artefacts()` of `apply(L+tail)` (SC-002, SC-003, FR-006).
-- [ ] T005 [US1] Integration test in `topic/artefact_integration_test.go` (embedded
+- [x] T005 [US1] Integration test in `topic/artefact_integration_test.go` (embedded
       server): two personas attach + revise, cold `Materialise`, fetch tip and old
       revision via `GetAttachment` + `VerifyDigest` (acceptance scenarios 1–3, 5).
-- [ ] T006 [US1] CLI in `internal/cli/artefact_commands.go` + dispatch in
+- [x] T006 [US1] CLI in `internal/cli/artefact_commands.go` + dispatch in
       `internal/cli/cli.go`: `artefacts <topic> [ref]`, `revise <topic> <file>
       --of <ref> [--content-type]`, `get <topic> --artefact <ref> [--revision]
       [-o]` (positional `get` form unchanged); tests in
       `internal/cli/artefact_commands_test.go`.
-- [ ] T007 [US1] MCP tools in `internal/mcpserver/work_tools.go` + registration in
+- [x] T007 [US1] MCP tools in `internal/mcpserver/work_tools.go` + registration in
       `server.go`: `soulstream_revise_text`, `soulstream_list_artefacts`,
       `soulstream_read_artefact` (UTF-8 only, binary ⇒ error naming the CLI);
       tests in `internal/mcpserver/work_tools_test.go`.
-- [ ] T008 [US1] ELI5 docs: new `docs/artefacts.md` (drawer of dated drawings —
+- [x] T008 [US1] ELI5 docs: new `docs/artefacts.md` (drawer of dated drawings —
       newest on top, none thrown away); note in `docs/attachments.md` that an
       anchor to an attachment now means "revision"; surface lists in
       `docs/cli.md`, `docs/mcp.md`, `docs/README.md`.
@@ -87,13 +87,13 @@ survives rollup.
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Fold in `topic/view.go`: `WorkStatus`/`WorkEvent`/`WorkItem`
+- [x] T009 [US2] Fold in `topic/view.go`: `WorkStatus`/`WorkEvent`/`WorkItem`
       types (in `topic/work.go`), `MaterializedTopic.WorkItems`
       (`work_items,omitempty`), cases for open/claim/done per data-model.md state
       table (malformed ⇒ warning+skip; readable-but-losing ⇒ void timeline event;
       unknown item ⇒ warning), work ops count as content ops (proposed→active),
       op-IDs into seen/referenced, sig annotation for items and events.
-- [ ] T010 [P] [US2] Server-free unit tests in `topic/work_fold_test.go`: claim
+- [x] T010 [P] [US2] Server-free unit tests in `topic/work_fold_test.go`: claim
       race (first wins, second void), open→done without claim, done terminal
       (late claim/done void), claim by current owner void, empty-title open
       malformed, unreadable payload malformed, unknown item warning,
@@ -101,12 +101,12 @@ survives rollup.
       item resolve non-dangling, a log with no work ops serialises with no
       `work_items` field (FR-018), and a `life.transition` (close) leaves every
       item's status/owner untouched (FR-019).
-- [ ] T011 [US2] Baking in `topic/rollup.go`: `BakedState.WorkItems`,
+- [x] T011 [US2] Baking in `topic/rollup.go`: `BakedState.WorkItems`,
       `cleanBakedWorkItems` (strip StreamSeq/Sig on items and events, keep void
       flags), fold seeding (items + timeline op-IDs seen/referenced, baked sig
       inheritance); extend `fullLog()` with work ops incl. a void claim; round-trip
       equality (SC-001, SC-003, FR-014); old-baseline (no field) compatibility test.
-- [ ] T012 [US2] Write side in `topic/work.go`: `(*Handle).OpenWork` (parses
+- [x] T012 [US2] Write side in `topic/work.go`: `(*Handle).OpenWork` (parses
       @mentions in body, fires `mention.notify`), `ClaimWork`, `CompleteWork`;
       integration test in `topic/work_integration_test.go` (embedded server): two
       clients race claims back-to-back, both materialise to the same owner + void
@@ -114,17 +114,17 @@ survives rollup.
       *closed* topic still accepts them (with the existing warning) and closing
       changes no item state; signed clients yield verified sig status on items,
       timeline events, and revisions — unsigned clients yield unsigned (FR-015).
-- [ ] T013 [US2] Curator: verify `lastReal` in `curator/` counts work ops as real
+- [x] T013 [US2] Curator: verify `lastReal` in `curator/` counts work ops as real
       activity (FR-019); if it scans typed view fields, include work items/events;
       add a regression test either way in `curator/`.
-- [ ] T014 [US2] CLI in `internal/cli/work_commands.go` + dispatch: `work open`
+- [x] T014 [US2] CLI in `internal/cli/work_commands.go` + dispatch: `work open`
       (`--body`), `work claim` (publish → materialise → "claimed" / "void — owned
       by <p>"), `work done`, `work list`, `work show` (timeline incl. void +
       anchored evidence); tests in `internal/cli/work_commands_test.go`.
-- [ ] T015 [US2] MCP tools + registration: `soulstream_open_work`,
+- [x] T015 [US2] MCP tools + registration: `soulstream_open_work`,
       `soulstream_claim_work` (returns verdict), `soulstream_complete_work`;
       tests alongside T007's file.
-- [ ] T016 [US2] ELI5 docs: new `docs/work-items.md` (chore chart — first hand on
+- [x] T016 [US2] ELI5 docs: new `docs/work-items.md` (chore chart — first hand on
       the magnet gets the chore; the list remembers who tried); surface lists in
       `docs/cli.md`, `docs/mcp.md`, `docs/README.md`.
 
@@ -142,13 +142,13 @@ abandon on a never-claimed item is void.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Abandon: fold case in `topic/view.go` (claimed→open, owner
+- [x] T017 [US3] Abandon: fold case in `topic/view.go` (claimed→open, owner
       cleared; abandon on open/done ⇒ void) + `(*Handle).AbandonWork` in
       `topic/work.go`; unit tests in `topic/work_fold_test.go` (reopen resets the
       race, previous owner may reclaim, void on open) and an integration
       claim→abandon→reclaim leg in `topic/work_integration_test.go`; extend the
       baked round-trip with an abandoned span.
-- [ ] T018 [US3] Clients + docs: CLI `work abandon` in
+- [x] T018 [US3] Clients + docs: CLI `work abandon` in
       `internal/cli/work_commands.go`; MCP `soulstream_abandon_work`; "letting go"
       section in `docs/work-items.md`; tests beside T014/T015's.
 
@@ -158,7 +158,7 @@ abandon on a never-claimed item is void.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T019 Walk quickstart.md end-to-end against a live embedded/local server
+- [x] T019 Walk quickstart.md end-to-end against a live embedded/local server
       (CLI paths), reconcile any drift in quickstart.md or command output; sweep
       README.md and `docs/README.md` for the new surfaces; confirm `CLAUDE.md`
       speckit block still matches reality; full gate `make check` — all green,
