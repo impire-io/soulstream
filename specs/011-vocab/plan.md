@@ -39,7 +39,7 @@ MCP +3 tools (reply/resolve/edit → 21). No new subjects, deps, or server featu
 
 ## Technical Context
 
-**Language/Version**: Go 1.26, module `github.com/impire/soulstream` (unchanged)
+**Language/Version**: Go 1.26, module `github.com/impire-io/soulstream` (unchanged)
 **Primary Dependencies**: existing only — nats.go v1.52 + jetstream, orbit
 natscontext, jcs, uuid, go-sdk v1.6.1
 **Storage**: JetStream only; no new buckets/subjects; blob GC touches the

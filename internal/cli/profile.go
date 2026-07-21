@@ -7,9 +7,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/impire/soulstream/internal/keystore"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/registry"
+	"github.com/impire-io/soulstream/internal/keystore"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/registry"
 )
 
 // cmdProfile manages directory profiles: publish (create-or-metadata-update for the

@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+
+	"github.com/impire-io/soulstream/internal/version"
 )
 
 // Config is the resolved connection configuration.
@@ -75,6 +77,7 @@ Commands:
                   [--description d] [--operated-by p]
                                      publish/update this persona's directory profile
   profile show <persona>             print a persona's profile, key chain, pin state
+  version                            print the client version
 
 Configuration (flags override environment):
   --context   / SOULSTREAM_CONTEXT    named NATS context
@@ -168,6 +171,9 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdKey(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "profile":
 		return cmdProfile(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "version":
+		fmt.Fprintln(stdout, version.Version)
+		return 0
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usageText)
 		return 0

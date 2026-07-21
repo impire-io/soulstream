@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 // Version is the only supported wire-format version.

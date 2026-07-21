@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 // TestWorkWalkthrough (US2): open with a mention, race two claims from two

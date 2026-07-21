@@ -9,9 +9,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/record"
 )
 
 // NotifySubjectPrefix is the prefix of a persona's notify (inbox) subject.

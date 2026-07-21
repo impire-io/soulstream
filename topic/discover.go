@@ -10,9 +10,9 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/record"
 )
 
 // Discovery is the realm's second, live layer of finding topics (the first is the

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/topic"
 )
 
 func cmdWatch(ctx context.Context, connect Connector, cfg Config, args []string, stdout, stderr io.Writer) int {

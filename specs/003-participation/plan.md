@@ -13,7 +13,7 @@ package, no new dependency, no wire-record change.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`).
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`).
 **Primary Dependencies**: existing (`record`, `identity`, `realm`, `topic`, `nats.go/jetstream`,
 `google/uuid`). Standard library `regexp`, `crypto/sha256`, `encoding/base64`.
 **Object store API** (verified, research.md): `js.ObjectStore(ctx, realm.ObjectBucket)`,

@@ -7,7 +7,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/record"
 )
 
 // The operation identity doubles as the idempotency key: republishing a record with

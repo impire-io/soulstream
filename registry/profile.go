@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 // Profile kinds. Presentation and audit metadata only: no permission, capability, or

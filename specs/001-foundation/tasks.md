@@ -12,7 +12,7 @@ constitution mandates all tests pass (none skipped), so every story ships tests 
 
 - **[P]**: can run in parallel (different files, no dependency on an incomplete task)
 - **[Story]**: US1…US5 (maps to spec.md user stories)
-- Exact file paths are in each task. Module root is the repository root; module `github.com/impire/soulstream`.
+- Exact file paths are in each task. Module root is the repository root; module `github.com/impire-io/soulstream`.
 
 ---
 
@@ -20,7 +20,7 @@ constitution mandates all tests pass (none skipped), so every story ships tests 
 
 **Purpose**: A buildable, lintable, formatted empty Go module.
 
-- [X] T001 Initialise the Go module: `go.mod` at repo root with `module github.com/impire/soulstream` and `go 1.26`.
+- [X] T001 Initialise the Go module: `go.mod` at repo root with `module github.com/impire-io/soulstream` and `go 1.26`.
 - [X] T002 Add dependencies to `go.mod`/`go.sum` via `go get`: `github.com/nats-io/nats.go`, `github.com/synadia-io/orbit.go/natscontext`, `github.com/google/uuid`, `github.com/gowebpki/jcs`, and (test) `github.com/nats-io/nats-server/v2`.
 - [X] T003 [P] Create `Makefile` at repo root with `fmt` (gofmt -w + goimports), `test` (`go test ./...`), `lint` (`golangci-lint run`), and a default `check: fmt test lint` target.
 - [X] T004 [P] Create `.golangci.yml` at repo root enabling a sensible default linter set (govet, staticcheck, errcheck, ineffassign, revive/gofmt) for Go 1.26.

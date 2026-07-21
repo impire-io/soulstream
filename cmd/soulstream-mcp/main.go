@@ -12,9 +12,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/impire/soulstream/internal/keystore"
-	"github.com/impire/soulstream/internal/mcpserver"
-	"github.com/impire/soulstream/realm"
+	"github.com/impire-io/soulstream/internal/keystore"
+	"github.com/impire-io/soulstream/internal/mcpserver"
+	"github.com/impire-io/soulstream/internal/version"
+	"github.com/impire-io/soulstream/realm"
 )
 
 func main() {
@@ -28,8 +29,13 @@ func run(args []string, stderr io.Writer) int {
 	realmName := fs.String("realm", os.Getenv("SOULSTREAM_REALM"), "realm name")
 	persona := fs.String("persona", os.Getenv("SOULSTREAM_PERSONA"), "persona name")
 	keyFile := fs.String("key-file", "", "signing-seed file (default: SOULSTREAM_KEY_FILE, then config dir)")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	if *showVersion {
+		fmt.Fprintln(os.Stdout, version.Version)
+		return 0
 	}
 	if *persona == "" {
 		fmt.Fprintln(stderr, "soulstream-mcp: a persona is required (--persona or SOULSTREAM_PERSONA)")

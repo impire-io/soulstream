@@ -9,8 +9,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/realm"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
 )
 
 // BucketName is the persona directory's KV bucket (provisioned by realm.Provision).

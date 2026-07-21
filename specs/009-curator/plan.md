@@ -24,7 +24,7 @@ no storage, zero new dependencies.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`)
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`)
 **Primary Dependencies**: existing only; the curator consumes `realm`, `topic`,
 `identity`, `record` public APIs plus one core-NATS subscription for liveness signals
 **Storage**: none — the projection is in-memory, rebuilt on start by replay

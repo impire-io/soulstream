@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // TestArtefactCommands walks US1 through the CLI: attach, revise --of, list,

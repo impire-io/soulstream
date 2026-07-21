@@ -21,7 +21,7 @@ connection accessor request-reply needs). Clients: CLI `discover` + long-running
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`)
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`)
 **Primary Dependencies**: existing only — core `nats.go` request-reply (`NewInbox`,
 `SubscribeSync`, `PublishMsg` with `Reply`); no JetStream involvement
 **Storage**: none — discovery traffic is ephemeral by design

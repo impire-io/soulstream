@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 func TestClientEnforceAuthor(t *testing.T) {

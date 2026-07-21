@@ -12,7 +12,7 @@ named-context path. No third-party CLI framework — stdlib `flag` only.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`).
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`).
 **Primary Dependencies**: existing `realm`, `topic`; stdlib `flag`, `context`, `os/signal`, `io`,
 `encoding/json`. No new third-party dependency.
 **Storage**: none new (drives the provisioned realm).

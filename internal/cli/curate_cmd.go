@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/impire/soulstream/curator"
-	"github.com/impire/soulstream/realm"
+	"github.com/impire-io/soulstream/curator"
+	"github.com/impire-io/soulstream/realm"
 )
 
 // cmdCurate runs the curator under the session persona until interrupted: warm

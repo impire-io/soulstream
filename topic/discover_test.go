@@ -8,8 +8,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/record"
 )
 
 func boardEntry(path, name, subject string, tags []string, lc Lifecycle) BoardEntry {

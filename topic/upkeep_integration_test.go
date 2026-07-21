@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 // TestUpkeepWalkthrough (US1): edit → reply → resolve over a live server, with

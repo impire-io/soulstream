@@ -19,7 +19,7 @@ statuses for materialise/follow/inbox; clients share key/pin file handling via a
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`)
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`)
 **Primary Dependencies**: existing only — `nats.go` v1.52 + `nats.go/jetstream` (KV),
 `gowebpki/jcs`, `google/uuid`, `synadia-io/orbit.go/natscontext`; new crypto is stdlib
 `crypto/ed25519` + `crypto/rand` + `encoding/base64`

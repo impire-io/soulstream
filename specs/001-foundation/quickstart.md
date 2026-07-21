@@ -19,7 +19,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/impire/soulstream/realm"
+    "github.com/impire-io/soulstream/realm"
 )
 
 func main() {
@@ -58,7 +58,7 @@ explicit call.
 import (
     "time"
 
-    "github.com/impire/soulstream/record"
+    "github.com/impire-io/soulstream/record"
 )
 
 r := record.Record{

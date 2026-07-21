@@ -5,7 +5,7 @@
 
 **Tests**: INCLUDED (spec success criteria are test matrices; constitution mandates all-green).
 
-**Organization**: By the five user stories. New package `topic`. Module `github.com/impire/soulstream`.
+**Organization**: By the five user stories. New package `topic`. Module `github.com/impire-io/soulstream`.
 
 ---
 

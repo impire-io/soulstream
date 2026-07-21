@@ -23,7 +23,7 @@ their JSON a wire format.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`)
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`)
 **Primary Dependencies**: existing only — `nats.go/jetstream` already exposes
 `MsgRollup`/`MsgRollupSubject` and `WithExpectLastSequencePerSubject`; object store
 already used by attachments; digest via the existing `topic.VerifyDigest` format

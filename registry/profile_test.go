@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 func testKey(t *testing.T) *identity.SigningKey {

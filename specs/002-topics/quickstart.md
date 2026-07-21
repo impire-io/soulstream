@@ -13,8 +13,8 @@ nest sub-topics, and list the board.*
 import (
     "context"
 
-    "github.com/impire/soulstream/realm"
-    "github.com/impire/soulstream/topic"
+    "github.com/impire-io/soulstream/realm"
+    "github.com/impire-io/soulstream/topic"
 )
 
 ctx := context.Background()

@@ -3,7 +3,7 @@ package registry
 import (
 	"fmt"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 // Chain derives and validates a profile's key chain, oldest key first, current key

@@ -10,6 +10,7 @@ tidy:
 
 build:
 	go build ./...
+	go build -o bin/ ./cmd/...
 
 # All tests, no skips.
 test:

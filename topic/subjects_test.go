@@ -3,7 +3,7 @@ package topic
 import (
 	"testing"
 
-	"github.com/impire/soulstream/identity"
+	"github.com/impire-io/soulstream/identity"
 )
 
 func TestSubjectBuilders(t *testing.T) {
