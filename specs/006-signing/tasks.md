@@ -110,9 +110,9 @@ eras `verified`; a proof-less key change distrusts the persona.
 
 ### Implementation for User Story 4
 
-- [ ] T024 [US4] Implement `registry.Rotate` in registry/kv.go — read own profile, build rotation entry (proof = old key over `RotationProofBytes`), set new `signing_key`, KV `Update(rev)`; tests in registry/kv_test.go + registry/chain_test.go: post-rotation chain validates, era-A and era-B ops both `verified` end-to-end (SC-006, US4 scenarios 1–2), proof-less key change ⇒ distrust (scenario 3), lost `Update` race ⇒ error not blind write
-- [ ] T025 [US4] CLI `key rotate` in internal/cli — rotate in the directory first, then swap the local seed file keeping `<file>.prev`; refuses without an existing key + published profile; tests (rotation flow, refusal paths, `.prev` retained)
-- [ ] T026 [US4] Extend docs/signing.md and docs/persona-directory.md with rotation (new seal endorsed by pressing the old seal on it) and the substitution warning story
+- [X] T024 [US4] Implement `registry.Rotate` in registry/kv.go — read own profile, build rotation entry (proof = old key over `RotationProofBytes`), set new `signing_key`, KV `Update(rev)`; tests in registry/kv_test.go + registry/chain_test.go: post-rotation chain validates, era-A and era-B ops both `verified` end-to-end (SC-006, US4 scenarios 1–2), proof-less key change ⇒ distrust (scenario 3), lost `Update` race ⇒ error not blind write
+- [X] T025 [US4] CLI `key rotate` in internal/cli — rotate in the directory first, then swap the local seed file keeping `<file>.prev`; refuses without an existing key + published profile; tests (rotation flow, refusal paths, `.prev` retained)
+- [X] T026 [US4] Extend docs/signing.md and docs/persona-directory.md with rotation (new seal endorsed by pressing the old seal on it) and the substitution warning story
 
 **Checkpoint**: all four stories independently demonstrable; `make check` green.
 

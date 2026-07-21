@@ -156,6 +156,79 @@ func TestLookupAndAllTolerateMissingDirectory(t *testing.T) {
 	}
 }
 
+// TestRotateEndToEnd (US4/SC-006): ops signed before and after a rotation both
+// verify; a proof-less key change is distrusted; rotating without a profile or from
+// the wrong key fails.
+func TestRotateEndToEnd(t *testing.T) {
+	ctx := context.Background()
+	c, _ := provisioned(t, "architect")
+	oldKey, newKey := testKey(t), testKey(t)
+
+	// No profile yet: refuse.
+	if _, err := Rotate(ctx, c, oldKey, newKey); err == nil {
+		t.Fatal("rotated with no published profile")
+	}
+
+	if err := Publish(ctx, c, profileFor("architect", oldKey)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wrong current key: refuse.
+	if _, err := Rotate(ctx, c, newKey, testKey(t)); err == nil {
+		t.Fatal("rotated from a key the directory does not hold")
+	}
+
+	updated, err := Rotate(ctx, c, oldKey, newKey)
+	if err != nil {
+		t.Fatalf("Rotate: %v", err)
+	}
+	if updated.SigningKey.Ed25519 != newKey.PublicKey() || len(updated.Rotations) != 1 {
+		t.Fatalf("rotated profile = %+v", updated)
+	}
+
+	// A reader who pinned the old chain accepts the rotation and keeps both eras.
+	pins := map[string][]string{"architect": {oldKey.PublicKey()}}
+	stored, ok, err := Lookup(ctx, c, "architect")
+	if err != nil || !ok {
+		t.Fatal(err)
+	}
+	kr, newPins := BuildKeyring([]Profile{stored}, pins)
+	if kr.Distrusted["architect"] {
+		t.Fatal("valid rotation distrusted")
+	}
+	chain, _ := kr.ChainFor("architect")
+	if len(chain) != 2 || chain[0] != oldKey.PublicKey() || chain[1] != newKey.PublicKey() {
+		t.Fatalf("chain after rotation = %v", chain)
+	}
+	if len(newPins["architect"]) != 2 {
+		t.Fatalf("pin not extended: %v", newPins["architect"])
+	}
+
+	// Both key eras verify (any-chain-key rule); a third key does not.
+	canonical := []byte("era test bytes")
+	if !identity.VerifySignature(chain[0], canonical, oldKey.Sign(canonical)) ||
+		!identity.VerifySignature(chain[1], canonical, newKey.Sign(canonical)) {
+		t.Error("chain keys do not verify their own eras")
+	}
+
+	// Second rotation chains further.
+	thirdKey := testKey(t)
+	if _, err := Rotate(ctx, c, newKey, thirdKey); err != nil {
+		t.Fatalf("second Rotate: %v", err)
+	}
+	stored, _, err = Lookup(ctx, c, "architect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotChain, err := Chain(stored)
+	if err != nil {
+		t.Fatalf("chain after two rotations: %v", err)
+	}
+	if len(gotChain) != 3 {
+		t.Fatalf("chain length = %d, want 3", len(gotChain))
+	}
+}
+
 func TestAllListsEveryProfile(t *testing.T) {
 	ctx := context.Background()
 	c, url := provisioned(t, "architect")

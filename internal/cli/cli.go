@@ -47,6 +47,7 @@ Commands:
   inbox                              stream your notifications live (Ctrl-C to stop)
   key init                           create this persona's signing key
   key show                           print this persona's public signing key
+  key rotate                         switch to a new key (old key endorses it)
   profile publish [--display-name n] [--kind human|agent|service]
                   [--description d] [--operated-by p]
                                      publish/update this persona's directory profile
@@ -115,7 +116,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 	case "inbox":
 		return cmdInbox(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "key":
-		return cmdKey(cfg, cmdArgs, stdout, stderr)
+		return cmdKey(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "profile":
 		return cmdProfile(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "help", "-h", "--help":

@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"github.com/impire/soulstream/identity"
 	"github.com/impire/soulstream/realm"
 )
 
@@ -79,6 +81,59 @@ func Publish(ctx context.Context, c *realm.Client, p Profile) error {
 		return fmt.Errorf("registry: update profile %q: %w", p.Name, uerr)
 	}
 	return nil
+}
+
+// Rotate replaces the client persona's signing key: it appends a rotation entry —
+// the new key endorsed by the old key's signature over the domain-separated proof
+// bytes — sets the new key as current, and writes with the read revision, so a lost
+// race is an error, never a blind overwrite. It returns the updated profile.
+//
+// Rotation requires an existing published profile whose current key matches oldKey:
+// there is nothing to rotate *from* otherwise, and endorsing a key the directory
+// does not hold would be indistinguishable from substitution.
+func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey *identity.SigningKey) (Profile, error) {
+	persona := c.Persona()
+	if persona == "" {
+		return Profile{}, errors.New("registry: rotation requires a persona-bound client")
+	}
+	kv, err := bucket(ctx, c)
+	if err != nil {
+		return Profile{}, err
+	}
+	entry, err := kv.Get(ctx, persona)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return Profile{}, fmt.Errorf("registry: no published profile for %q — publish one before rotating", persona)
+		}
+		return Profile{}, fmt.Errorf("registry: read profile %q: %w", persona, err)
+	}
+	var p Profile
+	if err := json.Unmarshal(entry.Value(), &p); err != nil {
+		return Profile{}, fmt.Errorf("registry: stored profile %q is not valid JSON: %w", persona, err)
+	}
+	if p.SigningKey == nil {
+		return Profile{}, fmt.Errorf("registry: profile %q has no signing key to rotate from", persona)
+	}
+	if p.SigningKey.Ed25519 != oldKey.PublicKey() {
+		return Profile{}, fmt.Errorf("registry: profile %q holds a different current key than the one rotating from", persona)
+	}
+
+	newPub := newKey.PublicKey()
+	p.Rotations = append(p.Rotations, Rotation{
+		From:  oldKey.PublicKey(),
+		To:    newPub,
+		Proof: oldKey.Sign(identity.RotationProofBytes(persona, newPub)),
+	})
+	p.SigningKey = &SigningKeyInfo{Ed25519: newPub, Since: time.Now().UTC()}
+
+	data, err := json.Marshal(p)
+	if err != nil {
+		return Profile{}, fmt.Errorf("registry: encode profile: %w", err)
+	}
+	if _, err := kv.Update(ctx, persona, data, entry.Revision()); err != nil {
+		return Profile{}, fmt.Errorf("registry: rotate %q: %w", persona, err)
+	}
+	return p, nil
 }
 
 // Lookup reads one persona's profile. A realm without a directory, or a persona

@@ -46,10 +46,12 @@ sealed automatically. Nobody is forced; nothing breaks.
 
 ## Getting a new stamp (rotation)
 
-Stamps wear out, or you worry someone photographed yours. You can switch: press your
-**old** seal onto a note that says "this is my new seal". Anyone who knew your old seal
-can now trust the new one — the trust hands over like a relay baton, and letters sealed
-with the old stamp still count as yours.
+Stamps wear out, or you worry someone photographed yours. You can switch
+(`soulstream key rotate`): press your **old** seal onto a note that says "this is my
+new seal". Anyone who knew your old seal can now trust the new one — the trust hands
+over like a relay baton, and letters sealed with the old stamp still count as yours.
+Your old stamp is kept beside the new one (a `.prev` file) in case anything goes wrong
+mid-switch.
 
 A new seal that shows up **without** that hand-over note is treated as an alarm, not an
 update — see [the persona directory](./persona-directory.md) for how readers spot that.
@@ -60,4 +62,4 @@ update — see [the persona directory](./persona-directory.md) for how readers s
   pressed on.
 - [Personas & attribution](./persona-and-attribution.md) — whose name is on the slip.
 - [The persona directory](./persona-directory.md) — where seals are shown, remembered,
-  and checked. *(arrives with the directory feature)*
+  and checked.

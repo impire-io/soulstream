@@ -56,8 +56,9 @@ func Publish(ctx context.Context, c *realm.Client, p Profile) error
 // Update(rev), an incoming nil or equal key preserves the stored key material, and an
 // incoming *different* key is refused with ErrKeyConflict (key changes go through
 // Rotate). This also implements the second-client-different-key edge case.
-func Rotate(ctx context.Context, c *realm.Client, key *identity.SigningKey, oldSeed []byte) (Profile, error)
-// reads own profile, appends rotation (proof by old key), Update(rev)
+func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey *identity.SigningKey) (Profile, error)
+// reads own profile, verifies oldKey is the stored current key, appends the rotation
+// (proof by oldKey), sets newKey current, Update(rev); returns the updated profile
 func Lookup(ctx context.Context, c *realm.Client, persona string) (Profile, bool, error)
 // (Profile{}, false, nil) when the bucket or key is absent — absence is not an error
 func All(ctx context.Context, c *realm.Client) ([]Profile, error)
