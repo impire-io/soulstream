@@ -57,6 +57,10 @@ func NewServer(c *realm.Client) *mcp.Server {
 		Name:        "soulstream_check_inbox",
 		Description: "Return your mention notifications (topic, op-id, author), newest first.",
 	}, h.checkInbox)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_publish_profile",
+		Description: "Publish or update your persona's directory profile (display metadata; includes your public signing key when this session holds one).",
+	}, h.publishProfile)
 
 	return s
 }

@@ -1,7 +1,8 @@
 # What is provisioning?
 
 **Provisioning** is setting up the empty workshop before anyone starts working: making
-sure the notebook and the supply cupboard exist, and that they're the *right kind*.
+sure the notebook, the supply cupboard, and the phone book by the door exist, and that
+they're the *right kind*.
 
 You run it once, and you can safely run it again any time — on every restart, in a
 setup script, whenever. It follows one simple rule:
@@ -11,11 +12,12 @@ setup script, whenever. It follows one simple rule:
 
 So:
 
-- **Empty workshop?** Provisioning creates the notebook and the cupboard, set up
-  exactly the way Soulstream needs. It tells you "created, created".
+- **Empty workshop?** Provisioning creates the notebook, the cupboard, and the phone
+  book ([the persona directory](./persona-directory.md)), set up exactly the way
+  Soulstream needs. It tells you "created, created, created".
 - **Already set up correctly?** Provisioning changes nothing and tells you
-  "conformant, conformant". Running it ten times in a row does the same thing as
-  running it once.
+  "conformant, conformant, conformant". Running it ten times in a row does the same
+  thing as running it once.
 - **Half set up?** (Say the cupboard is there but the notebook isn't.) Provisioning
   makes only the missing part and leaves the rest alone.
 
@@ -36,3 +38,4 @@ history matters. Looking is safe; silently rearranging someone's notebook is not
 ## Related
 
 - [The realm](./realm.md) — the workshop that gets provisioned.
+- [The persona directory](./persona-directory.md) — the phone book, the third fixture.

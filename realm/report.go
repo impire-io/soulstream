@@ -3,10 +3,11 @@ package realm
 // Artefact identifies which realm artefact a provisioning result concerns.
 type Artefact string
 
-// The two artefacts a realm holds.
+// The three artefacts a realm holds.
 const (
 	ArtefactStream      Artefact = "stream"
 	ArtefactObjectStore Artefact = "object_store"
+	ArtefactPersonas    Artefact = "personas"
 )
 
 // Outcome is the provisioning result for a single artefact.
