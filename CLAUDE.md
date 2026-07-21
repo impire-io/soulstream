@@ -1,31 +1,31 @@
 <!-- SPECKIT START -->
-Active feature: **011-vocab** — remaining vocabulary (Day-2 #7, core/03-topics.md).
-Four new op types + one lifecycle state: `comment.reply` (folds like comment.add, own type),
-`comment.resolve` (MARK on target: Resolved/ResolvedBy — resolve op is NOT a list entry,
-vanishes at compaction like transitions; duplicate = silent no-op), `edit` (SAME-AUTHOR-ONLY
-projection rule — foreign edit = warning, no effect; rewrites target Body/Mentions in place,
-appends EditStamp{op-id,author,ts} to Contribution.Edits; editTarget map covers target + stamp
-op-ids, baked stamps RE-SEED it so post-rollup edits of compacted chain members still resolve;
-empty body = malformed), `attachment.remove` (mark Removed/RemovedBy, author-agnostic, bytes
-fetchable until archival; Artefacts() tip = newest NON-removed, fully-removed lineage leaves the
-list; Archive deletes removed blobs AFTER final compaction, best-effort), `Dormant` lifecycle
-(Transition stops rejecting it; fold: proposed/active→dormant, closed/archived ignore+warn; ANY
-content op while dormant → Active IN-LOOP — order-sensitive). Payloads: reply/edit reuse
-CommentPayload; resolve/remove use new RefPayload{Anchor}. Pure rules in topic/upkeep.go:
-DormantEligible(mt,window,now) (newest op of ANY kind, incl. curator chatter; only from
-proposed/active) + StaleClaims(mt,window,now) (claim/timeline/anchored-evidence clock). Reclaim
-= rule + ordinary author-agnostic work.abandon (ZERO fold changes). Curator: Options.MarkDormant
-+ Options.ReclaimAfter (both OFF by default — 009 contract intact), passes on existing scan
-tick; cachedTopic.lastAny beside lastReal. Handle: Reply/Edit/Resolve/RemoveAttachment/
-MarkDormant. CLI: reply, edit, resolve, detach, mark-dormant, curate --mark-dormant --reclaim.
-MCP: +3 tools (reply/resolve/edit → 21). ELI5: docs/editing.md new; lifecycle/attachments/
-work-items/curator docs updated.
+Active feature: **013-config** — config-file identity resolution + self-installing
+plugin binary. Five who-acts-where fields (context, realm, persona, key_file,
+pins_file) resolve PER-FIELD through: flag (only if actually passed — flag.Visit;
+flags no longer default to os.Getenv) > SOULSTREAM_* env > nearest `.soulstream.json`
+walking up from cwd (nearest file ONLY, no stacking) > `<UserConfigDir>/soulstream/
+config.json` > unset. New `internal/config` (stdlib only, no NATS): File/Resolve/
+Resolved with per-field Source provenance. Strict JSON decode (DisallowUnknownFields)
+— malformed/unknown field = fail loud naming the file; absent file = skip. Relative
+key/pins paths resolve against the config file's dir at load. Config files can NEVER
+carry credentials — names/paths only, keys stay in the local keystore. New CLI
+`soulstream config`: prints field/value/source, never connects, exit 0. Wired into
+internal/cli/Run AND cmd/soulstream-mcp. Byte-for-byte old behaviour when no files
+exist. Plugin wrapper self-installs: SOULSTREAM_MCP_BIN > PATH > cached
+$DATA/bin/v<ver>/soulstream-mcp (sha256 recorded at install, RE-VERIFIED every start)
+> download release matching plugin's own version (parsed from plugin.json) for
+uname-detected os/arch, verify vs checksums.txt, temp-dir + atomic mv (failed =
+nothing cached), exec. $DATA = CLAUDE_PLUGIN_DATA else XDG_DATA_HOME else
+~/.local/share, /soulstream-plugin. Plugin + marketplace 0.2.0; tag v0.2.0 ships in
+the same delivery. ELI5: docs/configuration.md NEW; cli/mcp docs, plugin README,
+setup skill updated.
 
-For details read: [specs/011-vocab/plan.md](specs/011-vocab/plan.md)
-(spec: `specs/011-vocab/spec.md`, contract: `specs/011-vocab/contracts/library.md`,
-model: `specs/011-vocab/data-model.md`).
+For details read: [specs/013-config/plan.md](specs/013-config/plan.md)
+(spec: `specs/013-config/spec.md`, contract: `specs/013-config/contracts/library.md`,
+model: `specs/013-config/data-model.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
-`010-work` merged + pushed.
+`010-work`, `011-vocab`, `012-distribution` (plugin marketplace + goreleaser
+pipeline + module rename, v0.1.0 released) merged + pushed.
 
 Project conventions:
 - Go 1.26; module `github.com/impire-io/soulstream`.
