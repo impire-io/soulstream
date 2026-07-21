@@ -17,7 +17,10 @@ and a full history — written in the same notebook as everything else.
 - **claim** — put your magnet on it.
 - **done** — tick it off. Ticked chores stay ticked (want it redone? open a new
   chore).
-- **abandon** — take your magnet off; the chore is up for grabs again.
+- **abandon** — take your magnet off; the chore is up for grabs again. (A magnet
+  whose owner has gone silent for ages can be lifted by the household sweep too —
+  see the [curator's](./curator.md) opt-in `--reclaim` chore. Same op, same chart,
+  signed by whoever did the lifting.)
 
 ## Who wins a race?
 

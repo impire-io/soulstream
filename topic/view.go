@@ -24,21 +24,38 @@ type Announcement struct {
 	Sig           SigStatus `json:"sig,omitempty"` // verification status of the announce op
 }
 
-// Contribution is a materialised turn or comment.
-type Contribution struct {
+// EditStamp records one applied edit on a contribution: the chain that lets a
+// later edit anchor a compacted predecessor, and the visible "edited" trail.
+type EditStamp struct {
 	OpID      string    `json:"op_id"`
-	Author    string    `json:"author"`
-	Timestamp time.Time `json:"ts"`
-	Type      string    `json:"type"` // TypeTurnPost | TypeCommentAdd
-	Body      string    `json:"body"`
-	Mentions  []string  `json:"mentions,omitempty"`   // persona names mentioned in the body
-	Anchor    string    `json:"anchor,omitempty"`     // comment's anchored op-id ("" for turns)
-	Dangling  bool      `json:"dangling,omitempty"`   // comment anchor not present in the topic
-	Sig       SigStatus `json:"sig,omitempty"`        // verification status of this op's signature
-	StreamSeq uint64    `json:"stream_seq,omitempty"` // 0 for elements baked into a baseline
+	Author    string    `json:"author"` // always the contribution's author (the same-author rule)
+	Ts        time.Time `json:"ts"`
+	Sig       SigStatus `json:"sig,omitempty"`        // volatile; recomputed at read
+	StreamSeq uint64    `json:"stream_seq,omitempty"` // volatile; 0 for baked stamps
+}
+
+// Contribution is a materialised turn, comment, or reply. An edited contribution
+// renders the newest applied edit's body and mentions; its Edits trail says so.
+type Contribution struct {
+	OpID       string      `json:"op_id"`
+	Author     string      `json:"author"`
+	Timestamp  time.Time   `json:"ts"`
+	Type       string      `json:"type"` // TypeTurnPost | TypeCommentAdd | TypeCommentReply
+	Body       string      `json:"body"`
+	Mentions   []string    `json:"mentions,omitempty"`    // persona names mentioned in the body
+	Anchor     string      `json:"anchor,omitempty"`      // comment/reply anchored op-id ("" for turns)
+	Dangling   bool        `json:"dangling,omitempty"`    // anchor not present in the topic
+	Resolved   bool        `json:"resolved,omitempty"`    // comment.resolve mark — closed, never deleted
+	ResolvedBy string      `json:"resolved_by,omitempty"` // first resolver
+	ResolvedTs time.Time   `json:"resolved_ts,omitzero"`  // when — counts as topic activity
+	Edits      []EditStamp `json:"edits,omitempty"`       // applied edits, stream order
+	Sig        SigStatus   `json:"sig,omitempty"`         // verification status of this op's signature
+	StreamSeq  uint64      `json:"stream_seq,omitempty"`  // 0 for elements baked into a baseline
 }
 
 // Attachment is a materialised attachment.add — a reference to a blob in the object store.
+// A removed attachment is withdrawn, not erased: the mark is visible, the bytes stay
+// fetchable until the topic is archived (the one act that reclaims withdrawn blobs).
 type Attachment struct {
 	OpID        string    `json:"op_id"`
 	Author      string    `json:"author"`
@@ -50,6 +67,9 @@ type Attachment struct {
 	ContentType string    `json:"content_type,omitempty"`
 	Anchor      string    `json:"anchor,omitempty"`
 	Dangling    bool      `json:"dangling,omitempty"`
+	Removed     bool      `json:"removed,omitempty"`
+	RemovedBy   string    `json:"removed_by,omitempty"`
+	RemovedTs   time.Time `json:"removed_ts,omitzero"`
 	Sig         SigStatus `json:"sig,omitempty"`
 	StreamSeq   uint64    `json:"stream_seq,omitempty"`
 }
@@ -108,7 +128,9 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 	// Seed from the baked conversation (present after a rollup). Baked op-ids stay
 	// anchor-resolvable; the ones not on the frontier are interior — already built
 	// upon — so they must never resurface as frontier leaves.
-	workIdx := map[string]int{} // item id → index in mt.WorkItems
+	workIdx := map[string]int{}    // item id → index in mt.WorkItems
+	editTarget := map[string]int{} // contribution op-id (or applied-edit op-id) → index
+	attIdx := map[string]int{}     // attachment op-id → index in mt.Attachments
 	if bp.Baked != nil {
 		mt.Contributions = append(mt.Contributions, bp.Baked.Contributions...)
 		mt.Attachments = append(mt.Attachments, bp.Baked.Attachments...)
@@ -116,11 +138,20 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 		if bp.Baked.Lifecycle != "" {
 			mt.Lifecycle = bp.Baked.Lifecycle
 		}
-		for _, c := range bp.Baked.Contributions {
+		for i, c := range mt.Contributions {
+			editTarget[c.OpID] = i
 			seen[c.OpID] = true
 			referenced[c.OpID] = true
+			// Baked edit stamps keep the chain joinable: a post-rollup edit may
+			// anchor an edit op-id the compaction consumed.
+			for _, e := range c.Edits {
+				editTarget[e.OpID] = i
+				seen[e.OpID] = true
+				referenced[e.OpID] = true
+			}
 		}
-		for _, a := range bp.Baked.Attachments {
+		for i, a := range mt.Attachments {
+			attIdx[a.OpID] = i
 			seen[a.OpID] = true
 			referenced[a.OpID] = true
 		}
@@ -147,6 +178,15 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 	}
 
 	contentOps := 0
+	// content marks one applied content op: it counts toward proposed→active and
+	// wakes a dormant topic on the spot (reactivation is order-sensitive — only
+	// content after the dormant mark wakes it).
+	content := func() {
+		contentOps++
+		if mt.Lifecycle == Dormant {
+			mt.Lifecycle = Active
+		}
+	}
 	for _, sr := range recs[1:] {
 		r := sr.Record
 		seen[r.ID] = true
@@ -156,37 +196,99 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 
 		switch r.Type {
 		case TypeTurnPost:
-			contentOps++
+			content()
 			var tp TurnPayload
 			_ = json.Unmarshal(r.Payload, &tp)
+			editTarget[r.ID] = len(mt.Contributions)
 			mt.Contributions = append(mt.Contributions, Contribution{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp, Type: r.Type,
 				Body: tp.Body, Mentions: tp.Mentions, StreamSeq: sr.StreamSeq,
 			})
-		case TypeCommentAdd:
-			contentOps++
+		case TypeCommentAdd, TypeCommentReply:
+			content()
 			var cp CommentPayload
 			_ = json.Unmarshal(r.Payload, &cp)
+			editTarget[r.ID] = len(mt.Contributions)
 			mt.Contributions = append(mt.Contributions, Contribution{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp, Type: r.Type,
 				Body: cp.Body, Mentions: cp.Mentions, Anchor: cp.Anchor.OpID, StreamSeq: sr.StreamSeq,
 			})
+		case TypeEdit:
+			var cp CommentPayload
+			if err := json.Unmarshal(r.Payload, &cp); err != nil || strings.TrimSpace(cp.Body) == "" || cp.Anchor.OpID == "" {
+				mt.Warnings = append(mt.Warnings, "ignored malformed edit "+r.ID+" (needs a body and a target)")
+				continue
+			}
+			idx, ok := editTarget[cp.Anchor.OpID]
+			if !ok {
+				mt.Warnings = append(mt.Warnings, "edit "+r.ID+" targets an unknown or non-editable op "+cp.Anchor.OpID+" — ignored")
+				continue
+			}
+			c := &mt.Contributions[idx]
+			if c.Author != r.Author {
+				mt.Warnings = append(mt.Warnings, "ignored edit "+r.ID+" by "+r.Author+" of "+c.OpID+" — only the author may edit their words")
+				continue
+			}
+			content()
+			c.Body = cp.Body
+			c.Mentions = cp.Mentions
+			c.Edits = append(c.Edits, EditStamp{OpID: r.ID, Author: r.Author, Ts: r.Timestamp, StreamSeq: sr.StreamSeq})
+			editTarget[r.ID] = idx // later edits may anchor this one — same chain
+		case TypeCommentResolve:
+			var rp RefPayload
+			if err := json.Unmarshal(r.Payload, &rp); err != nil || rp.Anchor == nil || rp.Anchor.OpID == "" {
+				mt.Warnings = append(mt.Warnings, "ignored malformed comment.resolve "+r.ID+" (missing target)")
+				continue
+			}
+			idx, ok := editTarget[rp.Anchor.OpID]
+			if !ok || mt.Contributions[idx].Type == TypeTurnPost {
+				mt.Warnings = append(mt.Warnings, "comment.resolve "+r.ID+" targets "+rp.Anchor.OpID+" which is not a comment — ignored")
+				continue
+			}
+			c := &mt.Contributions[idx]
+			if c.Resolved {
+				continue // idempotent: the mark stands, duplicates are harmless
+			}
+			content()
+			c.Resolved = true
+			c.ResolvedBy = r.Author
+			c.ResolvedTs = r.Timestamp
 		case TypeAttachmentAdd:
-			contentOps++
+			content()
 			var ap AttachmentPayload
 			_ = json.Unmarshal(r.Payload, &ap)
+			attIdx[r.ID] = len(mt.Attachments)
 			mt.Attachments = append(mt.Attachments, Attachment{
 				OpID: r.ID, Author: r.Author, Timestamp: r.Timestamp,
 				Name: ap.Name, Object: ap.Object, Digest: ap.Digest, Size: ap.Size,
 				ContentType: ap.ContentType, Anchor: ap.Anchor, StreamSeq: sr.StreamSeq,
 			})
+		case TypeAttachmentRemove:
+			var rp RefPayload
+			if err := json.Unmarshal(r.Payload, &rp); err != nil || rp.Anchor == nil || rp.Anchor.OpID == "" {
+				mt.Warnings = append(mt.Warnings, "ignored malformed attachment.remove "+r.ID+" (missing target)")
+				continue
+			}
+			idx, ok := attIdx[rp.Anchor.OpID]
+			if !ok {
+				mt.Warnings = append(mt.Warnings, "attachment.remove "+r.ID+" targets "+rp.Anchor.OpID+" which is not an attachment — ignored")
+				continue
+			}
+			a := &mt.Attachments[idx]
+			if a.Removed {
+				continue // idempotent
+			}
+			content()
+			a.Removed = true
+			a.RemovedBy = r.Author
+			a.RemovedTs = r.Timestamp
 		case TypeWorkOpen:
 			var wp WorkOpenPayload
 			if err := json.Unmarshal(r.Payload, &wp); err != nil || strings.TrimSpace(wp.Title) == "" {
 				mt.Warnings = append(mt.Warnings, "ignored malformed work.open "+r.ID+" (missing title)")
 				continue
 			}
-			contentOps++
+			content()
 			workIdx[r.ID] = len(mt.WorkItems)
 			mt.WorkItems = append(mt.WorkItems, WorkItem{
 				ID: r.ID, Author: r.Author, Timestamp: r.Timestamp,
@@ -199,7 +301,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 				mt.Warnings = append(mt.Warnings, "ignored malformed "+r.Type+" "+r.ID+" (missing item anchor)")
 				continue
 			}
-			contentOps++
+			content()
 			idx, ok := workIdx[rp.Anchor.OpID]
 			if !ok {
 				mt.Warnings = append(mt.Warnings, r.Type+" "+r.ID+" references unknown work item "+rp.Anchor.OpID+" — void")
@@ -248,6 +350,13 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 					mt.Lifecycle = Closed
 				case Archived:
 					mt.Lifecycle = Archived
+				case Dormant:
+					// Closed rests already; dormancy is for topics still in play.
+					if mt.Lifecycle == Closed {
+						mt.Warnings = append(mt.Warnings, "ignored dormant transition on a closed topic")
+					} else {
+						mt.Lifecycle = Dormant
+					}
 				}
 			}
 		case TypeBaseline:
@@ -275,10 +384,11 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 		mt.Lifecycle = Active
 	}
 
-	// Flag comments and attachments whose anchor op-id is not present in the topic.
+	// Flag comments, replies, and attachments whose anchor op-id is not present
+	// in the topic (turns carry no anchor).
 	for i := range mt.Contributions {
 		c := &mt.Contributions[i]
-		if c.Type == TypeCommentAdd && c.Anchor != "" && !seen[c.Anchor] {
+		if c.Anchor != "" && !seen[c.Anchor] {
 			c.Dangling = true
 		}
 	}

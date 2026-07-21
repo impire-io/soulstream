@@ -38,7 +38,10 @@ func fullLog() []SeqRecord {
 		foldRec(7, "work-1", "daan", TypeWorkOpen, WorkOpenPayload{Title: "draft the intro", Body: "who takes it?"}, "attn-2"),
 		foldRec(8, "wclm-1", "architect", TypeWorkClaim, WorkRefPayload{Anchor: &Anchor{Kind: "op", OpID: "work-1"}}, "work-1"),
 		foldRec(9, "wclm-2", "daan", TypeWorkClaim, WorkRefPayload{Anchor: &Anchor{Kind: "op", OpID: "work-1"}}, "wclm-1"),
-		foldRec(10, "life-1", "daan", TypeLifeTransition, TransitionPayload{To: Closed}, "wclm-2"),
+		foldRec(10, "edit-1", "daan", TypeEdit, CommentPayload{Body: "hello there @architect", Anchor: Anchor{Kind: "op", OpID: "turn-1"}, Mentions: []string{"architect"}}, "wclm-2"),
+		foldRec(11, "rply-1", "architect", TypeCommentReply, CommentPayload{Body: "re: re: hello", Anchor: Anchor{Kind: "op", OpID: "cmnt-1"}}, "edit-1"),
+		foldRec(12, "rslv-1", "daan", TypeCommentResolve, RefPayload{Anchor: &Anchor{Kind: "op", OpID: "cmnt-1"}}, "rply-1"),
+		foldRec(13, "life-1", "daan", TypeLifeTransition, TransitionPayload{To: Closed}, "rslv-1"),
 	}
 }
 

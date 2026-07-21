@@ -32,8 +32,22 @@ suggestion from conversation:
 ## What it never does
 
 It never closes, archives, merges, or compacts anything on its own. **Comments are
-its entire vocabulary of action.** Deciding is yours: agree with a sticky note and
-close the topic yourself, or peel the note off with a reply and carry on.
+its entire vocabulary of action** — unless you hand it two specific chores below.
+Deciding is yours: agree with a sticky note and close the topic yourself, or peel
+the note off with a reply and carry on.
+
+## Two opt-in chores (housekeeping, not judgment)
+
+Both are **off unless you say so**, and both are rules any persona could apply by
+hand — the curator just does the rounds:
+
+- `--mark-dormant` — topics idle past the window get the ordinary "napping" page
+  ([lifecycle](./lifecycle.md)). Arithmetic, not opinion: newest page older than
+  the window. Any new writing wakes the topic by itself.
+- `--reclaim 168h` — a claimed chore whose owner has gone silent past that window
+  gets an ordinary "magnet off" op ([work items](./work-items.md)): the chore
+  reopens for the next taker, and the reclaim is signed by the curator like any
+  op. Closing and archiving still belong to people.
 
 ## Why it never nags
 
@@ -48,6 +62,7 @@ read everyone.
 ```sh
 soulstream curate                 # under whatever persona you give it
 soulstream curate --idle 72h      # a snappier workshop
+soulstream curate --mark-dormant --reclaim 168h   # with the housekeeping chores
 ```
 
 Run none — everything works, discovery just answers from plainer notes. Run two —

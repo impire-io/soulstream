@@ -144,6 +144,18 @@ func NewServer(c *realm.Client) *mcp.Server {
 		Name:        "soulstream_read_artefact",
 		Description: "Read an artefact's current text content (or a specific revision's), digest-verified. Text only — binary content needs the CLI.",
 	}, h.readArtefact)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_reply_comment",
+		Description: "Reply under a comment — threaded commentary anchored to it. Use @name to mention.",
+	}, h.replyComment)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_resolve_comment",
+		Description: "Mark a comment settled: still readable, visibly closed. Anyone may resolve; duplicates are harmless.",
+	}, h.resolveComment)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_edit",
+		Description: "Correct your OWN turn, comment, or reply with a whole-body replacement. Readers render the newest version; the edit trail stays visible. Only the author's edits take effect — disagree with a reply, not a rewrite.",
+	}, h.edit)
 
 	return s
 }

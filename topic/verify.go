@@ -77,6 +77,14 @@ func annotateView(mt *MaterializedTopic, statuses map[string]SigStatus, baseline
 		} else {
 			mt.Contributions[i].Sig = baked
 		}
+		for j := range mt.Contributions[i].Edits {
+			e := &mt.Contributions[i].Edits[j]
+			if s, ok := statuses[e.OpID]; ok {
+				e.Sig = s
+			} else {
+				e.Sig = baked
+			}
+		}
 	}
 	for i := range mt.Attachments {
 		if s, ok := statuses[mt.Attachments[i].OpID]; ok {

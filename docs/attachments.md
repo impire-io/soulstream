@@ -33,10 +33,22 @@ corrupted. The reference is verifiable, not just a name you have to trust.
   [artefacts](./artefacts.md).
 - Fetching a drawer that was never filled gives a clear "not found", not a crash.
 
+## Withdrawing a file
+
+Filed the wrong thing? Anyone can mark a ticket **withdrawn** (`soulstream
+detach`): the ticket stays on its page with "withdrawn by so-and-so" on it, and —
+this is the important part — **the file stays in the cabinet** so old pages never
+point at nothing. If it was a version of a document, the document's "current
+version" quietly falls back to the previous one ([artefacts](./artefacts.md)).
+
+The bytes are actually thrown out exactly once: when the topic is **archived**
+([lifecycle](./lifecycle.md)) — the realm's one deliberate reclamation act empties
+the withdrawn drawers too. Files never marked withdrawn stay in the cabinet
+forever, archived or not.
+
 ## Not yet
 
-Removing files, locking them up (encryption), and tidying the cabinet over time come
-later. For now: file it, point at it, fetch it, trust it.
+Locking files up (encryption) and sweeping the whole cabinet come later.
 
 ## Related
 

@@ -147,9 +147,9 @@ func renderArtefactHistory(w io.Writer, a topic.Artefact) {
 	fmt.Fprintf(w, "artefact:  %s (root %s)\n", a.Name, a.Root)
 	fmt.Fprintf(w, "revisions: %d\n", len(a.Revisions))
 	for _, r := range a.Revisions {
-		marker := ""
+		marker := attachmentMark(r)
 		if r.OpID == a.Tip.OpID {
-			marker = "  <- tip"
+			marker += "  <- tip"
 		}
 		fmt.Fprintf(w, "  [%s]%s %-12s %s  %s (%d bytes)%s\n",
 			shortID(r.OpID), sigGlyph(r.Sig), r.Author, r.Timestamp.Format("2006-01-02 15:04"), r.Name, r.Size, marker)

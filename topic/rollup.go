@@ -253,6 +253,17 @@ func cleanBakedContributions(cs []Contribution) []Contribution {
 		out[i].StreamSeq = 0
 		out[i].Sig = ""
 		out[i].Dangling = false // derived at read time
+		if len(out[i].Edits) > 0 {
+			// Stamps are history (they keep edit chains joinable across the
+			// compaction); only their volatile fields die with the tail.
+			es := make([]EditStamp, len(out[i].Edits))
+			copy(es, out[i].Edits)
+			for j := range es {
+				es[j].StreamSeq = 0
+				es[j].Sig = ""
+			}
+			out[i].Edits = es
+		}
 	}
 	return out
 }

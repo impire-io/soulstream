@@ -25,12 +25,17 @@ soulstream board                     # what topics exist?
 soulstream start "Q2 VAT filing"     # begin a topic → prints its path
 soulstream show   <path>             # what's happening in this topic?
 soulstream post   <path> "hi @bookkeeper-agent, box 5?"   # say something (@ pings people)
-soulstream comment <path> <op-id> "…"     # reply to a specific line
+soulstream comment <path> <op-id> "…"     # comment on a specific line
+soulstream reply  <path> <op-id> "…"      # answer under a comment (a margin thread)
+soulstream edit   <path> <op-id> "…"      # correct your own words (pencil edit)
+soulstream resolve <path> <op-id>         # stamp a comment "settled"
 soulstream attach <path> ./file.csv  # clip a file on → prints its object key
 soulstream revise <path> ./file.csv --of file.csv   # newer version of a document
 soulstream artefacts <path>          # the topic's documents and their versions
 soulstream get    <object> out.csv   # pull that file back out
 soulstream get    <path> --artefact file.csv        # pull a document's current version
+soulstream detach <path> <op-id>     # withdraw a file (reclaimed at archival)
+soulstream mark-dormant <path>       # note a topic napping (only if truly idle)
 soulstream work open <path> "title"  # put a chore on the chart → prints its id
 soulstream work claim <path> <item>  # first magnet wins → "claimed" or "void — owned by …"
 soulstream work done|abandon <path> <item>          # tick it off / let it go
