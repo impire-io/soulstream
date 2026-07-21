@@ -3,6 +3,8 @@ package realm
 import (
 	"context"
 	"testing"
+
+	"github.com/impire/soulstream/identity"
 )
 
 // Connect must reject malformed names before it makes any server contact.
@@ -14,6 +16,24 @@ func TestConnectRejectsInvalidNamesBeforeContact(t *testing.T) {
 	}
 	if _, err := Connect(ctx, Config{ContextName: "irrelevant", Realm: "acme", Persona: "Bad.Persona"}); err == nil {
 		t.Error("Connect with invalid persona name: got nil, want error")
+	}
+}
+
+// The client carries its optional signer verbatim: set → returned, unset → nil
+// (nil is the publishes-unsigned mode every pre-signing caller relies on).
+func TestClientCarriesSigner(t *testing.T) {
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	signed := &Client{cfg: Config{Realm: "acme", Persona: "daan", Signer: key}}
+	if signed.Signer() != key {
+		t.Error("Signer() did not return the configured key")
+	}
+	unsigned := &Client{cfg: Config{Realm: "acme", Persona: "daan"}}
+	if unsigned.Signer() != nil {
+		t.Error("Signer() on a key-less client: want nil")
 	}
 }
 

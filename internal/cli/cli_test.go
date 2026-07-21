@@ -11,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
+	"github.com/impire/soulstream/internal/keystore"
 	"github.com/impire/soulstream/internal/natstest"
 	"github.com/impire/soulstream/realm"
 )
@@ -19,20 +20,37 @@ import (
 // realm client (per invocation) to it — mirroring how each CLI process connects anew.
 func testConnector(t *testing.T) Connector {
 	t.Helper()
+	connect, _ := testConnectorWithURL(t)
+	return connect
+}
+
+// testConnectorWithURL also exposes the server URL, for tests that inspect the raw
+// stream. Like the production connector, it loads the persona's signer from cfg so
+// signing behaves identically under test.
+func testConnectorWithURL(t *testing.T) (Connector, string) {
+	t.Helper()
+	// Isolate from any real key on the developer's machine: default resolution must
+	// land in an (empty) temp location, not the user config dir. Tests that sign
+	// pass --key-file explicitly, which wins over the environment.
+	t.Setenv(keystore.EnvKeyFile, filepath.Join(t.TempDir(), "absent.ed25519"))
 	url, shutdown := natstest.StartJetStream(t)
 	t.Cleanup(shutdown)
 	return func(ctx context.Context, cfg Config) (*realm.Client, error) {
+		signer, err := loadSigner(cfg)
+		if err != nil {
+			return nil, err
+		}
 		nc, err := nats.Connect(url)
 		if err != nil {
 			return nil, err
 		}
-		c, err := realm.NewClient(ctx, nc, realm.Config{Realm: cfg.Realm, Persona: cfg.Persona})
+		c, err := realm.NewClient(ctx, nc, realm.Config{Realm: cfg.Realm, Persona: cfg.Persona, Signer: signer})
 		if err != nil {
 			nc.Close()
 			return nil, err
 		}
 		return c, nil
-	}
+	}, url
 }
 
 func run(connect Connector, args ...string) (code int, stdout, stderr string) {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
+	"github.com/impire/soulstream/identity"
 	"github.com/impire/soulstream/internal/natstest"
 	"github.com/impire/soulstream/realm"
 )
@@ -21,11 +22,17 @@ func testServer(t *testing.T) string {
 // connectClient connects a realm client (as persona) to url.
 func connectClient(t *testing.T, url, persona string) *realm.Client {
 	t.Helper()
+	return connectClientSigned(t, url, persona, nil)
+}
+
+// connectClientSigned connects a realm client (as persona) that signs with key.
+func connectClientSigned(t *testing.T, url, persona string, key *identity.SigningKey) *realm.Client {
+	t.Helper()
 	nc, err := nats.Connect(url)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	c, err := realm.NewClient(context.Background(), nc, realm.Config{Realm: "test-realm", Persona: persona})
+	c, err := realm.NewClient(context.Background(), nc, realm.Config{Realm: "test-realm", Persona: persona, Signer: key})
 	if err != nil {
 		nc.Close()
 		t.Fatalf("new client: %v", err)

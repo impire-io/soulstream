@@ -18,6 +18,9 @@ type Config struct {
 	Context string
 	Realm   string
 	Persona string
+	// KeyFile is the persona's signing-seed file ("" resolves env → default path).
+	// When the resolved file exists, every write command signs its ops.
+	KeyFile string
 }
 
 const usageText = `soulstream — a Soulstream client
@@ -39,11 +42,15 @@ Commands:
   close <path>                       close a topic
   watch <path>                       stream a topic live (Ctrl-C to stop)
   inbox                              stream your notifications live (Ctrl-C to stop)
+  key init                           create this persona's signing key
+  key show                           print this persona's public signing key
 
 Configuration (flags override environment):
-  --context / SOULSTREAM_CONTEXT   named NATS context
-  --realm   / SOULSTREAM_REALM     realm name
-  --persona / SOULSTREAM_PERSONA   persona (required for write commands)
+  --context  / SOULSTREAM_CONTEXT    named NATS context
+  --realm    / SOULSTREAM_REALM      realm name
+  --persona  / SOULSTREAM_PERSONA    persona (required for write commands)
+  --key-file / SOULSTREAM_KEY_FILE   signing-seed file (default: config dir; when
+                                     present, published ops are signed)
 `
 
 // Main wires os streams, a SIGINT-cancellable context, and the natscontext connector.
@@ -62,6 +69,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 	ctxName := global.String("context", os.Getenv("SOULSTREAM_CONTEXT"), "named NATS context")
 	realmName := global.String("realm", os.Getenv("SOULSTREAM_REALM"), "realm name")
 	persona := global.String("persona", os.Getenv("SOULSTREAM_PERSONA"), "persona name")
+	keyFile := global.String("key-file", "", "signing-seed file (default: env, then config dir)")
 	if err := global.Parse(args); err != nil {
 		return 2
 	}
@@ -71,7 +79,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		fmt.Fprint(stderr, usageText)
 		return 2
 	}
-	cfg := Config{Context: *ctxName, Realm: *realmName, Persona: *persona}
+	cfg := Config{Context: *ctxName, Realm: *realmName, Persona: *persona, KeyFile: *keyFile}
 	cmd, cmdArgs := rest[0], rest[1:]
 
 	switch cmd {
@@ -97,6 +105,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdWatch(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "inbox":
 		return cmdInbox(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "key":
+		return cmdKey(cfg, cmdArgs, stdout, stderr)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usageText)
 		return 0

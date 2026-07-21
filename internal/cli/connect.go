@@ -13,12 +13,18 @@ import (
 // client bound to an in-process server instead of a named NATS context.
 type Connector func(ctx context.Context, cfg Config) (*realm.Client, error)
 
-// realmConnect is the production connector: it dials the named NATS context.
+// realmConnect is the production connector: it dials the named NATS context, and
+// signs published ops when the persona's key file exists.
 func realmConnect(ctx context.Context, cfg Config) (*realm.Client, error) {
+	signer, err := loadSigner(cfg)
+	if err != nil {
+		return nil, err
+	}
 	return realm.Connect(ctx, realm.Config{
 		ContextName: cfg.Context,
 		Realm:       cfg.Realm,
 		Persona:     cfg.Persona,
+		Signer:      signer,
 	})
 }
 

@@ -35,6 +35,18 @@ func publishOp(ctx context.Context, c *realm.Client, subject, opType string, pay
 		Timestamp: time.Now().UTC(),
 		Payload:   data,
 	}
+
+	// Sign when the client holds a key: the signature covers the canonical record —
+	// the same bytes any reader can recompute from the wire form and the subject —
+	// with the Signature field still empty (the canonical form omits an empty sig).
+	if signer := c.Signer(); signer != nil {
+		canonical, cerr := rec.Canonical(c.Realm(), canonicalBinding(subject))
+		if cerr != nil {
+			return "", fmt.Errorf("topic: canonicalise %s for signing: %w", opType, cerr)
+		}
+		rec.Signature = signer.Sign(canonical)
+	}
+
 	headers, body, err := rec.Build()
 	if err != nil {
 		return "", fmt.Errorf("topic: build %s record: %w", opType, err)
