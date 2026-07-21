@@ -16,6 +16,39 @@ the house coordination rule on something personas race for daily. Both are
 prerequisites for stage 4 (executable workloads) later; neither needs stage 3 (live
 co-editing), which stays gated on stage 1 demonstrably chafing in real use.
 
+## Clarifications
+
+### Session 2026-07-21
+
+- Q: Does anchoring an attachment to a prior attachment *always* mean "revision",
+  given anchors today mean "relates to"? → A: Yes — one deterministic rule, no
+  flags: an attachment anchored to an attachment operation is a revision of it. A
+  file that merely *relates to* an attachment is anchored to the surrounding
+  conversation (the turn or comment discussing it) or left unanchored; the design
+  doc's mechanism ("anchored to its predecessor's op-ID") is the whole mechanism.
+- Q: If a revision anchors to a mid-chain member instead of the tip, is that a new
+  artefact? → A: No — lineage identity is connectivity: anchoring to *any* member
+  extends that member's lineage (same root). The tip stays "the lineage member
+  latest in stream order", whichever member each revision anchored to. Anchoring
+  mid-chain is just what a concurrent revision looks like after the race.
+- Q: Are work operations and revisions "content" in the existing senses — do they
+  activate a proposed topic, and do they count as real activity for dormancy
+  observers? → A: Yes to both. They are ordinary contributions to the workbench;
+  a proposed topic whose first op is a work.open becomes active, and curators
+  already count any non-suggestion op as real activity — nothing special-cased.
+- Q: How do claim/done/abandon reference their item, and what separates *malformed*
+  from *void*? → A: They reference the opening operation's ID using the existing
+  anchor convention (same shape as comments). Structurally broken ops (missing or
+  empty item reference, unparseable payload) are **malformed** — skipped with a
+  warning, like today. Structurally sound ops whose transition the state machine
+  rejects (unknown item, claim on a claimed item, duplicate done…) are **void** —
+  folded into the item's timeline with no state effect. Malformed = can't read it;
+  void = read it, and it lost.
+- Q: What does topic lifecycle do to work items? → A: Nothing. Closing a topic
+  neither completes nor abandons its items (the close op warns writers, as today);
+  archiving refuses all writes (existing rule) so item state freezes with the
+  topic. No coupling in either direction — an open item never blocks a close.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A document that remembers (Priority: P1)
@@ -134,7 +167,8 @@ ownership.
 - Two artefacts in one topic sharing a display name: both are listed; fetch-by-name
   reports the ambiguity and asks for the lineage identity instead of guessing.
 - Work operations or revisions in an archived topic: refused like every write to an
-  archived topic (existing rule, unchanged).
+  archived topic (existing rule, unchanged). In a *closed* topic they are permitted
+  with the usual warning; closing a topic never completes or abandons its items.
 - A malformed work operation (missing required fields): treated like any malformed
   op today — skipped by projection with a visible warning, never fatal to the topic.
 - Compaction landing between two racing claims: changes nothing — the stream order
@@ -153,8 +187,10 @@ ownership.
   prior attachment in the same topic, using the existing attachment operation and
   its existing anchor mechanism — no new operation type, no wire-format change.
 - **FR-002**: The projection MUST group attachments into artefacts (lineages): an
-  attachment anchored to a prior attachment operation extends that operation's
-  lineage; any other attachment starts a lineage of its own.
+  attachment anchored to a prior attachment operation is by definition a revision
+  and extends that operation's lineage (anchoring to *any* member joins that
+  member's root); any other attachment starts a lineage of its own. There is no
+  separate "relates to an attachment" anchor meaning.
 - **FR-003**: Every reader MUST derive the same tip for every artefact: the lineage
   member latest in stream order. Superseded revisions MUST remain in the lineage's
   history with author, time, and content identity intact.
@@ -182,8 +218,11 @@ ownership.
 - **FR-010**: The item's state machine MUST be: open → claimed (winning claim);
   claimed → done (done); claimed → open (abandon — owner cleared); open → done
   (done — finished or moot without a claim). Done MUST be terminal this cycle.
-  Operations that fit no valid transition MUST be void by projection, never an
-  error.
+  Operations that fit no valid transition MUST be void by projection — folded into
+  the item's timeline with no state effect — never an error. Claim, done, and
+  abandon MUST reference their item (the opening operation's ID) via the existing
+  anchor convention; a work operation whose payload cannot be read or lacks its
+  item reference is malformed (skipped with a warning), distinct from void.
 - **FR-011**: Transition validity MUST be decided by the state machine alone, not by
   the author — consistent with lifecycle transitions today. The owner MUST be
   derivable as the author of the winning claim; the ownership trail (claims, voids,
@@ -211,6 +250,11 @@ ownership.
 - **FR-018**: A topic containing none of the new vocabulary MUST behave exactly as
   before this feature, and the entire existing behaviour surface MUST be unchanged
   (additive-only).
+- **FR-019**: Work operations and revisions MUST count as ordinary content: they
+  activate a proposed topic and count as real activity to dormancy observers, with
+  no special cases. Topic lifecycle MUST NOT touch item state: closing neither
+  completes nor abandons items; archiving freezes them by refusing writes (existing
+  rule).
 
 ### Key Entities
 
