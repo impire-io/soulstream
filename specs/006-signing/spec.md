@@ -12,6 +12,21 @@ before signing lands is unsigned forever — testimony-grade, never exhibit-grad
 re-baselining (Day-2 item 1), which must not compact a realm whose history was never signed. Landing
 signing now starts the clock as early as possible for the dogfood realm.
 
+## Clarifications
+
+### Session 2026-07-21
+
+- Q: When a fresh client first encounters a persona whose profile already contains rotations, what
+  does it pin — the current key or the chain? → A: The validated chain as first seen. TOFU trusts
+  the chain root; every rotation inside the profile must carry a valid proof or the profile is
+  treated as substitution. Later profile changes must extend the already-pinned chain.
+- Q: How does an op signed under a superseded key verify after rotation? → A: A signature is
+  verified if it verifies against any key in the author's validated chain. Era-matching by the
+  `since` timestamp is never used for verification decisions; `since` stays informational.
+- Q: Who creates the persona directory in a realm? → A: Realm provisioning creates it,
+  create-or-report, exactly like the op stream and the objects bucket. All read paths tolerate a
+  realm without the directory (signed ops degrade to unknown-key), so older realms keep working.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A persona signs what it publishes (Priority: P1)
@@ -155,18 +170,22 @@ substitution.
   and unsigned ops remain valid and readable forever.
 - **FR-004**: The realm MUST offer a persona directory in which each persona can publish a profile:
   name, display name, kind (human / agent / service), description, operator attribution, and public
-  signing key with its start time. Publishing and updating one's own profile MUST be possible from
+  signing key with its start time. Realm provisioning creates the directory create-or-report, like
+  the op stream and objects bucket. Publishing and updating one's own profile MUST be possible from
   both clients (CLI and MCP).
 - **FR-005**: No permission, capability, or protocol behaviour may branch on profile fields; `kind`
   and all other profile data are presentation and audit metadata only.
-- **FR-006**: Readers MUST pin the first signing key they observe per persona, and the pin MUST
-  persist per client across sessions.
+- **FR-006**: Readers MUST pin, per persona, the validated key chain as first observed (chain root
+  trusted on first use; internal rotation proofs must all verify, else the profile is treated as a
+  substitution attack), and the pin MUST persist per client across sessions. Later profile changes
+  MUST extend the pinned chain with valid proofs to be accepted.
 - **FR-007**: A key change without a valid rotation proof MUST cause verification for that persona to
   hard-fail with a loud, explicit substitution-attack warning; the reader MUST NOT silently adopt the
   new key.
 - **FR-008**: Key rotation MUST be announced by publishing the new key together with a proof signed
-  by the previous key; verifiers MUST accept a valid proof, update their pin, and keep both eras
-  verifiable: ops signed under a superseded key MUST still verify as that persona's.
+  by the previous key; verifiers MUST accept a valid proof, extend their pinned chain, and keep both
+  eras verifiable: an op verifies if its signature matches any key in the author's validated chain,
+  and the `since` timestamp never participates in the decision.
 - **FR-009**: Every read path (materialise, live follow, inbox fetch) MUST report a per-op
   verification status of exactly one of: unsigned, verified, failed, unknown-key.
 - **FR-010**: Verification MUST be non-destructive: a failed or unknown signature never drops,
@@ -190,8 +209,8 @@ substitution.
   key and its lineage (rotation proofs). Advisory except for key material.
 - **Persona directory**: the realm-wide, watchable store of profiles keyed by persona name, with
   history.
-- **Pin**: a client's durable record of the first key it saw for a persona, updated only by valid
-  rotation proofs.
+- **Pin**: a client's durable record of the validated key chain as first seen for a persona,
+  extended only by valid rotation proofs.
 - **Verification status**: per-op outcome of checking the signature against the author's pinned key:
   unsigned / verified / failed / unknown-key.
 - **Rotation proof**: a statement of the new key signed by the previous key, forming a verifiable
