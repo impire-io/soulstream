@@ -66,7 +66,7 @@ func (h *Handle) Follow(ctx context.Context, onOp func(*MaterializedTopic)) erro
 
 		recs = append(recs, SeqRecord{Record: rec, StreamSeq: md.Sequence.Stream})
 		mt := apply(h.path, recs)
-		annotateView(mt, annotate(recs, h.client.Realm(), h.path, h.keyring))
+		annotateView(mt, annotate(recs, h.client.Realm(), h.path, h.keyring), recs[0].Record.ID)
 		h.adopt(mt)
 		if onOp != nil {
 			onOp(mt)

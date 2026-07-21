@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/impire/soulstream/realm"
 	"github.com/impire/soulstream/record"
@@ -17,6 +18,14 @@ import (
 // Stamping the author as the client's own persona is the write-side attribution
 // guarantee: the library cannot post as another persona.
 func publishOp(ctx context.Context, c *realm.Client, subject, opType string, payload any, parents []string) (opID string, err error) {
+	return publishOpWith(ctx, c, subject, opType, payload, parents, nil, nil)
+}
+
+// publishOpWith is publishOp plus transport extras: additional NATS headers (e.g. the
+// rollup marker) and JetStream publish options (e.g. the expected-last-subject-
+// sequence guard). It shares the exact record-build and signing path, so an op
+// published with extras is signed and attributed identically to any other.
+func publishOpWith(ctx context.Context, c *realm.Client, subject, opType string, payload any, parents []string, extraHeaders map[string]string, opts []jetstream.PublishOpt) (opID string, err error) {
 	author := c.Persona()
 	if author == "" {
 		return "", fmt.Errorf("topic: a persona is required to post (client has none)")
@@ -53,7 +62,10 @@ func publishOp(ctx context.Context, c *realm.Client, subject, opType string, pay
 	}
 
 	msg := &nats.Msg{Subject: subject, Header: nats.Header(headers), Data: body}
-	if _, err := c.JetStream().PublishMsg(ctx, msg); err != nil {
+	for k, v := range extraHeaders {
+		msg.Header.Set(k, v)
+	}
+	if _, err := c.JetStream().PublishMsg(ctx, msg, opts...); err != nil {
 		return "", fmt.Errorf("topic: publish %s: %w", opType, err)
 	}
 	return rec.ID, nil

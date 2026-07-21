@@ -22,10 +22,10 @@ func NotifySubject(persona string) string { return NotifySubjectPrefix + persona
 
 // Notification is a received mention.notify.
 type Notification struct {
-	Topic  string
-	OpID   string
-	Author string
-	Sig    SigStatus // verification status of the notify op itself
+	Topic  string    `json:"topic"`
+	OpID   string    `json:"op_id"`
+	Author string    `json:"author"`
+	Sig    SigStatus `json:"sig,omitempty"` // verification status of the notify op itself
 }
 
 // publishNotify publishes a mention.notify record to a persona's inbox.

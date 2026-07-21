@@ -16,11 +16,11 @@ import (
 
 // BoardEntry is one topic on the discovery board.
 type BoardEntry struct {
-	Path         string
-	Announcement Announcement
-	Parent       string
-	ParentKnown  bool
-	Lifecycle    Lifecycle
+	Path         string       `json:"path"`
+	Announcement Announcement `json:"announcement"`
+	Parent       string       `json:"parent,omitempty"`
+	ParentKnown  bool         `json:"parent_known"`
+	Lifecycle    Lifecycle    `json:"lifecycle,omitempty"`
 }
 
 // Board replays the realm's info board and returns one entry per topic — the latest
