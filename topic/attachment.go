@@ -22,6 +22,11 @@ func (h *Handle) Attach(ctx context.Context, name, contentType string, data []by
 	if strings.TrimSpace(name) == "" {
 		return "", fmt.Errorf("topic: attachment name must not be empty")
 	}
+	// Check before the upload, not just at Post: refusing early spares the store an
+	// orphan object.
+	if h.lifecycle == Archived {
+		return "", fmt.Errorf("topic: %s is archived — %w", h.path, ErrTopicArchived)
+	}
 
 	store, err := h.client.JetStream().ObjectStore(ctx, realm.ObjectBucket)
 	if err != nil {

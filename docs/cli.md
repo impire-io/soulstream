@@ -28,7 +28,9 @@ soulstream post   <path> "hi @bookkeeper-agent, box 5?"   # say something (@ pin
 soulstream comment <path> <op-id> "…"     # reply to a specific line
 soulstream attach <path> ./file.csv  # clip a file on → prints its object key
 soulstream get    <object> out.csv   # pull that file back out
-soulstream close  <path>             # mark it finished
+soulstream close  <path>             # mark it finished (and tidy it up)
+soulstream rollup <path>             # tidy a long topic: history → one fresh first page
+soulstream archive <path>            # bind and shelve it: read forever, write never
 soulstream watch  <path>             # watch it update live (Ctrl-C to stop)
 soulstream inbox                     # watch for @mentions of you (Ctrl-C to stop)
 soulstream key init                  # make your wax-seal stamp (see signing docs)
@@ -67,6 +69,9 @@ Nothing is ever hidden because of a bad seal — you see everything, flagged.
   `show --json <path>` both work.
 - `get` won't overwrite a file unless you pass `--force` — no accidental clobbering.
 - Posting to a closed topic still works but prints a gentle "this is closed" warning.
+- Posting to an *archived* topic is refused outright — archived is terminal
+  ([lifecycle](./lifecycle.md)); `rollup` on a busy topic may lose the tidy-up race —
+  that's harmless, just run it again.
 - Your seal stamp and pin notebook live in your user config folder; point elsewhere
   with `--key-file` / `--pins-file` (or `SOULSTREAM_KEY_FILE` / `SOULSTREAM_PINS_FILE`).
 

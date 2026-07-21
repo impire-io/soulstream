@@ -221,10 +221,26 @@ func cmdClose(ctx context.Context, connect Connector, cfg Config, args []string,
 		if err != nil {
 			return err
 		}
-		if _, err := h.Transition(ctx, topic.Closed); err != nil {
+		if _, err := h.Close(ctx); err != nil {
 			return err
 		}
 		fmt.Fprintln(stdout, "closed", path)
+		return nil
+	})
+}
+
+func cmdArchive(ctx context.Context, connect Connector, cfg Config, args []string, stdout, stderr io.Writer) int {
+	if len(args) < 1 {
+		fmt.Fprintln(stderr, "usage: soulstream archive <path>")
+		return 2
+	}
+	path := args[0]
+	return withClient(ctx, connect, cfg, true, stderr, func(c *realm.Client) error {
+		h := topic.Open(c, path)
+		if _, err := h.Archive(ctx); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "archived %s: final baseline published; the topic is now read-only\n", path)
 		return nil
 	})
 }

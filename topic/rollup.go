@@ -41,6 +41,12 @@ var (
 // if the rollup never happened. On success the handle adopts that frontier and the
 // new baseline op-id is returned.
 func (h *Handle) Rollup(ctx context.Context) (string, error) {
+	return h.rollup(ctx, false)
+}
+
+// rollup is Rollup with the archival exception: Archive's final compaction must run
+// on the topic it just archived, which every other caller is refused.
+func (h *Handle) rollup(ctx context.Context, allowArchived bool) (string, error) {
 	recs, err := drainOps(ctx, h.client, h.path)
 	if err != nil {
 		return "", err
@@ -56,7 +62,7 @@ func (h *Handle) Rollup(ctx context.Context) (string, error) {
 	if mt.Malformed != "" {
 		return "", fmt.Errorf("topic: refusing to compact a malformed topic: %s", mt.Malformed)
 	}
-	if mt.Lifecycle == Archived {
+	if mt.Lifecycle == Archived && !allowArchived {
 		return "", fmt.Errorf("topic: %s is archived — %w", h.path, ErrTopicArchived)
 	}
 	if len(recs) <= 1 {

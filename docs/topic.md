@@ -10,8 +10,9 @@ one thing together. Picture a **group notebook** that anyone in the room can wri
   note that the work is now finished.
 
 The very first page is always the **baseline**: the starting point everything else
-builds on. (Right now it's nearly empty; later it can hold a tidy summary so the
-notebook doesn't have to be re-read from the very beginning every time.)
+builds on. At birth it's nearly empty; after a tidy-up ([rollup](./rollup.md)) it
+holds the whole condensed story so far, so the notebook never has to be re-read from
+the very beginning.
 
 ## Working on a topic
 

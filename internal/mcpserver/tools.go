@@ -130,7 +130,7 @@ func (h *handlers) closeTopic(ctx context.Context, _ *mcp.CallToolRequest, in cl
 	if err != nil {
 		return nil, nil, err
 	}
-	if _, err := th.Transition(ctx, topic.Closed); err != nil {
+	if _, err := th.Close(ctx); err != nil {
 		return nil, nil, err
 	}
 	return textResult("closed " + in.Path)
