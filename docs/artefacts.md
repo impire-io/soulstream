@@ -33,6 +33,9 @@ reads the same notebook in the same order. No referee needed.
   is called.
 - Every old version can still be **fetched and fingerprint-checked** — nothing was
   overwritten, only superseded.
+- A **withdrawn** version ([detach](./attachments.md)) stays in the drawer with its
+  mark, but is never served as current: the tip falls back to the newest version
+  still standing. Withdraw every version and the drawer's label comes off the list.
 - Two different drawers can end up with the same label. When you ask for a drawer
   by label and two match, you're asked to point at the drawer itself (its first
   sheet's id) instead of guessing.

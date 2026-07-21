@@ -94,8 +94,8 @@ func renderView(w io.Writer, v *topic.MaterializedTopic) {
 	if len(v.Attachments) > 0 {
 		fmt.Fprintln(w, "attachments:")
 		for _, a := range v.Attachments {
-			fmt.Fprintf(w, "  [%s]%s %s (%s, %d bytes) object=%s\n",
-				shortID(a.OpID), sigGlyph(a.Sig), a.Name, a.ContentType, a.Size, a.Object)
+			fmt.Fprintf(w, "  [%s]%s %s (%s, %d bytes) object=%s%s\n",
+				shortID(a.OpID), sigGlyph(a.Sig), a.Name, a.ContentType, a.Size, a.Object, attachmentMark(a))
 		}
 	}
 	if len(v.WorkItems) > 0 {
@@ -160,8 +160,11 @@ func renderWorkItem(w io.Writer, v *topic.MaterializedTopic, item topic.WorkItem
 
 func renderContribution(w io.Writer, c topic.Contribution) {
 	kind := "turn"
-	if c.Type == topic.TypeCommentAdd {
+	switch c.Type {
+	case topic.TypeCommentAdd:
 		kind = "comment"
+	case topic.TypeCommentReply:
+		kind = "reply"
 	}
 	fmt.Fprintf(w, "  [%s]%s %s (%s", shortID(c.OpID), sigGlyph(c.Sig), c.Author, kind)
 	if c.Anchor != "" {
@@ -170,11 +173,25 @@ func renderContribution(w io.Writer, c topic.Contribution) {
 			fmt.Fprint(w, " dangling")
 		}
 	}
+	if len(c.Edits) > 0 {
+		fmt.Fprint(w, ", edited")
+	}
+	if c.Resolved {
+		fmt.Fprintf(w, ", resolved by %s", c.ResolvedBy)
+	}
 	fmt.Fprintf(w, "): %s", c.Body)
 	if len(c.Mentions) > 0 {
 		fmt.Fprintf(w, "  mentions=%v", c.Mentions)
 	}
 	fmt.Fprintln(w)
+}
+
+// attachmentMark renders the withdrawn marker for attachment listings.
+func attachmentMark(a topic.Attachment) string {
+	if a.Removed {
+		return " removed by " + a.RemovedBy
+	}
+	return ""
 }
 
 func shortID(id string) string {

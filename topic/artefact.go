@@ -102,7 +102,20 @@ func (mt *MaterializedTopic) Artefacts() []Artefact {
 		for k, m := range members[r] {
 			revs[k] = mt.Attachments[m]
 		}
-		tip := revs[len(revs)-1]
+		// The tip is the newest revision still standing: withdrawn (removed)
+		// revisions stay in the history but are never served as current. A
+		// lineage with nothing standing is a withdrawn document — not listed.
+		tipAt := -1
+		for k := len(revs) - 1; k >= 0; k-- {
+			if !revs[k].Removed {
+				tipAt = k
+				break
+			}
+		}
+		if tipAt < 0 {
+			continue
+		}
+		tip := revs[tipAt]
 		out = append(out, Artefact{
 			Root: mt.Attachments[r].OpID, Name: tip.Name, Tip: tip, Revisions: revs,
 		})

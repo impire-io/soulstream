@@ -23,6 +23,15 @@ type Options struct {
 	// ScanEvery is the cadence of the duplicate and dormancy passes (discovery
 	// answering is event-driven, per request).
 	ScanEvery time.Duration
+	// MarkDormant, when set, additionally applies core's idle rule during scans:
+	// topics whose newest op of any kind is older than IdleWindow are marked
+	// dormant (an ordinary transition any persona could post). Off by default —
+	// an unflagged curator's vocabulary of action stays comments only.
+	MarkDormant bool
+	// ReclaimAfter, when positive, additionally abandons stale claims during
+	// scans: a claimed work item with no related activity for this long is
+	// reopened with an ordinary work.abandon. Zero means never.
+	ReclaimAfter time.Duration
 	// OnEvent, if non-nil, receives one human-readable line per notable act
 	// (projection ready, answer served, flag posted, proposal posted).
 	OnEvent func(event string)
@@ -88,6 +97,70 @@ func Run(ctx context.Context, c *realm.Client, opts Options) error {
 			}
 			p.duplicatePass(ctx, event)
 			p.dormancyPass(ctx, opts.IdleWindow, event)
+			if opts.MarkDormant {
+				p.dormantMarkPass(ctx, opts.IdleWindow, event)
+			}
+			if opts.ReclaimAfter > 0 {
+				p.reclaimPass(ctx, opts.ReclaimAfter, event)
+			}
+		}
+	}
+}
+
+// dormantMarkPass applies core's idle rule (opt-in): mark proposed/active topics
+// whose newest op of any kind is past the window. Bookkeeping, not judgment —
+// the rule is deterministic, the transition idempotent, and any persona could
+// have posted it. The fresh materialise before marking closes the cache gap;
+// racing markers converge on the same state.
+func (p *projection) dormantMarkPass(ctx context.Context, window time.Duration, event func(string, ...any)) {
+	now := time.Now().UTC()
+	for _, ct := range p.snapshot() {
+		if ct.malformed || now.Sub(ct.lastAny) <= window {
+			continue
+		}
+		if ct.entry.Lifecycle != topic.Proposed && ct.entry.Lifecycle != topic.Active {
+			continue
+		}
+		h := topic.Open(p.c, ct.entry.Path)
+		view, err := h.Materialise(ctx)
+		if err != nil || !topic.DormantEligible(view, window, now) {
+			continue
+		}
+		if _, err := h.MarkDormant(ctx); err != nil {
+			continue
+		}
+		p.mu.Lock()
+		p.dirty[ct.entry.Path] = true
+		p.mu.Unlock()
+		event("marked %s dormant (idle %s)", ct.entry.Path, humanSpan(now.Sub(topic.NewestOpTs(view))))
+	}
+}
+
+// reclaimPass abandons stale claims (opt-in): a claimed item idle past the
+// window reopens with an ordinary work.abandon — 010's author-agnostic abandon
+// is the whole mechanism, and a racing sweep's second abandon folds void.
+func (p *projection) reclaimPass(ctx context.Context, window time.Duration, event func(string, ...any)) {
+	now := time.Now().UTC()
+	for _, ct := range p.snapshot() {
+		if ct.malformed || ct.entry.Lifecycle == topic.Archived {
+			continue
+		}
+		if len(topic.StaleClaims(ct.view, window, now)) == 0 {
+			continue
+		}
+		h := topic.Open(p.c, ct.entry.Path)
+		view, err := h.Materialise(ctx)
+		if err != nil {
+			continue
+		}
+		for _, itemID := range topic.StaleClaims(view, window, now) {
+			if _, err := h.AbandonWork(ctx, itemID); err != nil {
+				continue
+			}
+			p.mu.Lock()
+			p.dirty[ct.entry.Path] = true
+			p.mu.Unlock()
+			event("reclaimed %s in %s (claim idle past %s)", itemID, ct.entry.Path, humanSpan(window))
 		}
 	}
 }

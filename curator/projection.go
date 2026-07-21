@@ -18,6 +18,7 @@ type cachedTopic struct {
 	entry      topic.DiscoverEntry
 	searchText string
 	lastReal   time.Time // newest non-suggestion activity; never before birth
+	lastAny    time.Time // newest op of any kind — core's dormancy clock
 	birth      time.Time // BaselineTs
 	malformed  bool      // skip-marker: never matched, never commented on
 }
@@ -170,6 +171,9 @@ func buildCached(path string, view *topic.MaterializedTopic) *cachedTopic {
 			}
 		}
 	}
+	// lastAny is core's dormancy clock: the newest op of ANY kind, curator
+	// chatter included (a suggestion defers dormancy one window at most).
+	ct.lastAny = topic.NewestOpTs(view)
 	return ct
 }
 

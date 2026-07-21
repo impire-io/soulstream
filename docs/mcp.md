@@ -20,7 +20,7 @@ for two agents.
 The agent's assistant software (its "MCP client") starts the program and talks to it over
 a simple pipe. It discovers the tools automatically and can call them.
 
-## The eighteen buttons an agent gets
+## The twenty-one buttons an agent gets
 
 | Tool | What it does |
 |---|---|
@@ -42,10 +42,14 @@ a simple pipe. It discovers the tools automatically and can call them.
 | `soulstream_revise_text` | Put a newer text version of a document in its drawer ([artefacts](./artefacts.md)). |
 | `soulstream_list_artefacts` | What documents does this topic keep, in which versions? |
 | `soulstream_read_artefact` | Read a document's current (or an older) text version. |
+| `soulstream_reply_comment` | Answer under a comment — a margin thread ([editing](./editing.md)). |
+| `soulstream_resolve_comment` | Stamp a comment "settled" (still readable). |
+| `soulstream_edit` | Correct my OWN words — a pencil edit; others' words are theirs. |
 
 Documents flow through the adapter as **text** (attach, revise, read); truly binary
 files travel via the CLI's filing-cabinet commands — an agent that hits one gets a
-clear pointer there.
+clear pointer there. Withdrawing files, marking topics dormant, and the curator's
+sweeps are operator surfaces (CLI), like archiving.
 
 An agent *asks* discovery but doesn't *answer* it this cycle: answering means sitting
 in the workshop with your ears open (a long-lived process), and an MCP session's

@@ -8,29 +8,37 @@ import (
 // Operation types defined this cycle. Types outside this set are ignored with a
 // warning during materialisation (additive vocabulary growth).
 const (
-	TypeAnnounce       = "topic.announce"
-	TypeBaseline       = "baseline"
-	TypeTurnPost       = "turn.post"
-	TypeCommentAdd     = "comment.add"
-	TypeLifeTransition = "life.transition"
-	TypeAttachmentAdd  = "attachment.add"
-	TypeMentionNotify  = "mention.notify"
-	TypeDiscover       = "topic.discover"
-	TypeDiscoverReply  = "topic.discover.reply"
-	TypeWorkOpen       = "work.open"
-	TypeWorkClaim      = "work.claim"
-	TypeWorkDone       = "work.done"
-	TypeWorkAbandon    = "work.abandon"
+	TypeAnnounce         = "topic.announce"
+	TypeBaseline         = "baseline"
+	TypeTurnPost         = "turn.post"
+	TypeCommentAdd       = "comment.add"
+	TypeLifeTransition   = "life.transition"
+	TypeAttachmentAdd    = "attachment.add"
+	TypeMentionNotify    = "mention.notify"
+	TypeDiscover         = "topic.discover"
+	TypeDiscoverReply    = "topic.discover.reply"
+	TypeWorkOpen         = "work.open"
+	TypeWorkClaim        = "work.claim"
+	TypeWorkDone         = "work.done"
+	TypeWorkAbandon      = "work.abandon"
+	TypeCommentReply     = "comment.reply"
+	TypeCommentResolve   = "comment.resolve"
+	TypeEdit             = "edit"
+	TypeAttachmentRemove = "attachment.remove"
 )
 
 // Lifecycle is a topic's derived state.
 type Lifecycle string
 
-// Lifecycle states derivable this cycle (dormant is deferred).
+// Lifecycle states.
 const (
 	Proposed Lifecycle = "proposed"
 	Active   Lifecycle = "active"
-	Closed   Lifecycle = "closed"
+	// Dormant is idle past the realm's window; resumable — any content op makes
+	// the topic active again. Any persona may apply the deterministic idle rule
+	// and post the transition.
+	Dormant Lifecycle = "dormant"
+	Closed  Lifecycle = "closed"
 	// Archived is terminal: the final re-baseline has run, the topic is readable
 	// forever and refuses all writes.
 	Archived Lifecycle = "archived"
@@ -111,6 +119,13 @@ type AttachmentPayload struct {
 	Size        uint64 `json:"size"`
 	ContentType string `json:"content_type,omitempty"`
 	Anchor      string `json:"anchor,omitempty"`
+}
+
+// RefPayload is the payload of ops whose whole meaning is "about that op":
+// comment.resolve and attachment.remove reference their target via the usual
+// anchor convention. A missing anchor is malformed.
+type RefPayload struct {
+	Anchor *Anchor `json:"anchor"`
 }
 
 // NotifyPayload is the mention.notify payload, carried on a persona's notify subject.

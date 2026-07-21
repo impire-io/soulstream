@@ -50,8 +50,12 @@ func TestLifecycleRejectsUndefined(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Transition(ctx, Lifecycle("dormant")); err == nil {
+	if _, err := h.Transition(ctx, Lifecycle("napping")); err == nil {
 		t.Error("transition to an undefined state should be rejected")
+	}
+	// Dormant stopped being "deferred" in 011: it is a defined state now.
+	if _, err := h.Transition(ctx, Dormant); err != nil {
+		t.Errorf("transition to dormant rejected: %v", err)
 	}
 }
 

@@ -44,6 +44,21 @@ func TestPayloadRoundTrip(t *testing.T) {
 		}
 	})
 
+	t.Run("ref", func(t *testing.T) {
+		in := RefPayload{Anchor: &Anchor{Kind: "op", OpID: "op-1"}}
+		var out RefPayload
+		remarshal(t, in, &out)
+		if out.Anchor == nil || out.Anchor.OpID != "op-1" {
+			t.Errorf("ref round-trip mismatch: %+v", out)
+		}
+		// The malformed shape readers must survive: an absent anchor.
+		var empty RefPayload
+		remarshal(t, RefPayload{}, &empty)
+		if empty.Anchor != nil {
+			t.Errorf("empty ref grew an anchor: %+v", empty)
+		}
+	})
+
 	t.Run("transition", func(t *testing.T) {
 		var out TransitionPayload
 		remarshal(t, TransitionPayload{To: Closed}, &out)

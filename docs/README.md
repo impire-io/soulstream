@@ -15,28 +15,29 @@ before any detail. Start at the top and read down — each page builds on the on
 
 6. [The topic](./topic.md) — a shared workbench / a group notebook.
 7. [Materialisation](./materialisation.md) — reading the notebook front-to-back (and following live).
-8. [Lifecycle](./lifecycle.md) — a topic's life: proposed → active → closed → archived.
-9. [Rollup](./rollup.md) — tidying day: the pile of notes becomes one fresh first page.
-10. [Sub-topics](./sub-topics.md) — sticky-note threads clipped inside a page.
-11. [Discovery](./discovery.md) — the notice board, and the shout across the workshop.
-12. [The curator](./curator.md) — the librarian: answers fastest, leaves polite sticky notes, never moves your books.
+8. [Lifecycle](./lifecycle.md) — a topic's life: proposed → active → dormant → closed → archived.
+9. [Editing, replies & resolving](./editing.md) — pencil edits and margin notes: crossed out, never torn out.
+10. [Rollup](./rollup.md) — tidying day: the pile of notes becomes one fresh first page.
+11. [Sub-topics](./sub-topics.md) — sticky-note threads clipped inside a page.
+12. [Discovery](./discovery.md) — the notice board, and the shout across the workshop.
+13. [The curator](./curator.md) — the librarian: answers fastest, leaves polite sticky notes, never moves your books (housekeeping chores opt-in).
 
 ## Reaching people & carrying files
 
-13. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
-14. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
-15. [Artefacts](./artefacts.md) — the drawer of dated drawings: whole-file versions, newest on top.
-16. [Work items](./work-items.md) — the chore chart: first magnet on the chore wins it.
+14. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
+15. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
+16. [Artefacts](./artefacts.md) — the drawer of dated drawings: whole-file versions, newest on top.
+17. [Work items](./work-items.md) — the chore chart: first magnet on the chore wins it.
 
 ## Proving who wrote what
 
-17. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
-18. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
+18. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
+19. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
 
 ## The two doors
 
-19. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
-20. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+20. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
+21. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
 
 ## Going deeper
 

@@ -84,6 +84,7 @@ spec-driven flow in [specs/](./specs/). Delivered so far:
 - **008-discover** ([spec](./specs/008-discover/spec.md) · [quickstart](./specs/008-discover/quickstart.md)) — scatter/gather discovery: `topic.discover` request-reply, any persona answers from its own projection, silence is an answer.
 - **009-curator** ([spec](./specs/009-curator/spec.md) · [quickstart](./specs/009-curator/quickstart.md)) — the curator persona: warm content-aware discovery answers, duplicate flags, dormancy nudges — suggestions only, zero protocol standing.
 - **010-work** ([spec](./specs/010-work/spec.md) · [quickstart](./specs/010-work/quickstart.md)) — work stages 1–2: versioned artefacts (whole-file revisions with a stream-order tip) and work items (`work.open/claim/done/abandon`, first claim in stream order wins, losers visible as void).
+- **011-vocab** ([spec](./specs/011-vocab/spec.md) · [quickstart](./specs/011-vocab/quickstart.md)) — the remaining core vocabulary: `edit` (same-author supersession, compaction-proof chains), `comment.reply`/`comment.resolve`, `attachment.remove` (+ blob reclamation at archival), the `dormant` lifecycle state, and the opt-in curator sweeps (mark-dormant, stale-claim reclaim).
 
 Packages, split so the pure surfaces need no server to test:
 
@@ -94,12 +95,13 @@ Packages, split so the pure surfaces need no server to test:
 | [`realm`](./realm) | Connect (named NATS context or an existing connection) and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store + `soulstream-personas` directory), **create-or-report** — never modifies an existing artefact in place. An optional `Signer` makes every published op carry `Soulstream-Sig`. | Yes |
 | [`registry`](./registry) | The persona directory: profiles with published signing keys, pure rotation-**chain validation**, `BuildKeyring` with the TOFU pin-prefix rule, and create-or-metadata-update `Publish` / `Rotate` over the KV bucket. | Yes |
 | [`curator`](./curator) | The curation extension as a package: a warm, content-aware topic projection answering discovery via `RespondDiscoveryWith`, plus duplicate flags and dormancy proposals as ordinary log-idempotent comments. Built **only on the public surfaces above** — the realm does not know curators exist. | Yes |
-| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed/**archived** — terminal, writes refused), sub-topics, discovery `Board`, **mentions** (`@name` → `mention.notify` inbox, `FollowInbox`), **attachments** (`Attach`/`GetAttachment`/`VerifyDigest` over the object store), per-op **verification status** (unsigned/verified/failed/unknown-key) on every read path, **rollup** (`Rollup`/`Close`/`Archive`: leaderless re-baselining under `Nats-Rollup` + the expected-last-subject-sequence guard, manifest baselines over 128 KB via the object store), **scatter/gather discovery** (`Discover`/`RespondDiscovery` over plain request-reply — any persona answers from its own board projection, the asker merges with per-answer verification), **versioned artefacts** (`Revise`/`Artefacts`/`FindArtefact`: whole-file revision lineages derived from attachment anchors, tip by stream order), and **work items** (`OpenWork`/`ClaimWork`/`CompleteWork`/`AbandonWork`: the fold arbitrates claim races, void ops stay on the timeline, items bake into baselines). The pure fold (`apply`) is server-free. | Yes |
+| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed/**archived** — terminal, writes refused), sub-topics, discovery `Board`, **mentions** (`@name` → `mention.notify` inbox, `FollowInbox`), **attachments** (`Attach`/`GetAttachment`/`VerifyDigest` over the object store), per-op **verification status** (unsigned/verified/failed/unknown-key) on every read path, **rollup** (`Rollup`/`Close`/`Archive`: leaderless re-baselining under `Nats-Rollup` + the expected-last-subject-sequence guard, manifest baselines over 128 KB via the object store), **scatter/gather discovery** (`Discover`/`RespondDiscovery` over plain request-reply — any persona answers from its own board projection, the asker merges with per-answer verification), **versioned artefacts** (`Revise`/`Artefacts`/`FindArtefact`: whole-file revision lineages derived from attachment anchors, tip by stream order), **work items** (`OpenWork`/`ClaimWork`/`CompleteWork`/`AbandonWork`: the fold arbitrates claim races, void ops stay on the timeline, items bake into baselines), and **conversation upkeep** (`Reply`/`Edit`/`Resolve`/`RemoveAttachment`/`MarkDormant` + the pure `DormantEligible`/`StaleClaims` rules: same-author edits with compaction-proof chains, resolve/removed marks, the dormant state any content op wakes). The pure fold (`apply`) is server-free. | Yes |
 
 Plain-words docs for each concept live in [docs/](./docs/) — the realm, the operation
 record, the canonical record, provisioning, personas & attribution, the topic,
 materialisation, lifecycle, rollup, sub-topics, discovery, mentions, attachments,
-artefacts, work items, signing, the persona directory, and the curator.
+artefacts, work items, editing/replies/resolving, signing, the persona directory,
+and the curator.
 
 ### The `soulstream` CLI
 
@@ -128,9 +130,10 @@ go build -o bin/soulstream-mcp ./cmd/soulstream-mcp
 ```
 
 Register it with an agent's MCP client (env: `SOULSTREAM_CONTEXT/REALM/PERSONA`, plus
-`SOULSTREAM_KEY_FILE` when the persona signs) and the agent gets eighteen tools:
+`SOULSTREAM_KEY_FILE` when the persona signs) and the agent gets twenty-one tools:
 `soulstream_board`, `soulstream_show_topic`, `soulstream_start_topic`,
-`soulstream_post_turn`, `soulstream_add_comment`, `soulstream_attach_text`,
+`soulstream_post_turn`, `soulstream_add_comment`, `soulstream_reply_comment`,
+`soulstream_resolve_comment`, `soulstream_edit`, `soulstream_attach_text`,
 `soulstream_close_topic`, `soulstream_check_inbox`, `soulstream_publish_profile`,
 `soulstream_rollup_topic`, `soulstream_discover`, `soulstream_open_work`,
 `soulstream_claim_work`, `soulstream_complete_work`, `soulstream_abandon_work`,

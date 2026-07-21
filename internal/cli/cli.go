@@ -39,6 +39,9 @@ Commands:
   show <path> [--json]               print a topic's current state
   post <path> <body>                 post a turn (use @name to mention)
   comment <path> <op-id> <body>      comment, anchored to an op
+  reply <path> <op-id> <body>        reply under a comment
+  edit <path> <op-id> <body>         correct your own turn/comment/reply
+  resolve <path> <op-id>             mark a comment settled (stays readable)
   attach <path> <file> [--type ct] [--anchor op-id]
                                      attach a file; prints its object key
   revise <path> <file> --of <artefact> [--type ct]
@@ -50,6 +53,8 @@ Commands:
   work open|claim|done|abandon|list|show ...
                                      work items: tasks the log itself arbitrates
                                      (first claim in stream order wins)
+  detach <path> <attachment-op-id>   withdraw a file (bytes reclaimed at archival)
+  mark-dormant <path> [--idle 336h]  apply the idle rule; posts only when eligible
   close <path>                       close a topic (and tidy it up)
   rollup <path>                      compact a topic's history into a fresh baseline
   archive <path>                     archive a topic: final compaction, read-only forever
@@ -59,9 +64,10 @@ Commands:
                                      ask the realm: is there a topic about this?
   respond                            answer discovery asks from your own board view
                                      (Ctrl-C to stop)
-  curate [--idle 336h] [--scan-every 1m]
+  curate [--idle 336h] [--scan-every 1m] [--mark-dormant] [--reclaim <dur>]
                                      run the curator: best discovery answers,
-                                     duplicate flags, dormancy nudges (Ctrl-C to stop)
+                                     duplicate flags, dormancy nudges — plus the
+                                     opt-in sweeps (Ctrl-C to stop)
   key init                           create this persona's signing key
   key show                           print this persona's public signing key
   key rotate                         switch to a new key (old key endorses it)
@@ -122,6 +128,16 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdPost(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "comment":
 		return cmdComment(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "reply":
+		return cmdReply(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "edit":
+		return cmdEdit(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "resolve":
+		return cmdResolve(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "detach":
+		return cmdDetach(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "mark-dormant":
+		return cmdMarkDormant(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "attach":
 		return cmdAttach(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "revise":

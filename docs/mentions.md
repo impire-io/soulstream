@@ -25,6 +25,9 @@ shoulder for people and agents — there's no separate system for "bots".
 - **You can tag someone who isn't registered anywhere.** The substrate doesn't keep a
   roster; a well-formed `@name` is a valid mention. If nobody's watching that pigeonhole,
   the slip just sits there harmlessly.
+- **Every kind of writing taps the same way** — turns, comments, replies, task
+  descriptions, and even [pencil edits](./editing.md): add an `@name` in the
+  correction and they get a slip.
 
 ## Why a pigeonhole and not a shout?
 
