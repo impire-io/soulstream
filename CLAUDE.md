@@ -1,27 +1,31 @@
 <!-- SPECKIT START -->
-Active feature: **010-work** — work stages 1–2 (Day-2 #5, extensions/work.md).
-Stage 1, versioned artefacts: ZERO new op types — a revision is `attachment.add` anchored to a
-prior attachment op (anchor→attachment = revision, unconditionally); artefacts DERIVED on demand
-(`mt.Artefacts()`, pure over `mt.Attachments`; lineage = anchor connectivity, identity = root
-op-id, tip = highest slice index — slice order IS stream order, baked-safe; never compare
-StreamSeq, it's 0 on baked). Stage 2, work items: 4 new op types `work.open/claim/done/abandon`
-folded into NEW `MaterializedTopic.WorkItems`; the in-order fold IS the arbiter (first claim in
-stream order wins); state machine open→claimed→done, claimed→open on abandon, done terminal,
-author-agnostic (like life.transition). Malformed (unreadable/missing anchor/empty title) =
-warn+skip ≠ void (readable but loses) = WorkEvent{Void:true} on the item timeline; unknown item
-ref = warning. Item refs reuse `Anchor{kind:"op"}`. Bake `BakedState.WorkItems` (strip
-StreamSeq/Sig recursively, KEEP void flags; seed ids as seen+referenced). Work ops = content ops
-(activate proposed); curator lastReal must count them. Claims do NOT use expected-sequence
-(lost claim must land in the log). Handle: OpenWork (mentions parsed) / ClaimWork /
-CompleteWork / AbandonWork / Revise. CLI: `work open|claim|done|abandon|list|show`,
-`artefacts [ref]`, `revise --of`, `get --artefact [--revision]`; claim verdict = publish then
-materialise ("claimed" / "void — owned by X"). MCP: 7 new tools (18 total), read_artefact
-UTF-8-only. ELI5 docs: artefacts.md + work-items.md, same change.
+Active feature: **011-vocab** — remaining vocabulary (Day-2 #7, core/03-topics.md).
+Four new op types + one lifecycle state: `comment.reply` (folds like comment.add, own type),
+`comment.resolve` (MARK on target: Resolved/ResolvedBy — resolve op is NOT a list entry,
+vanishes at compaction like transitions; duplicate = silent no-op), `edit` (SAME-AUTHOR-ONLY
+projection rule — foreign edit = warning, no effect; rewrites target Body/Mentions in place,
+appends EditStamp{op-id,author,ts} to Contribution.Edits; editTarget map covers target + stamp
+op-ids, baked stamps RE-SEED it so post-rollup edits of compacted chain members still resolve;
+empty body = malformed), `attachment.remove` (mark Removed/RemovedBy, author-agnostic, bytes
+fetchable until archival; Artefacts() tip = newest NON-removed, fully-removed lineage leaves the
+list; Archive deletes removed blobs AFTER final compaction, best-effort), `Dormant` lifecycle
+(Transition stops rejecting it; fold: proposed/active→dormant, closed/archived ignore+warn; ANY
+content op while dormant → Active IN-LOOP — order-sensitive). Payloads: reply/edit reuse
+CommentPayload; resolve/remove use new RefPayload{Anchor}. Pure rules in topic/upkeep.go:
+DormantEligible(mt,window,now) (newest op of ANY kind, incl. curator chatter; only from
+proposed/active) + StaleClaims(mt,window,now) (claim/timeline/anchored-evidence clock). Reclaim
+= rule + ordinary author-agnostic work.abandon (ZERO fold changes). Curator: Options.MarkDormant
++ Options.ReclaimAfter (both OFF by default — 009 contract intact), passes on existing scan
+tick; cachedTopic.lastAny beside lastReal. Handle: Reply/Edit/Resolve/RemoveAttachment/
+MarkDormant. CLI: reply, edit, resolve, detach, mark-dormant, curate --mark-dormant --reclaim.
+MCP: +3 tools (reply/resolve/edit → 21). ELI5: docs/editing.md new; lifecycle/attachments/
+work-items/curator docs updated.
 
-For details read: [specs/010-work/plan.md](specs/010-work/plan.md)
-(spec: `specs/010-work/spec.md`, contract: `specs/010-work/contracts/library.md`,
-model: `specs/010-work/data-model.md`).
-Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator` merged + pushed.
+For details read: [specs/011-vocab/plan.md](specs/011-vocab/plan.md)
+(spec: `specs/011-vocab/spec.md`, contract: `specs/011-vocab/contracts/library.md`,
+model: `specs/011-vocab/data-model.md`).
+Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
+`010-work` merged + pushed.
 
 Project conventions:
 - Go 1.26; module `github.com/impire/soulstream`.
