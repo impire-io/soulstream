@@ -10,6 +10,11 @@ You start at the first page (the baseline) and read each page in order:
 - a *comment* clips onto the earlier page it points at,
 - a *closed* note flips the topic's status.
 
+If the topic has been tidied ([rollup](./rollup.md)), the first page already *is* most
+of the story — the glued-in condensed page — so there's much less to read. And if that
+first page is a claim ticket (the condensed page lives in the supply cupboard), the
+library quietly fetches the box and checks its fingerprint before reading on.
+
 When you reach the end, you have the **current picture**: what the topic is about, the
 conversation in order, which comments hang off which pages, and whether it's proposed,
 active, or closed.

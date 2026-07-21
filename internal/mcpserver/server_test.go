@@ -84,7 +84,7 @@ func TestBoardAndShow(t *testing.T) {
 	}
 
 	res, _, _ = h.showTopic(ctx, nil, showTopicInput{Path: path})
-	if !strings.Contains(resultText(t, res), `"Lifecycle"`) {
+	if !strings.Contains(resultText(t, res), `"lifecycle"`) {
 		t.Errorf("show missing view: %q", resultText(t, res))
 	}
 

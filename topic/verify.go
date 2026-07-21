@@ -65,12 +65,24 @@ func annotate(recs []SeqRecord, realmName, binding string, kr *identity.Keyring)
 	return statuses
 }
 
-// annotateView attaches per-op statuses to a materialised view's elements.
-func annotateView(mt *MaterializedTopic, statuses map[string]SigStatus) {
+// annotateView attaches per-op statuses to a materialised view's elements. Elements
+// with no status of their own were baked into the baseline by a rollup — their
+// individual signatures were destroyed with the compacted tail, so they inherit the
+// baseline op's status: the roll-upper's attestation is the state's provenance.
+func annotateView(mt *MaterializedTopic, statuses map[string]SigStatus, baselineID string) {
+	baked := statuses[baselineID]
 	for i := range mt.Contributions {
-		mt.Contributions[i].Sig = statuses[mt.Contributions[i].OpID]
+		if s, ok := statuses[mt.Contributions[i].OpID]; ok {
+			mt.Contributions[i].Sig = s
+		} else {
+			mt.Contributions[i].Sig = baked
+		}
 	}
 	for i := range mt.Attachments {
-		mt.Attachments[i].Sig = statuses[mt.Attachments[i].OpID]
+		if s, ok := statuses[mt.Attachments[i].OpID]; ok {
+			mt.Attachments[i].Sig = s
+		} else {
+			mt.Attachments[i].Sig = baked
+		}
 	}
 }

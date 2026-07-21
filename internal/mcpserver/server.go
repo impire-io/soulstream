@@ -108,6 +108,10 @@ func NewServer(c *realm.Client) *mcp.Server {
 		Name:        "soulstream_publish_profile",
 		Description: "Publish or update your persona's directory profile (display metadata; includes your public signing key when this session holds one).",
 	}, h.publishProfile)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_rollup_topic",
+		Description: "Compact a topic: fold its history into a fresh baseline. The conversation reads identically afterwards; replay just gets cheap.",
+	}, h.rollupTopic)
 
 	return s
 }

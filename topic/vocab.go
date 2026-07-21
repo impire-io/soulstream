@@ -17,11 +17,14 @@ const (
 // Lifecycle is a topic's derived state.
 type Lifecycle string
 
-// Lifecycle states derivable this cycle (dormant/archived are deferred).
+// Lifecycle states derivable this cycle (dormant is deferred).
 const (
 	Proposed Lifecycle = "proposed"
 	Active   Lifecycle = "active"
 	Closed   Lifecycle = "closed"
+	// Archived is terminal: the final re-baseline has run, the topic is readable
+	// forever and refuses all writes.
+	Archived Lifecycle = "archived"
 )
 
 // AnnouncePayload is the topic.announce payload, carried on the INFO subject.
@@ -34,11 +37,34 @@ type AnnouncePayload struct {
 	Parent        string   `json:"parent,omitempty"`
 }
 
-// BaselinePayload is the baseline op payload: the materialised state plus the leaf
-// op-ids at baseline time.
+// BaselinePayload is the baseline op payload: the topic's zero-point. At birth it
+// carries the opaque workbench state and an empty frontier. After a rollup it also
+// carries the conversation folded in (Baked) — or, when the state document exceeds
+// the inline threshold, a Manifest referencing the object store instead of
+// State/Baked. Exactly one of {State(+Baked), Manifest} is present.
 type BaselinePayload struct {
-	State    json.RawMessage `json:"state"`
+	State    json.RawMessage `json:"state,omitempty"`
 	Frontier []string        `json:"frontier"`
+	Baked    *BakedState     `json:"baked,omitempty"`
+	Manifest *ManifestRef    `json:"manifest,omitempty"`
+}
+
+// BakedState is the conversation a rollup folded into its baseline: the elements a
+// reader would have materialised from the compacted tail, in original stream order.
+// Derived facts (dangling flags, sig statuses, active-vs-proposed) are recomputed at
+// read time, never stored.
+type BakedState struct {
+	Contributions []Contribution `json:"contributions,omitempty"`
+	Attachments   []Attachment   `json:"attachments,omitempty"`
+	Lifecycle     Lifecycle      `json:"lifecycle,omitempty"`
+}
+
+// ManifestRef names an oversized state document in the object store: chunk objects in
+// fetch order (one, this cycle), a digest over the full document, and its size.
+type ManifestRef struct {
+	Chunks []string `json:"chunks"`
+	Digest string   `json:"digest"`
+	Size   uint64   `json:"size"`
 }
 
 // TurnPayload is the turn.post payload.

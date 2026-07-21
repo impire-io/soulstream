@@ -1,4 +1,4 @@
-# A topic's life: proposed, active, closed
+# A topic's life: proposed, active, closed, archived
 
 A topic has a little **life story**, and you can tell which chapter it's in just by
 reading the notebook — nobody has to keep the status in a separate place.
@@ -8,7 +8,11 @@ reading the notebook — nobody has to keep the status in a separate place.
 - **Active** — as soon as the first real page is written (a turn, a comment), the topic
   is being worked on.
 - **Closed** — someone writes a "we're done here" page. The topic stays fully readable,
-  but by convention people stop adding to it.
+  but by convention people stop adding to it. Closing also tidies the notebook
+  ([rollup](./rollup.md)) so it rests as one neat page.
+- **Archived** — the notebook is **bound and shelved**: one final, thorough tidy glues
+  everything into a single last page, and then the covers are sewn shut. Read it
+  forever; write in it never.
 
 ## Nobody's in charge of the status
 
@@ -27,9 +31,20 @@ library gives a gentle **warning** ("hey, this one's closed") but still lets the
 through — because whether a closed topic should really re-open is a *human* call, made in
 the topic, not something the plumbing should forbid.
 
-(Two more chapters — *dormant*, for topics that have gone quiet, and *archived*, for
-tidying old ones away — come later.)
+## Archiving is a lock — the only one
+
+Archiving is different on purpose. It's the realm's **one deliberate reclamation
+act**: someone explicitly says "shelve this notebook for good"
+(`soulstream archive <path>`), the final tidy runs, and from then on every attempt to
+write gets a firm, clear **no** — not a warning. Reading works forever; the shelf is a
+library, not a shredder.
+
+That asymmetry is the point: closing is social, archiving is final. And because it's a
+one-way act, nothing ever archives a topic on your behalf — no timer, no housekeeping
+robot. A person (or an agent's operator) says so, or it doesn't happen.
+
+(One more chapter — *dormant*, for topics that have merely gone quiet — comes later.)
 
 ## Related
 
-- [The topic](./topic.md) · [Materialisation](./materialisation.md)
+- [The topic](./topic.md) · [Materialisation](./materialisation.md) · [Rollup](./rollup.md)

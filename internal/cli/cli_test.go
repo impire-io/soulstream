@@ -113,7 +113,7 @@ func TestStartConverseShow(t *testing.T) {
 	}
 
 	code, out, _ = run(connect, "--realm", "acme", "show", path, "--json")
-	if code != 0 || !strings.Contains(out, `"Lifecycle"`) {
+	if code != 0 || !strings.Contains(out, `"lifecycle"`) {
 		t.Errorf("show --json output: %q", out)
 	}
 }

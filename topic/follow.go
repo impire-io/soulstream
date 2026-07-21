@@ -43,6 +43,8 @@ func (h *Handle) Follow(ctx context.Context, onOp func(*MaterializedTopic)) erro
 	}()
 
 	var recs []SeqRecord
+	var baselineBroken string
+	statuses := map[string]SigStatus{}
 	for {
 		msg, err := it.Next()
 		if err != nil {
@@ -64,9 +66,28 @@ func (h *Handle) Follow(ctx context.Context, onOp func(*MaterializedTopic)) erro
 			continue // skip an unparseable op
 		}
 
+		// Verify each op as it arrives, against its wire form (manifest resolution
+		// below may rewrite the first record's payload).
+		statuses[rec.ID] = VerifyRecord(rec, h.client.Realm(), h.path, h.keyring)
+
 		recs = append(recs, SeqRecord{Record: rec, StreamSeq: md.Sequence.Stream})
+		if len(recs) == 1 {
+			if rerr := resolveBaseline(ctx, h.client, recs); rerr != nil {
+				baselineBroken = rerr.Error()
+			}
+		}
+		if baselineBroken != "" {
+			// An unresolvable manifest baseline poisons the whole view: emitting a
+			// fold without its baked content would be silent partial state.
+			mt := &MaterializedTopic{Path: h.path, Lifecycle: Proposed, Malformed: baselineBroken}
+			h.adopt(mt)
+			if onOp != nil {
+				onOp(mt)
+			}
+			continue
+		}
 		mt := apply(h.path, recs)
-		annotateView(mt, annotate(recs, h.client.Realm(), h.path, h.keyring))
+		annotateView(mt, statuses, recs[0].Record.ID)
 		h.adopt(mt)
 		if onOp != nil {
 			onOp(mt)

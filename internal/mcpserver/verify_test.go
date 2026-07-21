@@ -35,7 +35,7 @@ func TestShowTopicSurfacesSigStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := resultText(t, res)
-	if !strings.Contains(out, `"Sig": "verified"`) {
+	if !strings.Contains(out, `"sig": "verified"`) {
 		t.Errorf("show result missing verified sig status:\n%s", out)
 	}
 	if strings.Contains(out, "distrusted_personas") {
@@ -64,7 +64,7 @@ func TestShowTopicSurfacesSigStatus(t *testing.T) {
 	if !strings.Contains(out, `"distrusted_personas"`) || !strings.Contains(out, "bookkeeper-agent") {
 		t.Errorf("substitution not surfaced:\n%s", out)
 	}
-	if !strings.Contains(out, `"Sig": "failed"`) {
+	if !strings.Contains(out, `"sig": "failed"`) {
 		t.Errorf("distrusted persona's op not failed:\n%s", out)
 	}
 	if !strings.Contains(out, "sealed by an agent") {
@@ -99,7 +99,7 @@ func TestCheckInboxCarriesSig(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := resultText(t, res)
-	if !strings.Contains(out, `"Sig": "verified"`) {
+	if !strings.Contains(out, `"sig": "verified"`) {
 		t.Errorf("notification missing verified sig:\n%s", out)
 	}
 }

@@ -9,57 +9,61 @@ import (
 )
 
 // Announcement is a topic's info metadata.
+//
+// The JSON tags on the view structs are wire contract: baked state inside rollup
+// baselines serialises these exact shapes, so the keys are pinned here, not left to
+// Go's default casing.
 type Announcement struct {
-	TopicID       string
-	Name          string
-	SubjectMatter string
-	Parent        string
-	Expected      []string
-	Tags          []string
-	Sig           SigStatus // verification status of the announce op
+	TopicID       string    `json:"topic_id"`
+	Name          string    `json:"name"`
+	SubjectMatter string    `json:"subject_matter,omitempty"`
+	Parent        string    `json:"parent,omitempty"`
+	Expected      []string  `json:"expected,omitempty"`
+	Tags          []string  `json:"tags,omitempty"`
+	Sig           SigStatus `json:"sig,omitempty"` // verification status of the announce op
 }
 
 // Contribution is a materialised turn or comment.
 type Contribution struct {
-	OpID      string
-	Author    string
-	Timestamp time.Time
-	Type      string // TypeTurnPost | TypeCommentAdd
-	Body      string
-	Mentions  []string  // persona names mentioned in the body
-	Anchor    string    // comment's anchored op-id ("" for turns)
-	Dangling  bool      // comment anchor not present in the topic
-	Sig       SigStatus // verification status of this op's signature
-	StreamSeq uint64
+	OpID      string    `json:"op_id"`
+	Author    string    `json:"author"`
+	Timestamp time.Time `json:"ts"`
+	Type      string    `json:"type"` // TypeTurnPost | TypeCommentAdd
+	Body      string    `json:"body"`
+	Mentions  []string  `json:"mentions,omitempty"`   // persona names mentioned in the body
+	Anchor    string    `json:"anchor,omitempty"`     // comment's anchored op-id ("" for turns)
+	Dangling  bool      `json:"dangling,omitempty"`   // comment anchor not present in the topic
+	Sig       SigStatus `json:"sig,omitempty"`        // verification status of this op's signature
+	StreamSeq uint64    `json:"stream_seq,omitempty"` // 0 for elements baked into a baseline
 }
 
 // Attachment is a materialised attachment.add — a reference to a blob in the object store.
 type Attachment struct {
-	OpID        string
-	Author      string
-	Timestamp   time.Time
-	Name        string
-	Object      string
-	Digest      string
-	Size        uint64
-	ContentType string
-	Anchor      string
-	Dangling    bool
-	Sig         SigStatus // verification status of this op's signature
-	StreamSeq   uint64
+	OpID        string    `json:"op_id"`
+	Author      string    `json:"author"`
+	Timestamp   time.Time `json:"ts"`
+	Name        string    `json:"name"`
+	Object      string    `json:"object"`
+	Digest      string    `json:"digest"`
+	Size        uint64    `json:"size"`
+	ContentType string    `json:"content_type,omitempty"`
+	Anchor      string    `json:"anchor,omitempty"`
+	Dangling    bool      `json:"dangling,omitempty"`
+	Sig         SigStatus `json:"sig,omitempty"`
+	StreamSeq   uint64    `json:"stream_seq,omitempty"`
 }
 
 // MaterializedTopic is the pure projection of a topic's op-log.
 type MaterializedTopic struct {
-	Path          string
-	Announcement  *Announcement
-	BaselineState json.RawMessage
-	Lifecycle     Lifecycle
-	Contributions []Contribution
-	Attachments   []Attachment
-	Frontier      []string // leaf op-ids
-	Malformed     string   // non-empty reason if the first op is not a baseline
-	Warnings      []string // e.g. ignored unknown op types
+	Path          string          `json:"path"`
+	Announcement  *Announcement   `json:"announcement,omitempty"`
+	BaselineState json.RawMessage `json:"baseline_state,omitempty"`
+	Lifecycle     Lifecycle       `json:"lifecycle"`
+	Contributions []Contribution  `json:"contributions,omitempty"`
+	Attachments   []Attachment    `json:"attachments,omitempty"`
+	Frontier      []string        `json:"frontier"`            // leaf op-ids
+	Malformed     string          `json:"malformed,omitempty"` // non-empty reason if the log has no usable baseline
+	Warnings      []string        `json:"warnings,omitempty"`  // e.g. ignored unknown op types
 }
 
 // SeqRecord pairs a record with its JetStream stream sequence — the ordering key.
@@ -83,7 +87,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 		return mt
 	}
 
-	// The baseline: its state, and the start of the DAG bookkeeping.
+	// The baseline: its state, whatever a rollup baked in, and the DAG bookkeeping.
 	var bp BaselinePayload
 	if err := json.Unmarshal(recs[0].Record.Payload, &bp); err == nil {
 		mt.BaselineState = bp.State
@@ -92,6 +96,36 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 	referenced := map[string]bool{}
 	for _, p := range recs[0].Record.Parents {
 		referenced[p] = true
+	}
+
+	// Seed from the baked conversation (present after a rollup). Baked op-ids stay
+	// anchor-resolvable; the ones not on the frontier are interior — already built
+	// upon — so they must never resurface as frontier leaves.
+	if bp.Baked != nil {
+		mt.Contributions = append(mt.Contributions, bp.Baked.Contributions...)
+		mt.Attachments = append(mt.Attachments, bp.Baked.Attachments...)
+		if bp.Baked.Lifecycle != "" {
+			mt.Lifecycle = bp.Baked.Lifecycle
+		}
+		for _, c := range bp.Baked.Contributions {
+			seen[c.OpID] = true
+			referenced[c.OpID] = true
+		}
+		for _, a := range bp.Baked.Attachments {
+			seen[a.OpID] = true
+			referenced[a.OpID] = true
+		}
+	}
+
+	// Frontier continuity: a non-empty payload frontier names the leaves the topic
+	// continues from (the baseline op itself becomes a checkpoint, not a leaf). An
+	// empty frontier is birth: the baseline op-id is the sole leaf, as always.
+	if len(bp.Frontier) > 0 {
+		referenced[recs[0].Record.ID] = true
+		for _, id := range bp.Frontier {
+			seen[id] = true
+			delete(referenced, id)
+		}
 	}
 
 	contentOps := 0
@@ -129,17 +163,41 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 				ContentType: ap.ContentType, Anchor: ap.Anchor, StreamSeq: sr.StreamSeq,
 			})
 		case TypeLifeTransition:
-			var lp TransitionPayload
-			if err := json.Unmarshal(r.Payload, &lp); err == nil && lp.To == Closed {
-				mt.Lifecycle = Closed
+			if mt.Lifecycle == Archived {
+				mt.Warnings = append(mt.Warnings, "ignored transition after archived (archived is terminal)")
+				continue
 			}
+			var lp TransitionPayload
+			if err := json.Unmarshal(r.Payload, &lp); err == nil {
+				switch lp.To {
+				case Closed:
+					mt.Lifecycle = Closed
+				case Archived:
+					mt.Lifecycle = Archived
+				}
+			}
+		case TypeBaseline:
+			// A live follower that retained pre-rollup history sees the landed
+			// rollup as its next message: a checkpoint whose content this view
+			// already holds. Skip its content, but keep the frontier consistent
+			// with a cold read: the checkpoint itself is never a leaf, and the
+			// leaves it recorded stay the topic's frontier.
+			referenced[r.ID] = true
+			var cp BaselinePayload
+			if json.Unmarshal(r.Payload, &cp) == nil {
+				for _, id := range cp.Frontier {
+					seen[id] = true
+					delete(referenced, id)
+				}
+			}
+			mt.Warnings = append(mt.Warnings, "observed a rollup checkpoint mid-log (view already contains its content)")
 		default:
 			mt.Warnings = append(mt.Warnings, "ignored unknown op type: "+r.Type)
 		}
 	}
 
-	// Lifecycle: closed wins; otherwise active once there is content.
-	if mt.Lifecycle != Closed && contentOps > 0 {
+	// Lifecycle: closed/archived win; otherwise active once there is content.
+	if mt.Lifecycle == Proposed && contentOps > 0 {
 		mt.Lifecycle = Active
 	}
 

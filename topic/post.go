@@ -2,6 +2,7 @@ package topic
 
 import (
 	"context"
+	"fmt"
 	"log"
 )
 
@@ -14,8 +15,11 @@ var warnf = func(format string, args ...any) {
 // author (the client's persona), generates the op-id, and parents onto the frontier the
 // handle has observed. It returns the new op-id and advances the handle's frontier to
 // it. Posting to a topic the handle last saw as closed is warned, not blocked — closed
-// is not-writable by convention.
+// is not-writable by convention. Archived is different: terminal, refused outright.
 func (h *Handle) Post(ctx context.Context, opType string, payload any) (string, error) {
+	if h.lifecycle == Archived {
+		return "", fmt.Errorf("topic: %s is archived — %w", h.path, ErrTopicArchived)
+	}
 	if h.lifecycle == Closed {
 		warnf("posting %s to closed topic %s (closed is not-writable by convention)", opType, h.path)
 	}
