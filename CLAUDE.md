@@ -1,22 +1,27 @@
 <!-- SPECKIT START -->
-Active feature: **009-curator** — the curator persona (Day-2 #4, extensions/curation.md).
-New top-level `curator` package built ONLY on public library surfaces (the package boundary
-proves "zero protocol standing"). Projection = cache of `Materialise` views seeded from `Board`,
-dirty-marked by ONE core-NATS subscription on `SOULSTREAM.TOPICS.>`, lazily re-materialised.
-Answering: `topic.RespondDiscoveryWith(ctx, c, answer, onServed)` refactor (008's responder =
-board-backed wrapper); curator answers cover contribution bodies + attachment names too.
-Suggestions = ordinary AddComment anchored to the frontier, body convention
-`[curator] this looks similar to <path> — …` / `[curator] no activity for <span> — …`;
-recognition author-independent; idempotence FROM THE LOG (flag once per topic; proposal once
-per quiet spell = no dormancy suggestion newer than lastReal). Similarity = token Jaccard ≥ 0.5
-over name+subject+tags (topic-id suffix excluded). Dormant = now − lastReal > window (default
-336h), lastReal excludes suggestions, ≥ BaselineTs — NEW additive field
-`MaterializedTopic.BaselineTs`. Skip closed/archived/malformed. CLI: `curate [--idle] [--scan-every]`.
-No MCP changes, no new op types, no storage.
+Active feature: **010-work** — work stages 1–2 (Day-2 #5, extensions/work.md).
+Stage 1, versioned artefacts: ZERO new op types — a revision is `attachment.add` anchored to a
+prior attachment op (anchor→attachment = revision, unconditionally); artefacts DERIVED on demand
+(`mt.Artefacts()`, pure over `mt.Attachments`; lineage = anchor connectivity, identity = root
+op-id, tip = highest slice index — slice order IS stream order, baked-safe; never compare
+StreamSeq, it's 0 on baked). Stage 2, work items: 4 new op types `work.open/claim/done/abandon`
+folded into NEW `MaterializedTopic.WorkItems`; the in-order fold IS the arbiter (first claim in
+stream order wins); state machine open→claimed→done, claimed→open on abandon, done terminal,
+author-agnostic (like life.transition). Malformed (unreadable/missing anchor/empty title) =
+warn+skip ≠ void (readable but loses) = WorkEvent{Void:true} on the item timeline; unknown item
+ref = warning. Item refs reuse `Anchor{kind:"op"}`. Bake `BakedState.WorkItems` (strip
+StreamSeq/Sig recursively, KEEP void flags; seed ids as seen+referenced). Work ops = content ops
+(activate proposed); curator lastReal must count them. Claims do NOT use expected-sequence
+(lost claim must land in the log). Handle: OpenWork (mentions parsed) / ClaimWork /
+CompleteWork / AbandonWork / Revise. CLI: `work open|claim|done|abandon|list|show`,
+`artefacts [ref]`, `revise --of`, `get --artefact [--revision]`; claim verdict = publish then
+materialise ("claimed" / "void — owned by X"). MCP: 7 new tools (18 total), read_artefact
+UTF-8-only. ELI5 docs: artefacts.md + work-items.md, same change.
 
-For details read: [specs/009-curator/plan.md](specs/009-curator/plan.md)
-(spec: `specs/009-curator/spec.md`, contract: `specs/009-curator/contracts/library.md`).
-Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover` merged + pushed.
+For details read: [specs/010-work/plan.md](specs/010-work/plan.md)
+(spec: `specs/010-work/spec.md`, contract: `specs/010-work/contracts/library.md`,
+model: `specs/010-work/data-model.md`).
+Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator` merged + pushed.
 
 Project conventions:
 - Go 1.26; module `github.com/impire/soulstream`.
