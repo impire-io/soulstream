@@ -15,24 +15,25 @@ before any detail. Start at the top and read down — each page builds on the on
 
 6. [The topic](./topic.md) — a shared workbench / a group notebook.
 7. [Materialisation](./materialisation.md) — reading the notebook front-to-back (and following live).
-8. [Lifecycle](./lifecycle.md) — a topic's life: proposed → active → closed.
-9. [Sub-topics](./sub-topics.md) — sticky-note threads clipped inside a page.
-10. [Discovery](./discovery.md) — the notice board: one card per topic.
+8. [Lifecycle](./lifecycle.md) — a topic's life: proposed → active → closed → archived.
+9. [Rollup](./rollup.md) — tidying day: the pile of notes becomes one fresh first page.
+10. [Sub-topics](./sub-topics.md) — sticky-note threads clipped inside a page.
+11. [Discovery](./discovery.md) — the notice board: one card per topic.
 
 ## Reaching people & carrying files
 
-11. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
-12. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
+12. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
+13. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
 
 ## Proving who wrote what
 
-13. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
-14. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
+14. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
+15. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
 
 ## The two doors
 
-15. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
-16. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+16. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
+17. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
 
 ## Going deeper
 

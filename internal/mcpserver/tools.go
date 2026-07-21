@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -167,6 +168,30 @@ func (h *handlers) attachText(ctx context.Context, _ *mcp.CallToolRequest, in at
 		}
 	}
 	return textResult(opID)
+}
+
+type rollupTopicInput struct {
+	Path string `json:"path" jsonschema:"the topic path to compact"`
+}
+
+// rollupTopic compacts a topic's history into a fresh baseline. The view is
+// unchanged; a lost race is a retryable error; an already-compact topic is a no-op.
+func (h *handlers) rollupTopic(ctx context.Context, _ *mcp.CallToolRequest, in rollupTopicInput) (*mcp.CallToolResult, any, error) {
+	if in.Path == "" {
+		return nil, nil, fmt.Errorf("path is required")
+	}
+	th, err := h.openTopic(ctx, in.Path)
+	if err != nil {
+		return nil, nil, err
+	}
+	baselineID, err := th.Rollup(ctx)
+	if errors.Is(err, topic.ErrNothingToCompact) {
+		return textResult("nothing to compact")
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return textResult(baselineID)
 }
 
 type publishProfileInput struct {

@@ -42,7 +42,8 @@ Commands:
   attach <path> <file> [--type ct] [--anchor op-id]
                                      attach a file; prints its object key
   get <object> <outfile> [--force]   download an attachment
-  close <path>                       close a topic
+  close <path>                       close a topic (and tidy it up)
+  rollup <path>                      compact a topic's history into a fresh baseline
   watch <path>                       stream a topic live (Ctrl-C to stop)
   inbox                              stream your notifications live (Ctrl-C to stop)
   key init                           create this persona's signing key
@@ -111,6 +112,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdGet(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "close":
 		return cmdClose(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "rollup":
+		return cmdRollup(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "watch":
 		return cmdWatch(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "inbox":
