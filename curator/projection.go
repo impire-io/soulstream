@@ -158,6 +158,18 @@ func buildCached(path string, view *topic.MaterializedTopic) *cachedTopic {
 			ct.lastReal = a.Timestamp
 		}
 	}
+	// Work items are ordinary content: opening, claiming, finishing, or abandoning
+	// a task is real activity, never curator chatter.
+	for _, w := range view.WorkItems {
+		if w.Timestamp.After(ct.lastReal) {
+			ct.lastReal = w.Timestamp
+		}
+		for _, ev := range w.Timeline {
+			if ev.Timestamp.After(ct.lastReal) {
+				ct.lastReal = ev.Timestamp
+			}
+		}
+	}
 	return ct
 }
 

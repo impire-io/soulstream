@@ -17,6 +17,10 @@ const (
 	TypeMentionNotify  = "mention.notify"
 	TypeDiscover       = "topic.discover"
 	TypeDiscoverReply  = "topic.discover.reply"
+	TypeWorkOpen       = "work.open"
+	TypeWorkClaim      = "work.claim"
+	TypeWorkDone       = "work.done"
+	TypeWorkAbandon    = "work.abandon"
 )
 
 // Lifecycle is a topic's derived state.
@@ -61,6 +65,7 @@ type BaselinePayload struct {
 type BakedState struct {
 	Contributions []Contribution `json:"contributions,omitempty"`
 	Attachments   []Attachment   `json:"attachments,omitempty"`
+	WorkItems     []WorkItem     `json:"work_items,omitempty"`
 	Lifecycle     Lifecycle      `json:"lifecycle,omitempty"`
 }
 

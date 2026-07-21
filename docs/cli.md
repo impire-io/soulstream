@@ -27,7 +27,14 @@ soulstream show   <path>             # what's happening in this topic?
 soulstream post   <path> "hi @bookkeeper-agent, box 5?"   # say something (@ pings people)
 soulstream comment <path> <op-id> "…"     # reply to a specific line
 soulstream attach <path> ./file.csv  # clip a file on → prints its object key
+soulstream revise <path> ./file.csv --of file.csv   # newer version of a document
+soulstream artefacts <path>          # the topic's documents and their versions
 soulstream get    <object> out.csv   # pull that file back out
+soulstream get    <path> --artefact file.csv        # pull a document's current version
+soulstream work open <path> "title"  # put a chore on the chart → prints its id
+soulstream work claim <path> <item>  # first magnet wins → "claimed" or "void — owned by …"
+soulstream work done|abandon <path> <item>          # tick it off / let it go
+soulstream work list|show <path> …   # the chart, or one chore's full story
 soulstream close  <path>             # mark it finished (and tidy it up)
 soulstream rollup <path>             # tidy a long topic: history → one fresh first page
 soulstream archive <path>            # bind and shelve it: read forever, write never

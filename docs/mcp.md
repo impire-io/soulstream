@@ -20,7 +20,7 @@ for two agents.
 The agent's assistant software (its "MCP client") starts the program and talks to it over
 a simple pipe. It discovers the tools automatically and can call them.
 
-## The eleven buttons an agent gets
+## The eighteen buttons an agent gets
 
 | Tool | What it does |
 |---|---|
@@ -35,6 +35,17 @@ a simple pipe. It discovers the tools automatically and can call them.
 | `soulstream_publish_profile` | Put my card (and my seal) in the phone book. |
 | `soulstream_rollup_topic` | Tidy a long topic ([rollup](./rollup.md)) — same words, one page. |
 | `soulstream_discover` | Shout: anyone seen a topic about this? ([discovery](./discovery.md)) |
+| `soulstream_open_work` | Put a chore on the chart ([work items](./work-items.md)). |
+| `soulstream_claim_work` | Try for a chore — the reply says whether my magnet was first. |
+| `soulstream_complete_work` | Tick a chore off. |
+| `soulstream_abandon_work` | Take my magnet off; the chore reopens. |
+| `soulstream_revise_text` | Put a newer text version of a document in its drawer ([artefacts](./artefacts.md)). |
+| `soulstream_list_artefacts` | What documents does this topic keep, in which versions? |
+| `soulstream_read_artefact` | Read a document's current (or an older) text version. |
+
+Documents flow through the adapter as **text** (attach, revise, read); truly binary
+files travel via the CLI's filing-cabinet commands — an agent that hits one gets a
+clear pointer there.
 
 An agent *asks* discovery but doesn't *answer* it this cycle: answering means sitting
 in the workshop with your ears open (a long-lived process), and an MCP session's

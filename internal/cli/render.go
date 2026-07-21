@@ -98,6 +98,64 @@ func renderView(w io.Writer, v *topic.MaterializedTopic) {
 				shortID(a.OpID), sigGlyph(a.Sig), a.Name, a.ContentType, a.Size, a.Object)
 		}
 	}
+	if len(v.WorkItems) > 0 {
+		fmt.Fprintln(w, "work items:")
+		for _, item := range v.WorkItems {
+			owner := ""
+			if item.Owner != "" {
+				owner = " owner=" + item.Owner
+			}
+			fmt.Fprintf(w, "  [%s]%s %s (%s%s): %s\n",
+				shortID(item.ID), sigGlyph(item.Sig), item.Author, item.Status, owner, item.Title)
+		}
+	}
+}
+
+// renderWorkItem prints one item in full: status, timeline (void included), and
+// the evidence anchored to it.
+func renderWorkItem(w io.Writer, v *topic.MaterializedTopic, item topic.WorkItem) {
+	fmt.Fprintf(w, "item:   %s%s\n", item.ID, sigGlyph(item.Sig))
+	fmt.Fprintf(w, "title:  %s\n", item.Title)
+	if item.Body != "" {
+		fmt.Fprintf(w, "body:   %s\n", item.Body)
+	}
+	fmt.Fprintf(w, "opened: %s by %s\n", item.Timestamp.Format("2006-01-02 15:04"), item.Author)
+	fmt.Fprintf(w, "status: %s", item.Status)
+	if item.Owner != "" {
+		fmt.Fprintf(w, " (owner %s)", item.Owner)
+	}
+	fmt.Fprintln(w)
+	if len(item.Timeline) > 0 {
+		fmt.Fprintln(w, "timeline:")
+		for _, ev := range item.Timeline {
+			void := ""
+			if ev.Void {
+				void = "  VOID"
+			}
+			fmt.Fprintf(w, "  [%s]%s %s %s %s%s\n",
+				shortID(ev.OpID), sigGlyph(ev.Sig), ev.Timestamp.Format("2006-01-02 15:04"), ev.Author, ev.Kind, void)
+		}
+	}
+	var evidence bool
+	for _, c := range v.Contributions {
+		if c.Anchor == item.ID {
+			if !evidence {
+				fmt.Fprintln(w, "evidence:")
+				evidence = true
+			}
+			renderContribution(w, c)
+		}
+	}
+	for _, a := range v.Attachments {
+		if a.Anchor == item.ID {
+			if !evidence {
+				fmt.Fprintln(w, "evidence:")
+				evidence = true
+			}
+			fmt.Fprintf(w, "  [%s]%s %s (%s, %d bytes) object=%s\n",
+				shortID(a.OpID), sigGlyph(a.Sig), a.Name, a.ContentType, a.Size, a.Object)
+		}
+	}
 }
 
 func renderContribution(w io.Writer, c topic.Contribution) {

@@ -76,6 +76,7 @@ func (h *Handle) rollup(ctx context.Context, allowArchived bool) (string, error)
 		Baked: &BakedState{
 			Contributions: cleanBakedContributions(mt.Contributions),
 			Attachments:   cleanBakedAttachments(mt.Attachments),
+			WorkItems:     cleanBakedWorkItems(mt.WorkItems),
 			Lifecycle:     mt.Lifecycle,
 		},
 	}
@@ -263,6 +264,27 @@ func cleanBakedAttachments(as []Attachment) []Attachment {
 		out[i].StreamSeq = 0
 		out[i].Sig = ""
 		out[i].Dangling = false
+	}
+	return out
+}
+
+// cleanBakedWorkItems strips the volatile fields from items and their timelines.
+// Void flags are kept: a lost claim is history, not volatility.
+func cleanBakedWorkItems(ws []WorkItem) []WorkItem {
+	out := make([]WorkItem, len(ws))
+	copy(out, ws)
+	for i := range out {
+		out[i].StreamSeq = 0
+		out[i].Sig = ""
+		if len(out[i].Timeline) > 0 {
+			tl := make([]WorkEvent, len(out[i].Timeline))
+			copy(tl, out[i].Timeline)
+			for j := range tl {
+				tl[j].StreamSeq = 0
+				tl[j].Sig = ""
+			}
+			out[i].Timeline = tl
+		}
 	}
 	return out
 }
