@@ -8,9 +8,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/internal/natstest"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/internal/natstest"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/topic"
 )
 
 func clientOn(t *testing.T, url, persona string) *realm.Client {

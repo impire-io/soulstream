@@ -16,7 +16,7 @@ unit-testable with no server; provisioning is tested against an in-process JetSt
 ## Technical Context
 
 **Language/Version**: Go 1.26 (toolchain present: go1.26.2; embedded nats-server 2.14 needs ≥1.24 — satisfied)
-**Module path**: `github.com/impire/soulstream` (assumption; trivially changeable, no external resolution needed for local builds/tests)
+**Module path**: `github.com/impire-io/soulstream` (assumption; trivially changeable, no external resolution needed for local builds/tests)
 **Primary Dependencies** (all verified against pkg.go.dev / source, Jan 2026):
 - `github.com/nats-io/nats.go` + `.../jetstream` — connection and the modern JetStream management API (`jetstream.New`, `CreateStream`, `Stream`, `CreateObjectStore`, `ObjectStore`; sentinels `ErrStreamNotFound`, `ErrStreamNameAlreadyInUse`, `ErrBucketNotFound`, `ErrBucketExists`).
 - `github.com/synadia-io/orbit.go/natscontext` — `Connect(name, ...nats.Option) (*nats.Conn, Settings, error)` to connect from a named context.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/record"
 )
 
 // TestQuickstartFlow mirrors specs/001-foundation/quickstart.md end to end, using a

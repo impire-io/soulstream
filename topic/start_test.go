@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/record"
 )
 
 func TestStartTopicPublishesAnnounceAndBaseline(t *testing.T) {

@@ -12,7 +12,7 @@ methods testable against an in-process server without stdio.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`; SDK needs Go ≥1.25).
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`; SDK needs Go ≥1.25).
 **Primary Dependencies**: existing `realm`, `topic`; **new**: `github.com/modelcontextprotocol/go-sdk`
 (v1.6.1, official, post-v1.0 stable) — import `github.com/modelcontextprotocol/go-sdk/mcp`.
 **MCP API** (verified, research.md): `mcp.NewServer(&mcp.Implementation{Name,Version}, nil)`;

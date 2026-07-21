@@ -8,11 +8,11 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/internal/natstest"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/record"
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/internal/natstest"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/record"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // TestToolPublishesSignedOps: a session whose persona has a signing key signs every

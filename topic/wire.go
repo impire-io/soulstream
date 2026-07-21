@@ -9,8 +9,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/record"
 )
 
 // publishOp builds an operation record for the client's persona (author, fresh op-id,

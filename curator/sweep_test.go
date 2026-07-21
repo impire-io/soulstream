@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // TestCuratorSweepsOptIn (011 US3): without the flags a curator posts no

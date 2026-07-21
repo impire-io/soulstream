@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // cmdDiscover asks the realm "is there already a topic about X?" and renders the

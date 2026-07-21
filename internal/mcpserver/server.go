@@ -13,10 +13,11 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/internal/keystore"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/registry"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/internal/keystore"
+	"github.com/impire-io/soulstream/internal/version"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/registry"
 )
 
 type handlers struct {
@@ -70,7 +71,7 @@ func distrusted(kr *identity.Keyring) []string {
 // NewServer builds an MCP server exposing the Soulstream tools, all acting as c's persona.
 func NewServer(c *realm.Client) *mcp.Server {
 	h := newHandlers(c)
-	s := mcp.NewServer(&mcp.Implementation{Name: "soulstream", Version: "0.1.0"}, nil)
+	s := mcp.NewServer(&mcp.Implementation{Name: "soulstream", Version: version.Version}, nil)
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "soulstream_board",

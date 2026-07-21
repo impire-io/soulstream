@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/realm"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
 )
 
 // buildFullTopic creates a topic with every element kind and returns its handle.

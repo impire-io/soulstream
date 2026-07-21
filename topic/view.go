@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/impire/soulstream/record"
+	"github.com/impire-io/soulstream/record"
 )
 
 // Announcement is a topic's info metadata.

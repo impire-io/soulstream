@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "soulstream": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/soulstream-mcp.sh"
+    }
+  }
+}

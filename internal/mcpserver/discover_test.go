@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/topic"
 )
 
 func TestDiscoverTool(t *testing.T) {

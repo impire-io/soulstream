@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // TestLastRealCountsWorkOps (010, FR-019): opening, claiming, finishing, or

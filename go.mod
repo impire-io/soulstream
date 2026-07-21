@@ -1,4 +1,4 @@
-module github.com/impire/soulstream
+module github.com/impire-io/soulstream
 
 go 1.26.2
 

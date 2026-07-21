@@ -8,8 +8,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/impire/soulstream/registry"
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/registry"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // openTopic opens and materialises a handle so posts parent onto the current tip and

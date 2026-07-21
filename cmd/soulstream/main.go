@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"github.com/impire/soulstream/internal/cli"
+	"github.com/impire-io/soulstream/internal/cli"
 )
 
 func main() {

@@ -73,7 +73,7 @@ with the build order in [hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION
 
 ## The reference library (Go)
 
-The library is being built as a Go module (`github.com/impire/soulstream`) under the
+The library is being built as a Go module (`github.com/impire-io/soulstream`) under the
 spec-driven flow in [specs/](./specs/). Delivered so far:
 
 - **001-foundation** ([spec](./specs/001-foundation/spec.md)) — realm provisioning and the operation record.
@@ -102,6 +102,19 @@ record, the canonical record, provisioning, personas & attribution, the topic,
 materialisation, lifecycle, rollup, sub-topics, discovery, mentions, attachments,
 artefacts, work items, editing/replies/resolving, signing, the persona directory,
 and the curator.
+
+### Install
+
+Prebuilt binaries for macOS, Linux, and Windows land on the
+[releases page](https://github.com/impire-io/soulstream/releases) — the `release`
+workflow builds them for every `v*` tag. From source:
+
+```sh
+go install github.com/impire-io/soulstream/cmd/soulstream@latest
+go install github.com/impire-io/soulstream/cmd/soulstream-mcp@latest
+# or, from a checkout:
+make build     # → ./bin/soulstream, ./bin/soulstream-mcp
+```
 
 ### The `soulstream` CLI
 
@@ -141,6 +154,20 @@ Register it with an agent's MCP client (env: `SOULSTREAM_CONTEXT/REALM/PERSONA`,
 One protocol, one identity model — an agent is a first-class persona, not a bot behind
 a special API — and when its operator gives it a signing key, everything it writes is
 sealed and self-authenticating.
+
+### The Claude Code plugin
+
+This repo doubles as a Claude Code plugin marketplace. Inside Claude Code:
+
+```
+/plugin marketplace add impire-io/soulstream
+/plugin install soulstream@soulstream
+```
+
+The plugin wires `soulstream-mcp` into Claude Code (it finds the binary on PATH, or via
+`SOULSTREAM_MCP_BIN`) and ships `/soulstream:setup`, a guided first-run: install, NATS
+context, realm provisioning, signing key. Details:
+[plugins/soulstream/README.md](./plugins/soulstream/README.md).
 
 ### Build & test
 

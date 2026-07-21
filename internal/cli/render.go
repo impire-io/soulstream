@@ -6,9 +6,9 @@ import (
 	"io"
 	"sort"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/realm"
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // sigGlyph renders a verification status as a one-character marker: ✓ verified,

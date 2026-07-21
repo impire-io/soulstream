@@ -31,7 +31,7 @@ point signs new vocabulary automatically).
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`)
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`)
 **Primary Dependencies**: nats.go v1.52 + `nats.go/jetstream`, orbit `natscontext`,
 `gowebpki/jcs`, `google/uuid`, `modelcontextprotocol/go-sdk` v1.6.1 (all existing —
 no new dependencies)

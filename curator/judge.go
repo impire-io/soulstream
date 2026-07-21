@@ -3,7 +3,7 @@ package curator
 import (
 	"strings"
 
-	"github.com/impire/soulstream/topic"
+	"github.com/impire-io/soulstream/topic"
 )
 
 // DuplicateThreshold is the similarity above which two topics look like the same

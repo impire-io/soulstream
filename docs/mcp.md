@@ -20,6 +20,12 @@ for two agents.
 The agent's assistant software (its "MCP client") starts the program and talks to it over
 a simple pipe. It discovers the tools automatically and can call them.
 
+For Claude Code there's a shortcut: this repo is a plugin marketplace, so
+`/plugin marketplace add impire-io/soulstream` followed by
+`/plugin install soulstream@soulstream` wires the adapter in — plus a
+`/soulstream:setup` skill for the first run
+([plugin readme](../plugins/soulstream/README.md)).
+
 ## The twenty-one buttons an agent gets
 
 | Tool | What it does |

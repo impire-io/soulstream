@@ -16,7 +16,7 @@ reply/resolve, dormant, archived, scatter/gather, and eg-walker are day-2.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 (module `github.com/impire/soulstream`, established in 001).
+**Language/Version**: Go 1.26 (module `github.com/impire-io/soulstream`, established in 001).
 **Primary Dependencies**: the foundation packages (`record`, `identity`, `realm`) and
 `github.com/nats-io/nats.go/jetstream` (publish, ordered consumers). No new third-party deps.
 **Key JetStream mechanisms** (verified in research.md):

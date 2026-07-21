@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/impire/soulstream/internal/keystore"
+	"github.com/impire-io/soulstream/internal/keystore"
 )
 
 // TestShowTopicSurfacesSigStatus: tool results carry a sig field per op once the

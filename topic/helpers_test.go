@@ -6,9 +6,9 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/identity"
-	"github.com/impire/soulstream/internal/natstest"
-	"github.com/impire/soulstream/realm"
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/internal/natstest"
+	"github.com/impire-io/soulstream/realm"
 )
 
 // testServer starts an in-process JetStream server and returns its client URL.

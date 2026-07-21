@@ -11,9 +11,10 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire/soulstream/internal/keystore"
-	"github.com/impire/soulstream/internal/natstest"
-	"github.com/impire/soulstream/realm"
+	"github.com/impire-io/soulstream/internal/keystore"
+	"github.com/impire-io/soulstream/internal/natstest"
+	"github.com/impire-io/soulstream/internal/version"
+	"github.com/impire-io/soulstream/realm"
 )
 
 // testConnector starts an in-process server and returns a Connector that binds a fresh
@@ -138,6 +139,17 @@ func TestUnknownCommandAndNoArgs(t *testing.T) {
 	code, _, errs = run(connect)
 	if code == 0 || !strings.Contains(errs, "Usage") {
 		t.Errorf("no args: exit %d, stderr %q", code, errs)
+	}
+}
+
+func TestVersionCommand(t *testing.T) {
+	// version must answer without connecting: a nil connector proves it.
+	code, out, _ := run(nil, "version")
+	if code != 0 {
+		t.Errorf("version: exit %d", code)
+	}
+	if strings.TrimSpace(out) != version.Version {
+		t.Errorf("version output %q, want %q", out, version.Version)
 	}
 }
 
