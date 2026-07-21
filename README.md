@@ -82,6 +82,7 @@ spec-driven flow in [specs/](./specs/). Delivered so far:
 - **006-signing** ([spec](./specs/006-signing/spec.md) · [quickstart](./specs/006-signing/quickstart.md)) — `Soulstream-Sig` op signing, the persona directory, TOFU chain pinning, rotation.
 - **007-rollup** ([spec](./specs/007-rollup/spec.md) · [quickstart](./specs/007-rollup/quickstart.md)) — re-baselining (leaderless, race-safe compaction), manifest baselines, the terminal `archived` lifecycle.
 - **008-discover** ([spec](./specs/008-discover/spec.md) · [quickstart](./specs/008-discover/quickstart.md)) — scatter/gather discovery: `topic.discover` request-reply, any persona answers from its own projection, silence is an answer.
+- **009-curator** ([spec](./specs/009-curator/spec.md) · [quickstart](./specs/009-curator/quickstart.md)) — the curator persona: warm content-aware discovery answers, duplicate flags, dormancy nudges — suggestions only, zero protocol standing.
 
 Packages, split so the pure surfaces need no server to test:
 
@@ -91,12 +92,13 @@ Packages, split so the pure surfaces need no server to test:
 | [`identity`](./identity) | Persona/realm/topic slug validation, attribution (write-side `EnforceAuthor`, read-side `VerifyAuthor`), and the **signing primitives**: Ed25519 `SigningKey`, `VerifySignature`, rotation-proof bytes, and the verifier's `Keyring`. | No |
 | [`realm`](./realm) | Connect (named NATS context or an existing connection) and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store + `soulstream-personas` directory), **create-or-report** — never modifies an existing artefact in place. An optional `Signer` makes every published op carry `Soulstream-Sig`. | Yes |
 | [`registry`](./registry) | The persona directory: profiles with published signing keys, pure rotation-**chain validation**, `BuildKeyring` with the TOFU pin-prefix rule, and create-or-metadata-update `Publish` / `Rotate` over the KV bucket. | Yes |
+| [`curator`](./curator) | The curation extension as a package: a warm, content-aware topic projection answering discovery via `RespondDiscoveryWith`, plus duplicate flags and dormancy proposals as ordinary log-idempotent comments. Built **only on the public surfaces above** — the realm does not know curators exist. | Yes |
 | [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed/**archived** — terminal, writes refused), sub-topics, discovery `Board`, **mentions** (`@name` → `mention.notify` inbox, `FollowInbox`), **attachments** (`Attach`/`GetAttachment`/`VerifyDigest` over the object store), per-op **verification status** (unsigned/verified/failed/unknown-key) on every read path, **rollup** (`Rollup`/`Close`/`Archive`: leaderless re-baselining under `Nats-Rollup` + the expected-last-subject-sequence guard, manifest baselines over 128 KB via the object store), and **scatter/gather discovery** (`Discover`/`RespondDiscovery` over plain request-reply — any persona answers from its own board projection, the asker merges with per-answer verification). The pure fold (`apply`) is server-free. | Yes |
 
 Plain-words docs for each concept live in [docs/](./docs/) — the realm, the operation
 record, the canonical record, provisioning, personas & attribution, the topic,
 materialisation, lifecycle, rollup, sub-topics, discovery, mentions, attachments,
-signing, and the persona directory.
+signing, the persona directory, and the curator.
 
 ### The `soulstream` CLI
 

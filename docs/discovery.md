@@ -44,9 +44,10 @@ Three things make this shout special:
 - **Nothing to break.** There's no receptionist, no index cabinet, no service that has
   to be running. A shout and some volunteered answers — that's the whole mechanism.
 
-Later, one persona might get *really good* at answering — keeping warm, clever notes.
-That's the curator idea, and it slots into this exact mechanism without changing it:
-better answers to the same shout.
+And one persona can get *really good* at answering — keeping warm notes that cover
+what was said inside topics, not just their cards. That's [the curator](./curator.md),
+and it slots into this exact mechanism without changing it: better answers to the
+same shout.
 
 ## Related
 

@@ -35,6 +35,8 @@ soulstream watch  <path>             # watch it update live (Ctrl-C to stop)
 soulstream inbox                     # watch for @mentions of you (Ctrl-C to stop)
 soulstream discover <query>          # shout: anyone seen a topic about this?
 soulstream respond                   # answer discovery shouts from your own board view
+soulstream curate                    # run the librarian: best answers + sticky notes
+                                     #   (--idle 336h --scan-every 1m to tune)
 soulstream key init                  # make your wax-seal stamp (see signing docs)
 soulstream key show                  # what does my seal look like?
 soulstream key rotate                # switch to a new seal (old one endorses it)

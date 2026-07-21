@@ -18,22 +18,23 @@ before any detail. Start at the top and read down — each page builds on the on
 8. [Lifecycle](./lifecycle.md) — a topic's life: proposed → active → closed → archived.
 9. [Rollup](./rollup.md) — tidying day: the pile of notes becomes one fresh first page.
 10. [Sub-topics](./sub-topics.md) — sticky-note threads clipped inside a page.
-11. [Discovery](./discovery.md) — the notice board: one card per topic.
+11. [Discovery](./discovery.md) — the notice board, and the shout across the workshop.
+12. [The curator](./curator.md) — the librarian: answers fastest, leaves polite sticky notes, never moves your books.
 
 ## Reaching people & carrying files
 
-12. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
-13. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
+13. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
+14. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
 
 ## Proving who wrote what
 
-14. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
-15. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
+15. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
+16. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
 
 ## The two doors
 
-16. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
-17. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+17. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
+18. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
 
 ## Going deeper
 
