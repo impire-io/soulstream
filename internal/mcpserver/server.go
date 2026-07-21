@@ -7,11 +7,16 @@
 package mcpserver
 
 import (
+	"context"
 	"encoding/json"
+	"sort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/impire/soulstream/identity"
+	"github.com/impire/soulstream/internal/keystore"
 	"github.com/impire/soulstream/realm"
+	"github.com/impire/soulstream/registry"
 )
 
 type handlers struct {
@@ -19,6 +24,48 @@ type handlers struct {
 }
 
 func newHandlers(c *realm.Client) *handlers { return &handlers{c: c} }
+
+// keyring builds the session's reader keyring per call: pins + directory → keyring,
+// persisting extended pins. Rebuilt per read (not cached) so a rotation published
+// mid-session is honoured; the directory is one KV list at dogfood scale. Every
+// failure degrades to nil — verification never blocks a read.
+func (h *handlers) keyring(ctx context.Context) *identity.Keyring {
+	pinsPath, err := keystore.ResolvePinsFile("", h.c.Realm())
+	if err != nil {
+		return nil
+	}
+	pins, err := keystore.LoadPins(pinsPath, h.c.Realm())
+	if err != nil {
+		return nil
+	}
+	profiles, err := registry.All(ctx, h.c)
+	if err != nil {
+		return nil
+	}
+	if len(profiles) == 0 && len(pins.Personas) == 0 {
+		return nil
+	}
+	kr, newPins := registry.BuildKeyring(profiles, pins.Personas)
+	pins.Personas = newPins
+	_ = keystore.SavePins(pinsPath, pins)
+	return kr
+}
+
+// distrusted lists the keyring's distrusted personas, sorted — the loud surface an
+// AI persona can act on (empty means all clear).
+func distrusted(kr *identity.Keyring) []string {
+	if kr == nil {
+		return nil
+	}
+	var names []string
+	for name, bad := range kr.Distrusted {
+		if bad {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
 
 // NewServer builds an MCP server exposing the Soulstream tools, all acting as c's persona.
 func NewServer(c *realm.Client) *mcp.Server {

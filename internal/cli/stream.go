@@ -16,8 +16,12 @@ func cmdWatch(ctx context.Context, connect Connector, cfg Config, args []string,
 	}
 	path := args[0]
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
+		kr := realmKeyring(ctx, c, cfg)
+		warnDistrusted(stdout, stderr, kr)
+		h := topic.Open(c, path)
+		h.UseKeyring(kr)
 		printed := 0
-		return topic.Open(c, path).Follow(ctx, func(v *topic.MaterializedTopic) {
+		return h.Follow(ctx, func(v *topic.MaterializedTopic) {
 			for i := printed; i < len(v.Contributions); i++ {
 				renderContribution(stdout, v.Contributions[i])
 			}
@@ -28,8 +32,10 @@ func cmdWatch(ctx context.Context, connect Connector, cfg Config, args []string,
 
 func cmdInbox(ctx context.Context, connect Connector, cfg Config, _ []string, stdout, stderr io.Writer) int {
 	return withClient(ctx, connect, cfg, true, stderr, func(c *realm.Client) error {
-		return topic.FollowInbox(ctx, c, cfg.Persona, func(n topic.Notification) {
-			fmt.Fprintf(stdout, "mention in %s (op %s) by %s\n", n.Topic, shortID(n.OpID), n.Author)
+		kr := realmKeyring(ctx, c, cfg)
+		warnDistrusted(stdout, stderr, kr)
+		return topic.FollowInbox(ctx, c, cfg.Persona, kr, func(n topic.Notification) {
+			fmt.Fprintf(stdout, "mention in %s (op %s) by%s %s\n", n.Topic, shortID(n.OpID), sigGlyph(n.Sig), n.Author)
 		})
 	})
 }

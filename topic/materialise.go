@@ -11,9 +11,11 @@ func (h *Handle) Materialise(ctx context.Context) (*MaterializedTopic, error) {
 		return nil, err
 	}
 	mt := apply(h.path, recs)
+	annotateView(mt, annotate(recs, h.client.Realm(), h.path, h.keyring))
 
 	// Enrich the view with the topic's announcement (from its INFO subject).
-	if ann, err := fetchAnnouncement(ctx, h.client, h.path); err == nil && ann != nil {
+	if ann, annRec, err := fetchAnnouncement(ctx, h.client, h.path); err == nil && ann != nil {
+		ann.Sig = VerifyRecord(*annRec, h.client.Realm(), h.path, h.keyring)
 		mt.Announcement = ann
 	}
 

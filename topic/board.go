@@ -48,7 +48,7 @@ func Board(ctx context.Context, c *realm.Client) ([]BoardEntry, error) {
 
 	entries := make([]BoardEntry, 0, len(paths))
 	for _, path := range paths {
-		ann, err := fetchAnnouncement(ctx, c, path)
+		ann, _, err := fetchAnnouncement(ctx, c, path)
 		if err != nil {
 			return nil, err
 		}
@@ -76,26 +76,27 @@ func Board(ctx context.Context, c *realm.Client) ([]BoardEntry, error) {
 }
 
 // fetchAnnouncement returns the latest announcement for a topic-path from its INFO
-// subject, or nil (no error) when there is none or it is malformed.
-func fetchAnnouncement(ctx context.Context, c *realm.Client, path string) (*Announcement, error) {
+// subject — plus the wire record it came from, so callers can verify its signature —
+// or nils (no error) when there is none or it is malformed.
+func fetchAnnouncement(ctx context.Context, c *realm.Client, path string) (*Announcement, *record.Record, error) {
 	stream, err := c.JetStream().Stream(ctx, realm.StreamName)
 	if err != nil {
-		return nil, fmt.Errorf("topic: look up stream: %w", err)
+		return nil, nil, fmt.Errorf("topic: look up stream: %w", err)
 	}
 	raw, err := stream.GetLastMsgForSubject(ctx, InfoSubject(path))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, fmt.Errorf("topic: last announce for %s: %w", path, err)
+		return nil, nil, fmt.Errorf("topic: last announce for %s: %w", path, err)
 	}
 	rec, err := record.Parse(raw.Header, raw.Data)
 	if err != nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	var ap AnnouncePayload
 	if json.Unmarshal(rec.Payload, &ap) != nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	return &Announcement{
 		TopicID:       ap.TopicID,
@@ -104,5 +105,5 @@ func fetchAnnouncement(ctx context.Context, c *realm.Client, path string) (*Anno
 		Parent:        ap.Parent,
 		Expected:      ap.Expected,
 		Tags:          ap.Tags,
-	}, nil
+	}, &rec, nil
 }

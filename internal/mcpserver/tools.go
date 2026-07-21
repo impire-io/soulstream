@@ -35,15 +35,25 @@ type showTopicInput struct {
 	Path string `json:"path" jsonschema:"the topic path to read"`
 }
 
+// topicResult is a materialised view plus the session's distrust warnings — the
+// per-op sig statuses live on the view's elements, the substitution alarm on top.
+type topicResult struct {
+	*topic.MaterializedTopic
+	DistrustedPersonas []string `json:"distrusted_personas,omitempty"`
+}
+
 func (h *handlers) showTopic(ctx context.Context, _ *mcp.CallToolRequest, in showTopicInput) (*mcp.CallToolResult, any, error) {
 	if in.Path == "" {
 		return nil, nil, fmt.Errorf("path is required")
 	}
-	v, err := topic.Open(h.c, in.Path).Materialise(ctx)
+	kr := h.keyring(ctx)
+	th := topic.Open(h.c, in.Path)
+	th.UseKeyring(kr)
+	v, err := th.Materialise(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(v)
+	return jsonResult(topicResult{MaterializedTopic: v, DistrustedPersonas: distrusted(kr)})
 }
 
 type startTopicInput struct {
@@ -200,13 +210,21 @@ type checkInboxInput struct {
 	Limit int `json:"limit,omitempty" jsonschema:"maximum notifications to return (default 50)"`
 }
 
+// inboxResult carries the notifications (each with its sig status) plus the
+// session's distrust warnings.
+type inboxResult struct {
+	Notifications      []topic.Notification `json:"notifications"`
+	DistrustedPersonas []string             `json:"distrusted_personas,omitempty"`
+}
+
 func (h *handlers) checkInbox(ctx context.Context, _ *mcp.CallToolRequest, in checkInboxInput) (*mcp.CallToolResult, any, error) {
-	notes, err := topic.FetchInbox(ctx, h.c, h.c.Persona(), in.Limit)
+	kr := h.keyring(ctx)
+	notes, err := topic.FetchInbox(ctx, h.c, h.c.Persona(), in.Limit, kr)
 	if err != nil {
 		return nil, nil, err
 	}
 	if notes == nil {
 		notes = []topic.Notification{}
 	}
-	return jsonResult(notes)
+	return jsonResult(inboxResult{Notifications: notes, DistrustedPersonas: distrusted(kr)})
 }

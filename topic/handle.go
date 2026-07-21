@@ -1,6 +1,9 @@
 package topic
 
-import "github.com/impire/soulstream/realm"
+import (
+	"github.com/impire/soulstream/identity"
+	"github.com/impire/soulstream/realm"
+)
 
 // Handle binds a client to one topic-path: the thing a persona posts through and
 // follows. It tracks the leaf op-ids (the frontier) it has observed, so posts parent
@@ -10,6 +13,7 @@ type Handle struct {
 	path      string
 	frontier  []string
 	lifecycle Lifecycle // last observed (from Materialise/Follow); "" until observed
+	keyring   *identity.Keyring
 }
 
 // Open returns a handle to an existing topic by path. It publishes nothing.
@@ -19,6 +23,11 @@ func Open(c *realm.Client, path string) *Handle {
 
 // Path returns the handle's topic-path.
 func (h *Handle) Path() string { return h.path }
+
+// UseKeyring supplies the keyring Materialise and Follow verify signatures against.
+// Without one (or with nil), signed ops report unknown-key and reading is unaffected —
+// verification is an annotation, never a gate.
+func (h *Handle) UseKeyring(kr *identity.Keyring) { h.keyring = kr }
 
 // Frontier returns the leaf op-ids the handle has observed. It is nil until the handle
 // materialises the topic or posts to it.

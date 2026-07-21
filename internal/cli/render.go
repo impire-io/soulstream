@@ -4,10 +4,48 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 
+	"github.com/impire/soulstream/identity"
 	"github.com/impire/soulstream/realm"
 	"github.com/impire/soulstream/topic"
 )
+
+// sigGlyph renders a verification status as a one-character marker: ✓ verified,
+// ✗ failed, ? unknown-key, nothing for unsigned (a realm that never signed should
+// look exactly as it always did). The leading space keeps columns tidy.
+func sigGlyph(s topic.SigStatus) string {
+	switch s {
+	case topic.SigVerified:
+		return " ✓"
+	case topic.SigFailed:
+		return " ✗"
+	case topic.SigUnknownKey:
+		return " ?"
+	default:
+		return ""
+	}
+}
+
+// warnDistrusted prints the substitution-attack banner for every distrusted persona,
+// on stdout (first, unmissable) and mirrored to stderr (machine-distinguishable).
+func warnDistrusted(stdout, stderr io.Writer, kr *identity.Keyring) {
+	if kr == nil {
+		return
+	}
+	var names []string
+	for name, distrusted := range kr.Distrusted {
+		if distrusted {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		line := fmt.Sprintf("!! possible key substitution for %s — signatures from this persona are not trusted", name)
+		fmt.Fprintln(stdout, line)
+		fmt.Fprintln(stderr, line)
+	}
+}
 
 func printJSON(w io.Writer, v any) error {
 	enc := json.NewEncoder(w)
@@ -56,8 +94,8 @@ func renderView(w io.Writer, v *topic.MaterializedTopic) {
 	if len(v.Attachments) > 0 {
 		fmt.Fprintln(w, "attachments:")
 		for _, a := range v.Attachments {
-			fmt.Fprintf(w, "  [%s] %s (%s, %d bytes) object=%s\n",
-				shortID(a.OpID), a.Name, a.ContentType, a.Size, a.Object)
+			fmt.Fprintf(w, "  [%s]%s %s (%s, %d bytes) object=%s\n",
+				shortID(a.OpID), sigGlyph(a.Sig), a.Name, a.ContentType, a.Size, a.Object)
 		}
 	}
 }
@@ -67,7 +105,7 @@ func renderContribution(w io.Writer, c topic.Contribution) {
 	if c.Type == topic.TypeCommentAdd {
 		kind = "comment"
 	}
-	fmt.Fprintf(w, "  [%s] %s (%s", shortID(c.OpID), c.Author, kind)
+	fmt.Fprintf(w, "  [%s]%s %s (%s", shortID(c.OpID), sigGlyph(c.Sig), c.Author, kind)
 	if c.Anchor != "" {
 		fmt.Fprintf(w, " -> %s", shortID(c.Anchor))
 		if c.Dangling {
