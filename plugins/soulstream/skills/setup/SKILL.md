@@ -1,30 +1,30 @@
 ---
 name: setup
-description: Set up Soulstream on this machine — install the soulstream binaries, create a NATS context, configure realm/persona environment variables, provision the realm, and optionally create a signing key. Use when the Soulstream MCP server fails to start, its tools are missing, or the user asks to set up or connect Soulstream.
+description: Set up Soulstream on this machine — connect to a NATS server, configure realm/persona identity (config files), provision the realm, and optionally create a signing key. Use when the Soulstream MCP server fails to start, its tools are missing, or the user asks to set up or connect Soulstream.
 ---
 
 # Soulstream setup
 
-Walk the user through connecting this machine to a Soulstream realm. Work step by step,
-verifying each step before moving on. Soulstream speaks NATS: the user needs a reachable
-NATS server with JetStream enabled.
+Walk the user through connecting this machine to a Soulstream realm. Work step by
+step, verifying each step before moving on. Soulstream speaks NATS: the user needs a
+reachable NATS server with JetStream enabled.
 
-## 1. Install the binaries
+## 0. The server binary (usually automatic)
 
-Check first: `soulstream version` and `soulstream-mcp -version` both print a version when
-installed. If missing, install with one of:
+The plugin's MCP server installs itself on first connection: it downloads the release
+matching the plugin version for this OS/arch, verifies checksums, and caches it in the
+plugin data dir. Only intervene when that failed (its error names the cause):
 
-- `go install github.com/impire-io/soulstream/cmd/soulstream@latest` and
-  `go install github.com/impire-io/soulstream/cmd/soulstream-mcp@latest` (needs Go 1.26+;
-  binaries land in `$(go env GOPATH)/bin` — make sure that is on PATH).
-- Download the archive for this OS/arch from
-  https://github.com/impire-io/soulstream/releases and place both binaries on PATH.
-- `git clone https://github.com/impire-io/soulstream && cd soulstream && make build`
-  (binaries in `./bin`).
+- Private repo access: the download uses the `gh` CLI's auth — `gh auth status`
+  should succeed.
+- Manual fallbacks: download from
+  https://github.com/impire-io/soulstream/releases and put `soulstream-mcp` on PATH,
+  or set `SOULSTREAM_MCP_BIN` to its location, or build from a checkout with
+  `make build` (binaries in `./bin`).
+- The `soulstream` CLI (used below) installs the same ways; check with
+  `soulstream version`.
 
-If the binary cannot go on PATH, `SOULSTREAM_MCP_BIN` may point at it instead.
-
-## 2. Create a NATS context
+## 1. Create a NATS context
 
 The tools connect through a named NATS context (never raw URLs):
 
@@ -33,31 +33,43 @@ nats context add <name> --server <nats-url> [--creds <file>]   # needs the nats 
 nats context select <name>
 ```
 
-If the `nats` CLI is missing, the `/nats-context` skill or https://github.com/nats-io/natscli
-can help. Verify with `nats context ls` and `nats account info` (JetStream must be enabled).
+If the `nats` CLI is missing, https://github.com/nats-io/natscli can help. Verify
+with `nats context ls` and `nats account info` (JetStream must be enabled; on
+limit-enforced accounts note the stream/storage allowances — a realm needs three
+stream slots and max-bytes headroom).
 
-## 3. Configure the persona
+## 2. Configure identity (config files, the per-project way)
 
-Three environment variables tell every Soulstream tool who is acting where. Ask the user
-for their values and add them to the shell profile (fish: `set -Ux`, bash/zsh: `export`
-in the profile file):
+Each field resolves flag > environment > project `.soulstream.json` > user
+`config.json`. Recommended shape — context once per machine, realm+persona per
+project:
 
-- `SOULSTREAM_CONTEXT` — the NATS context name from step 2
-- `SOULSTREAM_REALM` — the realm (one shared board per realm, e.g. `acme`)
-- `SOULSTREAM_PERSONA` — this user's persona name (their identity on the realm)
+```sh
+# machine-wide (config dir: ~/Library/"Application Support"/soulstream on macOS,
+# ~/.config/soulstream on Linux — create it beside keys/):
+{ "context": "<nats-context-name>" }        # → <config-dir>/soulstream/config.json
 
-The MCP server inherits these from the environment Claude Code was started in, so the
-user must restart Claude Code from a shell that has them set.
+# in the project directory (commit it with the project):
+{ "realm": "<realm>", "persona": "<name>" } # → .soulstream.json
+```
 
-## 4. Provision the realm (one-time per realm, safe to re-run)
+Environment variables (`SOULSTREAM_CONTEXT/REALM/PERSONA`) still work and win over
+files. Verify with `soulstream config` — it prints every value and its source without
+connecting. The MCP server reads the project directory it is started in, so restart
+the MCP connection after placing the files.
+
+## 3. Provision the realm (one-time per realm, safe to re-run)
 
 ```sh
 soulstream provision
 ```
 
 This creates the realm's JetStream stream, object store, and persona directory.
+On accounts that require max-bytes on streams (e.g. Synadia NGS tiers), provision
+cannot create them itself — pre-create the three artefacts with the nats CLI setting
+`--max-bytes`, then re-run provision to confirm all three report conformant.
 
-## 5. Optional: signing key
+## 4. Optional: signing key
 
 Unsigned operation records work, but a key makes them attributable:
 
@@ -66,8 +78,8 @@ soulstream key init          # writes the seed under the user config dir
 soulstream profile publish   # announces the public key in the persona directory
 ```
 
-## 6. Verify
+## 5. Verify
 
-`soulstream board` should list the realm's topics (empty board prints nothing — that is
-success). Then reconnect the MCP server (`/mcp` in Claude Code) and confirm the
+`soulstream board` should list the realm's topics (empty board prints nothing — that
+is success). Then reconnect the MCP server (`/mcp` in Claude Code) and confirm the
 `soulstream` server reports its tools.

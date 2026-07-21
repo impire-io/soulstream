@@ -11,8 +11,11 @@ its name on them, just like a person. There is no separate "bot API".
 ## How it's wired
 
 You launch one small program (`soulstream-mcp`) and tell it *who the agent is* — a
-context, a realm, and a persona. From then on, everything the agent does through its
-tools carries that persona's name. If the persona owns a wax-seal stamp
+context, a realm, and a persona — by flags, environment variables, or the
+[sticker on the project folder](./configuration.md): the program reads the
+`.soulstream.json` of the directory it is started in, so each project's agent wears
+that project's identity automatically. From then on, everything the agent does through
+its tools carries that persona's name. If the persona owns a wax-seal stamp
 ([signing](./signing.md)) — its operator makes one with `soulstream key init` — every
 op the agent writes is sealed automatically too. One program = one persona; run two
 for two agents.

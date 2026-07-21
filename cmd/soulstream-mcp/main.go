@@ -12,6 +12,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/impire-io/soulstream/internal/config"
 	"github.com/impire-io/soulstream/internal/keystore"
 	"github.com/impire-io/soulstream/internal/mcpserver"
 	"github.com/impire-io/soulstream/internal/version"
@@ -25,9 +26,9 @@ func main() {
 func run(args []string, stderr io.Writer) int {
 	fs := flag.NewFlagSet("soulstream-mcp", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	ctxName := fs.String("context", os.Getenv("SOULSTREAM_CONTEXT"), "named NATS context")
-	realmName := fs.String("realm", os.Getenv("SOULSTREAM_REALM"), "realm name")
-	persona := fs.String("persona", os.Getenv("SOULSTREAM_PERSONA"), "persona name")
+	ctxName := fs.String("context", "", "named NATS context")
+	realmName := fs.String("realm", "", "realm name")
+	persona := fs.String("persona", "", "persona name")
 	keyFile := fs.String("key-file", "", "signing-seed file (default: SOULSTREAM_KEY_FILE, then config dir)")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
@@ -37,13 +38,40 @@ func run(args []string, stderr io.Writer) int {
 		fmt.Fprintln(os.Stdout, version.Version)
 		return 0
 	}
-	if *persona == "" {
-		fmt.Fprintln(stderr, "soulstream-mcp: a persona is required (--persona or SOULSTREAM_PERSONA)")
+
+	// Identity resolves per field: flag > env > nearest .soulstream.json walking up
+	// from the working directory > user config file. The MCP host sets our working
+	// directory to the project, so per-project identity falls out of cwd.
+	explicit := config.File{}
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "context":
+			explicit.Context = *ctxName
+		case "realm":
+			explicit.Realm = *realmName
+		case "persona":
+			explicit.Persona = *persona
+		case "key-file":
+			explicit.KeyFile = *keyFile
+		}
+	})
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(stderr, "soulstream-mcp: %v\n", err)
+		return 1
+	}
+	resolved, err := config.Resolve(explicit, cwd)
+	if err != nil {
+		fmt.Fprintf(stderr, "soulstream-mcp: %v\n", err)
+		return 1
+	}
+	if resolved.Persona.V == "" {
+		fmt.Fprintln(stderr, "soulstream-mcp: a persona is required (--persona, SOULSTREAM_PERSONA, or a config file)")
 		return 2
 	}
 
 	// Sign automatically when the persona's key exists; no key just means unsigned.
-	keyPath, err := keystore.ResolveKeyFile(*keyFile, *realmName, *persona)
+	keyPath, err := keystore.ResolveKeyFile(resolved.KeyFile.V, resolved.Realm.V, resolved.Persona.V)
 	if err != nil {
 		fmt.Fprintf(stderr, "soulstream-mcp: %v\n", err)
 		return 1
@@ -55,7 +83,7 @@ func run(args []string, stderr io.Writer) int {
 	}
 
 	ctx := context.Background()
-	c, err := realm.Connect(ctx, realm.Config{ContextName: *ctxName, Realm: *realmName, Persona: *persona, Signer: signer})
+	c, err := realm.Connect(ctx, realm.Config{ContextName: resolved.Context.V, Realm: resolved.Realm.V, Persona: resolved.Persona.V, Signer: signer})
 	if err != nil {
 		fmt.Fprintf(stderr, "soulstream-mcp: %v\n", err)
 		return 1

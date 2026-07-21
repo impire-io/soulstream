@@ -6,16 +6,24 @@ who you are and which realm once, then drive everything from the terminal.
 ## Point it at a realm
 
 The remote needs to know three things: which server (a saved **NATS context**), which
-**realm**, and which **persona** you're acting as. Set them once as environment
-variables (or pass `--context/--realm/--persona` on any command):
+**realm**, and which **persona** you're acting as. The nicest way is a
+[sticker on the project folder](./configuration.md) — a `.soulstream.json` in the
+project (realm + persona) plus a one-time `config.json` beside your keys (your
+context). Environment variables and flags still work and win over the files, per
+field:
 
 ```sh
+# per project, committed with it:
+echo '{ "realm": "acme", "persona": "daan" }' > .soulstream.json
+# or per shell:
 export SOULSTREAM_CONTEXT=soulstream   # a context you made with: nats context add
 export SOULSTREAM_REALM=acme
 export SOULSTREAM_PERSONA=daan
 ```
 
 Reading things (`board`, `show`, `get`) doesn't need a persona; *writing* things does.
+Lost track of which realm you'd end up on? `soulstream config` shows every value and
+where it came from.
 
 ## The buttons
 
@@ -54,6 +62,7 @@ soulstream key show                  # what does my seal look like?
 soulstream key rotate                # switch to a new seal (old one endorses it)
 soulstream profile publish           # put your card (and seal) in the phone book
 soulstream profile show <persona>    # read someone's card, seals, and pin state
+soulstream config                    # who am I, where, and says-who (never connects)
 ```
 
 Every command says what it did and exits **0** when it worked; on trouble it prints a

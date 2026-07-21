@@ -38,6 +38,7 @@ before any detail. Start at the top and read down — each page builds on the on
 
 20. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
 21. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+22. [Configuration](./configuration.md) — the sticker on the folder: who you are, per project.
 
 ## Going deeper
 
