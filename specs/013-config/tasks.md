@@ -55,7 +55,7 @@ byte-for-byte compatibility — that is only provable by tests).
 
 - [x] T016 [P] Touch `README.md`: config-file mention in the CLI/plugin sections (chain in one line, link to docs/configuration.md).
 - [x] T017 Run quickstart.md end-to-end locally; `make check` all green; `claude plugin validate .`.
-- [ ] T018 After merge to main: push, tag `v0.2.0` (signed), watch release workflow, then re-run wrapper fresh-machine test against the real v0.2.0 release (SC-003/SC-004 final proof).
+- [x] T018 After merge to main: push, tag `v0.2.0` (signed), watch release workflow, then re-run wrapper fresh-machine test against the real v0.2.0 release (SC-003/SC-004 final proof).
 
 ## Dependencies & execution order
 
