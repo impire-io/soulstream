@@ -165,6 +165,20 @@ func mergeReply(results map[string]*DiscoverResult, order *[]string, persona str
 // of matches sent (0 for a silent no-match, -1 for a skipped malformed or
 // reply-less request) — observability for a serving process, nothing more.
 func RespondDiscovery(ctx context.Context, c *realm.Client, onServed func(query string, sent int)) error {
+	return RespondDiscoveryWith(ctx, c, func(query string, limit int) []DiscoverEntry {
+		entries, err := Board(ctx, c)
+		if err != nil {
+			return nil
+		}
+		return matchEntries(entries, query, limit)
+	}, onServed)
+}
+
+// RespondDiscoveryWith is RespondDiscovery with a caller-supplied answerer: answer
+// receives each request's query and limit and returns the entries to send — nil or
+// empty means silence. This is how a persona with a better projection (a curator)
+// plugs into the same mechanism: same request, same reply shape, same merge.
+func RespondDiscoveryWith(ctx context.Context, c *realm.Client, answer func(query string, limit int) []DiscoverEntry, onServed func(query string, sent int)) error {
 	if c.Persona() == "" {
 		return fmt.Errorf("topic: responding to discovery requires a persona")
 	}
@@ -194,20 +208,15 @@ func RespondDiscovery(ctx context.Context, c *realm.Client, onServed func(query 
 			return
 		}
 
-		entries, berr := Board(ctx, c)
-		if berr != nil {
-			served(req.Query, -1)
-			return
-		}
-		matches := matchEntries(entries, req.Query, req.Limit)
+		matches := answer(req.Query, req.Limit)
 		if len(matches) == 0 {
 			served(req.Query, 0) // silence is cheaper than noise
 			return
 		}
 
-		reply, _, berr2 := buildOpMsg(c, msg.Reply, ServiceDiscover, TypeDiscoverReply,
+		reply, _, berr := buildOpMsg(c, msg.Reply, ServiceDiscover, TypeDiscoverReply,
 			DiscoverReplyPayload{Matches: matches}, nil, "")
-		if berr2 != nil {
+		if berr != nil {
 			served(req.Query, -1)
 			return
 		}

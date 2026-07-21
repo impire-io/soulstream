@@ -386,6 +386,37 @@ func TestRespondDiscoverySilentOnNoMatch(t *testing.T) {
 	}
 }
 
+// TestRespondDiscoveryWithCustomAnswerer: a caller-supplied answerer's entries reach
+// the asker through the unchanged mechanism.
+func TestRespondDiscoveryWithCustomAnswerer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	url := testServer(t)
+	asker := connectClient(t, url, "asker")
+	if _, err := asker.Provision(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	answerer := connectClient(t, url, "oracle")
+	go func() {
+		_ = RespondDiscoveryWith(ctx, answerer, func(query string, limit int) []DiscoverEntry {
+			if query != "anything" || limit <= 0 {
+				return nil
+			}
+			return []DiscoverEntry{{Path: "custom-topic", Name: "From A Custom Projection"}}
+		}, nil)
+	}()
+	time.Sleep(50 * time.Millisecond)
+
+	results, err := Discover(ctx, asker, DiscoverInput{Query: "anything", Timeout: 500 * time.Millisecond}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Path != "custom-topic" || results[0].Answers[0].Persona != "oracle" {
+		t.Errorf("custom answerer results = %+v", results)
+	}
+}
+
 // TestDiscoverWrongKeyAnswerIsFailed (SC-004): a reply signed with a key that is not
 // the answerer's pinned key is labelled failed — and still delivered.
 func TestDiscoverWrongKeyAnswerIsFailed(t *testing.T) {

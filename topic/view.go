@@ -58,6 +58,10 @@ type MaterializedTopic struct {
 	Path          string          `json:"path"`
 	Announcement  *Announcement   `json:"announcement,omitempty"`
 	BaselineState json.RawMessage `json:"baseline_state,omitempty"`
+	// BaselineTs is the baseline op's (author-claimed) timestamp: the topic's birth
+	// time, or — after a rollup — the compaction time. Informational, like every
+	// timestamp; useful as "when did this topic's current zero-point happen".
+	BaselineTs time.Time `json:"baseline_ts,omitempty"`
 	Lifecycle     Lifecycle       `json:"lifecycle"`
 	Contributions []Contribution  `json:"contributions,omitempty"`
 	Attachments   []Attachment    `json:"attachments,omitempty"`
@@ -88,6 +92,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 	}
 
 	// The baseline: its state, whatever a rollup baked in, and the DAG bookkeeping.
+	mt.BaselineTs = recs[0].Record.Timestamp
 	var bp BaselinePayload
 	if err := json.Unmarshal(recs[0].Record.Payload, &bp); err == nil {
 		mt.BaselineState = bp.State

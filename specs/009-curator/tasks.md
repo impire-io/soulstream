@@ -17,8 +17,8 @@ ticks so the suite stays fast.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 [P] Additive `MaterializedTopic.BaselineTs` in topic/view.go — the fold records `recs[0].Record.Timestamp`; extend the round-trip strip/compare in topic/rollup_fold_test.go deliberately (post-rollup BaselineTs is the rollup baseline's time — legitimate difference, excluded from equivalence like stream_seq); fold test rows for birth and post-rollup values
-- [ ] T002 [P] `topic.RespondDiscoveryWith(ctx, c, answer, onServed)` in topic/discover.go — extracted from 008's responder; `RespondDiscovery` becomes the board-backed wrapper with byte-identical behaviour (existing discovery tests must pass unmodified); a test proving a custom answerer's entries reach the asker
+- [X] T001 [P] Additive `MaterializedTopic.BaselineTs` in topic/view.go — the fold records `recs[0].Record.Timestamp`; extend the round-trip strip/compare in topic/rollup_fold_test.go deliberately (post-rollup BaselineTs is the rollup baseline's time — legitimate difference, excluded from equivalence like stream_seq); fold test rows for birth and post-rollup values
+- [X] T002 [P] `topic.RespondDiscoveryWith(ctx, c, answer, onServed)` in topic/discover.go — extracted from 008's responder; `RespondDiscovery` becomes the board-backed wrapper with byte-identical behaviour (existing discovery tests must pass unmodified); a test proving a custom answerer's entries reach the asker
 
 **Checkpoint**: `make check` green; 008 behaviour unchanged.
 
