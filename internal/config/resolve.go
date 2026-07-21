@@ -5,6 +5,7 @@ import "os"
 // SourceKind names where a resolved value came from.
 type SourceKind string
 
+// The places a value can come from, in precedence order.
 const (
 	SourceFlag    SourceKind = "flag"
 	SourceEnv     SourceKind = "env"

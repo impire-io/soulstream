@@ -123,6 +123,8 @@ A terminal client for a human persona ([docs](./docs/cli.md) · [spec](./specs/0
 ```sh
 go build -o bin/soulstream ./cmd/soulstream
 export SOULSTREAM_CONTEXT=soulstream SOULSTREAM_REALM=acme SOULSTREAM_PERSONA=daan
+# or per project — identity resolves flag > env > .soulstream.json (walk-up) > user
+# config.json; `soulstream config` shows each value's source (docs/configuration.md)
 bin/soulstream provision && bin/soulstream board
 bin/soulstream start "Q2 VAT filing"       # → prints the topic path
 bin/soulstream post <path> "hi @teammate"  # post/comment/attach/get/close/watch/inbox
@@ -164,9 +166,11 @@ This repo doubles as a Claude Code plugin marketplace. Inside Claude Code:
 /plugin install soulstream@soulstream
 ```
 
-The plugin wires `soulstream-mcp` into Claude Code (it finds the binary on PATH, or via
-`SOULSTREAM_MCP_BIN`) and ships `/soulstream:setup`, a guided first-run: install, NATS
-context, realm provisioning, signing key. Details:
+The plugin wires `soulstream-mcp` into Claude Code and **installs the binary
+itself** — first connection downloads the checksum-verified release matching the
+plugin version (overrides: `SOULSTREAM_MCP_BIN`, then PATH). Per-project identity
+comes from `.soulstream.json`. It also ships `/soulstream:setup`, a guided first-run:
+NATS context, realm provisioning, signing key. Details:
 [plugins/soulstream/README.md](./plugins/soulstream/README.md).
 
 ### Build & test
