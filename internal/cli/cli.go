@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/impire-io/soulstream/internal/config"
 	"github.com/impire-io/soulstream/internal/version"
 )
 
@@ -77,15 +78,20 @@ Commands:
                   [--description d] [--operated-by p]
                                      publish/update this persona's directory profile
   profile show <persona>             print a persona's profile, key chain, pin state
+  config                             show the effective identity and where each
+                                     value came from (never connects)
   version                            print the client version
 
-Configuration (flags override environment):
+Configuration (per field, the first source that answers wins):
+  flag > environment > nearest .soulstream.json walking up from the working
+  directory > config.json in the user's soulstream config dir
   --context   / SOULSTREAM_CONTEXT    named NATS context
   --realm     / SOULSTREAM_REALM      realm name
   --persona   / SOULSTREAM_PERSONA    persona (required for write commands)
   --key-file  / SOULSTREAM_KEY_FILE   signing-seed file (default: config dir; when
                                       present, published ops are signed)
   --pins-file / SOULSTREAM_PINS_FILE  key-pin file (default: config dir)
+Run "soulstream config" to see every value and its source.
 `
 
 // Main wires os streams, a SIGINT-cancellable context, and the natscontext connector.
@@ -101,9 +107,9 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 	global := flag.NewFlagSet("soulstream", flag.ContinueOnError)
 	global.SetOutput(stderr)
 	global.Usage = func() { fmt.Fprint(stderr, usageText) }
-	ctxName := global.String("context", os.Getenv("SOULSTREAM_CONTEXT"), "named NATS context")
-	realmName := global.String("realm", os.Getenv("SOULSTREAM_REALM"), "realm name")
-	persona := global.String("persona", os.Getenv("SOULSTREAM_PERSONA"), "persona name")
+	ctxName := global.String("context", "", "named NATS context")
+	realmName := global.String("realm", "", "realm name")
+	persona := global.String("persona", "", "persona name")
 	keyFile := global.String("key-file", "", "signing-seed file (default: env, then config dir)")
 	pinsFile := global.String("pins-file", "", "key-pin file (default: env, then config dir)")
 	if err := global.Parse(args); err != nil {
@@ -115,8 +121,53 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		fmt.Fprint(stderr, usageText)
 		return 2
 	}
-	cfg := Config{Context: *ctxName, Realm: *realmName, Persona: *persona, KeyFile: *keyFile, PinsFile: *pinsFile}
 	cmd, cmdArgs := rest[0], rest[1:]
+
+	// version and help must always answer — they are the diagnostics people reach
+	// for when configuration is broken, so they dispatch before resolution can fail.
+	switch cmd {
+	case "version":
+		fmt.Fprintln(stdout, version.Version)
+		return 0
+	case "help", "-h", "--help":
+		fmt.Fprint(stdout, usageText)
+		return 0
+	}
+
+	// Only flags the user actually passed enter the chain (a default no longer
+	// swallows the environment, and files sit below both).
+	explicit := config.File{}
+	global.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "context":
+			explicit.Context = *ctxName
+		case "realm":
+			explicit.Realm = *realmName
+		case "persona":
+			explicit.Persona = *persona
+		case "key-file":
+			explicit.KeyFile = *keyFile
+		case "pins-file":
+			explicit.PinsFile = *pinsFile
+		}
+	})
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(stderr, "soulstream: %v\n", err)
+		return 1
+	}
+	resolved, err := config.Resolve(explicit, cwd)
+	if err != nil {
+		fmt.Fprintf(stderr, "soulstream: %v\n", err)
+		return 1
+	}
+	cfg := Config{
+		Context:  resolved.Context.V,
+		Realm:    resolved.Realm.V,
+		Persona:  resolved.Persona.V,
+		KeyFile:  resolved.KeyFile.V,
+		PinsFile: resolved.PinsFile.V,
+	}
 
 	switch cmd {
 	case "provision":
@@ -171,12 +222,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdKey(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "profile":
 		return cmdProfile(ctx, connect, cfg, cmdArgs, stdout, stderr)
-	case "version":
-		fmt.Fprintln(stdout, version.Version)
-		return 0
-	case "help", "-h", "--help":
-		fmt.Fprint(stdout, usageText)
-		return 0
+	case "config":
+		return cmdConfig(resolved, stdout)
 	default:
 		fmt.Fprintf(stderr, "soulstream: unknown command %q\n\n", cmd)
 		fmt.Fprint(stderr, usageText)

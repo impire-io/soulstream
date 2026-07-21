@@ -34,6 +34,7 @@ func testConnectorWithURL(t *testing.T) (Connector, string) {
 	// land in an (empty) temp location, not the user config dir. Tests that sign
 	// pass --key-file explicitly, which wins over the environment.
 	t.Setenv(keystore.EnvKeyFile, filepath.Join(t.TempDir(), "absent.ed25519"))
+	isolateIdentity(t)
 	url, shutdown := natstest.StartJetStream(t)
 	t.Cleanup(shutdown)
 	return func(ctx context.Context, cfg Config) (*realm.Client, error) {
