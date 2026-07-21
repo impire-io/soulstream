@@ -81,8 +81,8 @@ message, reads fine, every write refused everywhere.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T019 Validate specs/007-rollup/quickstart.md against real CLI output and fix drift; root README.md: delivered list gains 007, `topic` package row gains rollup/archived, MCP tool list gains the 10th tool
-- [ ] T020 FR-013 sweep (no lock/lease/election anywhere — grep `lock|lease|elect` in non-test code and confirm zero coordination constructs); full `make fmt && make test && make lint` green, none skipped
+- [X] T019 Validate specs/007-rollup/quickstart.md against real CLI output and fix drift; root README.md: delivered list gains 007, `topic` package row gains rollup/archived, MCP tool list gains the 10th tool
+- [X] T020 FR-013 sweep (no lock/lease/election anywhere — grep `lock|lease|elect` in non-test code and confirm zero coordination constructs); full `make fmt && make test && make lint` green, none skipped
 
 ---
 

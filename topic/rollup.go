@@ -23,7 +23,8 @@ var (
 	// ErrNothingToCompact means the log is already just a baseline.
 	ErrNothingToCompact = errors.New("topic: nothing to compact (the log is already just a baseline)")
 	// ErrTopicArchived means the topic is archived — terminal, writes are refused.
-	ErrTopicArchived = errors.New("topic: archived is terminal, writes are refused")
+	// Always wrapped with the topic path by its return sites.
+	ErrTopicArchived = errors.New("archived is terminal, writes are refused")
 )
 
 // Rollup compacts the topic: it folds the current baseline plus every operation

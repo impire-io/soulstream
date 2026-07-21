@@ -80,6 +80,7 @@ spec-driven flow in [specs/](./specs/). Delivered so far:
 - **002-topics** ([spec](./specs/002-topics/spec.md) · [quickstart](./specs/002-topics/quickstart.md)) — the op-log engine.
 - **003-participation** ([spec](./specs/003-participation/spec.md) · [quickstart](./specs/003-participation/quickstart.md)) — mentions & attachments.
 - **006-signing** ([spec](./specs/006-signing/spec.md) · [quickstart](./specs/006-signing/quickstart.md)) — `Soulstream-Sig` op signing, the persona directory, TOFU chain pinning, rotation.
+- **007-rollup** ([spec](./specs/007-rollup/spec.md) · [quickstart](./specs/007-rollup/quickstart.md)) — re-baselining (leaderless, race-safe compaction), manifest baselines, the terminal `archived` lifecycle.
 
 Packages, split so the pure surfaces need no server to test:
 
@@ -89,12 +90,12 @@ Packages, split so the pure surfaces need no server to test:
 | [`identity`](./identity) | Persona/realm/topic slug validation, attribution (write-side `EnforceAuthor`, read-side `VerifyAuthor`), and the **signing primitives**: Ed25519 `SigningKey`, `VerifySignature`, rotation-proof bytes, and the verifier's `Keyring`. | No |
 | [`realm`](./realm) | Connect (named NATS context or an existing connection) and provision the realm (`SOULSTREAM` stream + `soulstream-objects` object store + `soulstream-personas` directory), **create-or-report** — never modifies an existing artefact in place. An optional `Signer` makes every published op carry `Soulstream-Sig`. | Yes |
 | [`registry`](./registry) | The persona directory: profiles with published signing keys, pure rotation-**chain validation**, `BuildKeyring` with the TOFU pin-prefix rule, and create-or-metadata-update `Publish` / `Rotate` over the KV bucket. | Yes |
-| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed), sub-topics, discovery `Board`, **mentions** (`@name` → `mention.notify` inbox, `FollowInbox`), **attachments** (`Attach`/`GetAttachment`/`VerifyDigest` over the object store), and per-op **verification status** (unsigned/verified/failed/unknown-key) on every read path. The pure fold (`apply`) is server-free. | Yes |
+| [`topic`](./topic) | The op-log engine: start a topic (announce + baseline), post turns/comments through a `Handle`, `Materialise` and `Follow` (one ordered consumer, no replay/live seam), lifecycle (proposed/active/closed/**archived** — terminal, writes refused), sub-topics, discovery `Board`, **mentions** (`@name` → `mention.notify` inbox, `FollowInbox`), **attachments** (`Attach`/`GetAttachment`/`VerifyDigest` over the object store), per-op **verification status** (unsigned/verified/failed/unknown-key) on every read path, and **rollup** (`Rollup`/`Close`/`Archive`: leaderless re-baselining under `Nats-Rollup` + the expected-last-subject-sequence guard, manifest baselines over 128 KB via the object store). The pure fold (`apply`) is server-free. | Yes |
 
 Plain-words docs for each concept live in [docs/](./docs/) — the realm, the operation
 record, the canonical record, provisioning, personas & attribution, the topic,
-materialisation, lifecycle, sub-topics, discovery, mentions, attachments, signing,
-and the persona directory.
+materialisation, lifecycle, rollup, sub-topics, discovery, mentions, attachments,
+signing, and the persona directory.
 
 ### The `soulstream` CLI
 
@@ -121,10 +122,11 @@ go build -o bin/soulstream-mcp ./cmd/soulstream-mcp
 ```
 
 Register it with an agent's MCP client (env: `SOULSTREAM_CONTEXT/REALM/PERSONA`, plus
-`SOULSTREAM_KEY_FILE` when the persona signs) and the agent gets nine tools:
+`SOULSTREAM_KEY_FILE` when the persona signs) and the agent gets ten tools:
 `soulstream_board`, `soulstream_show_topic`, `soulstream_start_topic`,
 `soulstream_post_turn`, `soulstream_add_comment`, `soulstream_attach_text`,
-`soulstream_close_topic`, `soulstream_check_inbox`, `soulstream_publish_profile`.
+`soulstream_close_topic`, `soulstream_check_inbox`, `soulstream_publish_profile`,
+`soulstream_rollup_topic`.
 One protocol, one identity model — an agent is a first-class persona, not a bot behind
 a special API — and when its operator gives it a signing key, everything it writes is
 sealed and self-authenticating.
