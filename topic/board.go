@@ -64,9 +64,12 @@ func Board(ctx context.Context, c *realm.Client) ([]BoardEntry, error) {
 			ParentKnown:  parent == "" || known[parent],
 		}
 
-		// Lifecycle where derivable: materialise the topic's ops.
+		// Lifecycle where derivable: materialise the topic's ops (resolving a
+		// manifest baseline first — its lifecycle lives in the state document).
 		if recs, err := drainOps(ctx, c, path); err == nil {
-			entry.Lifecycle = apply(path, recs).Lifecycle
+			if rerr := resolveBaseline(ctx, c, recs); rerr == nil {
+				entry.Lifecycle = apply(path, recs).Lifecycle
+			}
 		}
 
 		entries = append(entries, entry)

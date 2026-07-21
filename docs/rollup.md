@@ -37,6 +37,23 @@ page. That's the honest trade of compaction — you swap many small testimonies 
 person's attestation of the whole. Realms that treasure the originals archive them
 before tidying (a later extension's job).
 
+## When the glued page won't fit
+
+Some workbenches hold big things — a page can only take so much glue. When the
+condensed page would be too thick (past the notebook's 128 KB rule), the tidier puts
+the whole condensed page **in the supply cupboard** instead, and glues a small **claim
+ticket** into the notebook: *"contents in box such-and-such, and here's a fingerprint
+of exactly what's inside."*
+
+Readers barely notice — the library fetches the box, checks the fingerprint, and shows
+the same page. If the box ever goes missing or its contents don't match the
+fingerprint, the topic says so plainly ("I can't read my own first page, here's why")
+rather than showing you half a page and hoping.
+
+The careful order makes crashes boring: box first, ticket second. If the tidier
+trips before gluing the ticket, the notebook is untouched and there's just one
+unclaimed box in the cupboard — clutter, never damage.
+
 ## When it happens
 
 - **By hand** — `soulstream rollup <path>`: "save a version".

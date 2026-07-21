@@ -2,6 +2,8 @@ package topic
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/impire/soulstream/realm"
+	"github.com/impire/soulstream/record"
 )
 
 // Rollup outcome errors.
@@ -42,8 +45,12 @@ func (h *Handle) Rollup(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Capture the current baseline's manifest objects before resolution rewrites
+	// its payload: they become garbage once this rollup commits (whatever form the
+	// new baseline takes).
+	superseded := manifestChunksOf(recs)
 	if err := resolveBaseline(ctx, h.client, recs); err != nil {
-		return "", err
+		return "", fmt.Errorf("topic: refusing to compact: %s", err)
 	}
 	mt := apply(h.path, recs)
 	if mt.Malformed != "" {
@@ -72,9 +79,32 @@ func (h *Handle) Rollup(ctx context.Context) (string, error) {
 		return "", err
 	}
 
+	// Happy-path cleanup: the superseded baseline's manifest objects are garbage
+	// now. Best effort — a failure leaves sweepable orphans, nothing more.
+	if len(superseded) > 0 {
+		if store, serr := h.client.JetStream().ObjectStore(ctx, realm.ObjectBucket); serr == nil {
+			for _, name := range superseded {
+				_ = store.Delete(ctx, name)
+			}
+		}
+	}
+
 	h.frontier = payload.Frontier
 	h.lifecycle = mt.Lifecycle
 	return opID, nil
+}
+
+// manifestChunksOf returns the object names the log's current baseline references,
+// or nil when it is inline or absent.
+func manifestChunksOf(recs []SeqRecord) []string {
+	if len(recs) == 0 || recs[0].Record.Type != TypeBaseline {
+		return nil
+	}
+	var bp BaselinePayload
+	if json.Unmarshal(recs[0].Record.Payload, &bp) != nil || bp.Manifest == nil {
+		return nil
+	}
+	return bp.Manifest.Chunks
 }
 
 // publishBaseline publishes a rollup baseline (inline or, when the state document
@@ -89,7 +119,7 @@ func publishBaseline(ctx context.Context, h *Handle, payload BaselinePayload, fr
 		return publishManifestBaseline(ctx, h, payload, frontier, lastSeq)
 	}
 
-	opID, err := publishOpWith(ctx, h.client, OpsSubject(h.path), TypeBaseline, payload, frontier,
+	opID, err := publishOpWith(ctx, h.client, OpsSubject(h.path), TypeBaseline, payload, frontier, "",
 		map[string]string{jetstream.MsgRollup: jetstream.MsgRollupSubject},
 		[]jetstream.PublishOpt{jetstream.WithExpectLastSequencePerSubject(lastSeq)},
 	)
@@ -102,17 +132,100 @@ func publishBaseline(ctx context.Context, h *Handle, payload BaselinePayload, fr
 	return opID, nil
 }
 
-// publishManifestBaseline handles the over-threshold form. Landed with the manifest
-// story; until then oversized states refuse loudly rather than split a baseline
-// across messages (the single-message invariant).
-func publishManifestBaseline(_ context.Context, h *Handle, _ BaselinePayload, _ []string, _ uint64) (string, error) {
-	return "", fmt.Errorf("topic: %s: state document exceeds the %d-byte inline threshold; manifest baselines required", h.path, InlineBaselineThreshold)
+// stateDoc is the manifest object's content: the parts of an inline baseline that
+// moved to the object store — byte-for-byte the {state, baked} document.
+type stateDoc struct {
+	State json.RawMessage `json:"state,omitempty"`
+	Baked *BakedState     `json:"baked,omitempty"`
 }
 
-// resolveBaseline rewrites a manifest baseline's payload into its inline form before
-// folding. Landed with the manifest story; inline baselines need no resolution.
-func resolveBaseline(_ context.Context, _ *realm.Client, _ []SeqRecord) error {
+// publishManifestBaseline handles the over-threshold form with the crash-safe write
+// order: put the state document as one object (named after the pre-generated
+// baseline op-id), publish the manifest as the atomic commit point under the same
+// guard, then delete the superseded baseline's objects. A crash or lost race before
+// the publish leaves the old log intact plus a harmless orphaned object.
+func publishManifestBaseline(ctx context.Context, h *Handle, payload BaselinePayload, frontier []string, lastSeq uint64) (string, error) {
+	doc, err := json.Marshal(stateDoc{State: payload.State, Baked: payload.Baked})
+	if err != nil {
+		return "", fmt.Errorf("topic: encode state document: %w", err)
+	}
+
+	store, err := h.client.JetStream().ObjectStore(ctx, realm.ObjectBucket)
+	if err != nil {
+		return "", fmt.Errorf("topic: open object store: %w", err)
+	}
+
+	// 1. Chunks first. Named after the baseline op-id that will commit them.
+	baselineID := record.NewID()
+	object := "baseline/" + h.path + "/" + baselineID
+	if _, err := store.PutBytes(ctx, object, doc); err != nil {
+		return "", fmt.Errorf("topic: store baseline state: %w", err)
+	}
+
+	// 2. The manifest publish is the commit point.
+	manifest := BaselinePayload{
+		Frontier: payload.Frontier,
+		Manifest: &ManifestRef{Chunks: []string{object}, Digest: digestOf(doc), Size: uint64(len(doc))},
+	}
+	opID, err := publishOpWith(ctx, h.client, OpsSubject(h.path), TypeBaseline, manifest, frontier, baselineID,
+		map[string]string{jetstream.MsgRollup: jetstream.MsgRollupSubject},
+		[]jetstream.PublishOpt{jetstream.WithExpectLastSequencePerSubject(lastSeq)},
+	)
+	if err != nil {
+		if isWrongLastSequence(err) {
+			return "", ErrRollupLost // the put object is now an orphan: garbage, never corruption
+		}
+		return "", err
+	}
+	return opID, nil
+}
+
+// resolveBaseline rewrites a manifest baseline (always the first record) into its
+// inline form before folding: fetch the chunks in order, verify the digest, and
+// substitute the state document. Any failure is a malformation of the topic — the
+// caller reports it as such; it must never crash a read or show partial state.
+func resolveBaseline(ctx context.Context, c *realm.Client, recs []SeqRecord) error {
+	if len(recs) == 0 || recs[0].Record.Type != TypeBaseline {
+		return nil
+	}
+	var bp BaselinePayload
+	if err := json.Unmarshal(recs[0].Record.Payload, &bp); err != nil || bp.Manifest == nil {
+		return nil // inline (or unparseable, which apply reports on its own)
+	}
+
+	store, err := c.JetStream().ObjectStore(ctx, realm.ObjectBucket)
+	if err != nil {
+		return fmt.Errorf("manifest baseline unreadable: open object store: %v", err)
+	}
+	var doc []byte
+	for _, name := range bp.Manifest.Chunks {
+		part, err := store.GetBytes(ctx, name)
+		if err != nil {
+			return fmt.Errorf("manifest baseline unreadable: chunk %q: %v", name, err)
+		}
+		doc = append(doc, part...)
+	}
+	if !VerifyDigest(doc, bp.Manifest.Digest) {
+		return fmt.Errorf("manifest baseline corrupt: state document does not match its digest")
+	}
+
+	var sd stateDoc
+	if err := json.Unmarshal(doc, &sd); err != nil {
+		return fmt.Errorf("manifest baseline corrupt: state document is not valid JSON: %v", err)
+	}
+	inline, err := json.Marshal(BaselinePayload{State: sd.State, Frontier: bp.Frontier, Baked: sd.Baked})
+	if err != nil {
+		return fmt.Errorf("manifest baseline unreadable: %v", err)
+	}
+	recs[0].Record.Payload = inline
 	return nil
+}
+
+// digestOf computes the object-store digest form over data ("SHA-256=<base64url>"),
+// matching VerifyDigest.
+func digestOf(data []byte) string {
+	sum := sha256.Sum256(data)
+	return "SHA-256=" + base64.URLEncoding.EncodeToString(sum[:])
 }
 
 // isWrongLastSequence reports whether err is the server rejecting the
