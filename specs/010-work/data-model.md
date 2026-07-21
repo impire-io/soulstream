@@ -51,8 +51,8 @@ type WorkEvent struct {
     Author    string    `json:"author"`
     Ts        time.Time `json:"ts"`
     Void      bool      `json:"void,omitempty"` // true = state machine rejected it
-    StreamSeq uint64    `json:"-"`              // volatile; 0 on baked
-    Sig       SigStatus `json:"sig,omitempty"`  // volatile; recomputed at read
+    StreamSeq uint64    // volatile; 0 on baked — MIRROR Attachment's exact tag
+    Sig       SigStatus // volatile; recomputed at read — MIRROR Attachment's tag
 }
 
 // WorkItem is a task derived from the log.
@@ -66,9 +66,14 @@ type WorkItem struct {
     Status    WorkStatus  `json:"status"`
     Owner     string      `json:"owner,omitempty"` // author of the winning claim
     Timeline  []WorkEvent `json:"timeline,omitempty"`
-    StreamSeq uint64      `json:"-"`
-    Sig       SigStatus   `json:"sig,omitempty"`
+    StreamSeq uint64      // volatile — MIRROR Attachment's exact tag
+    Sig       SigStatus   // volatile — MIRROR Attachment's tag
 }
+
+*Field-tag note (analysis I1)*: the volatile fields (`StreamSeq`, `Sig`) MUST
+carry exactly the same json tags as `Attachment`/`Contribution` use today, so
+`cleanBaked*` zeroing and round-trip equality work identically across all baked
+element kinds. The tags shown elsewhere in this file are indicative.
 ```
 
 `MaterializedTopic` gains `WorkItems []WorkItem` (json `work_items,omitempty`),
