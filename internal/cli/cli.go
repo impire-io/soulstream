@@ -51,6 +51,9 @@ Commands:
                                      ask the realm: is there a topic about this?
   respond                            answer discovery asks from your own board view
                                      (Ctrl-C to stop)
+  curate [--idle 336h] [--scan-every 1m]
+                                     run the curator: best discovery answers,
+                                     duplicate flags, dormancy nudges (Ctrl-C to stop)
   key init                           create this persona's signing key
   key show                           print this persona's public signing key
   key rotate                         switch to a new key (old key endorses it)
@@ -125,6 +128,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdDiscover(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "respond":
 		return cmdRespond(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "curate":
+		return cmdCurate(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "watch":
 		return cmdWatch(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "inbox":

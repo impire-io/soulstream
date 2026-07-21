@@ -229,6 +229,12 @@ func RespondDiscoveryWith(ctx context.Context, c *realm.Client, answer func(quer
 	}
 	defer func() { _ = sub.Unsubscribe() }()
 
+	// Flush so the server has registered the interest: once this returns, the
+	// responder truly hears every subsequent request.
+	if err := nc.Flush(); err != nil {
+		return fmt.Errorf("topic: establish discovery subscription: %w", err)
+	}
+
 	<-ctx.Done()
 	return nil
 }

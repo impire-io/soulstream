@@ -61,13 +61,13 @@ type MaterializedTopic struct {
 	// BaselineTs is the baseline op's (author-claimed) timestamp: the topic's birth
 	// time, or — after a rollup — the compaction time. Informational, like every
 	// timestamp; useful as "when did this topic's current zero-point happen".
-	BaselineTs time.Time `json:"baseline_ts,omitempty"`
-	Lifecycle     Lifecycle       `json:"lifecycle"`
-	Contributions []Contribution  `json:"contributions,omitempty"`
-	Attachments   []Attachment    `json:"attachments,omitempty"`
-	Frontier      []string        `json:"frontier"`            // leaf op-ids
-	Malformed     string          `json:"malformed,omitempty"` // non-empty reason if the log has no usable baseline
-	Warnings      []string        `json:"warnings,omitempty"`  // e.g. ignored unknown op types
+	BaselineTs    time.Time      `json:"baseline_ts,omitempty"`
+	Lifecycle     Lifecycle      `json:"lifecycle"`
+	Contributions []Contribution `json:"contributions,omitempty"`
+	Attachments   []Attachment   `json:"attachments,omitempty"`
+	Frontier      []string       `json:"frontier"`            // leaf op-ids
+	Malformed     string         `json:"malformed,omitempty"` // non-empty reason if the log has no usable baseline
+	Warnings      []string       `json:"warnings,omitempty"`  // e.g. ignored unknown op types
 }
 
 // SeqRecord pairs a record with its JetStream stream sequence — the ordering key.

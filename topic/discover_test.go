@@ -123,6 +123,11 @@ func scriptedAnswerer(t *testing.T, url, persona string, key *identity.SigningKe
 		nc.Close()
 		t.Fatal(err)
 	}
+	// Guarantee the server has registered the interest before the test publishes.
+	if err := nc.Flush(); err != nil {
+		nc.Close()
+		t.Fatal(err)
+	}
 	return func() { _ = sub.Unsubscribe(); nc.Close() }
 }
 
@@ -234,6 +239,9 @@ func TestDiscoverLateAndMalformedRepliesIgnored(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = garbageSub.Unsubscribe() }()
+	if err := nc.Flush(); err != nil {
+		t.Fatal(err)
+	}
 
 	results, err := Discover(ctx, asker, DiscoverInput{Query: "late", Timeout: 300 * time.Millisecond}, nil)
 	if err != nil {

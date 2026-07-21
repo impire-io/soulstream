@@ -32,12 +32,12 @@ mechanism; stopping the curator restores 008 exactly.
 **Independent Test**: a body-only phrase finds its topic with the curator running,
 credited to the curator persona; stopped ⇒ 008 behaviour; board untouched.
 
-- [ ] T003 [US1] Pure pieces in curator/suggest.go + curator/judge.go + curator/doc.go — suggestion constants/builders/recognisers (`[curator]` prefixes, author-independent); `Similarity` (token Jaccard over name+subject+tags, lowercased alphanumeric tokens, topic-id suffix excluded) with `DuplicateThreshold = 0.5`; content search over cached text; serverless tests in curator/judge_test.go (similar pairs above threshold, unrelated pairs below, id-suffix exclusion, recognisers reject ordinary comments mentioning the word curator)
-- [ ] T004 [US1] Projection in curator/projection.go — seed from `Board` + `Materialise` per path; cachedTopic {view, DiscoverEntry, searchText, lastReal, birth} per data-model (lastReal excludes recognised suggestions, ≥ BaselineTs); malformed topics cached as skip-markers; dirty-marking via one core subscription on `SOULSTREAM.TOPICS.>` (unknown INFO paths added); `refresh(ctx)` re-materialises dirty paths; `search(query, limit)` matches identity fields + searchText
-- [ ] T005 [US1] `curator.Run` (answering slice) in curator/curator.go — Options with defaults (IdleWindow 336h, ScanEvery 1m, OnEvent); build projection, start dirty subscription, serve via `RespondDiscoveryWith(projection answerer)` (refresh dirty before answering), block until cancel; OnEvent lines for projection-ready and answers
-- [ ] T006 [US1] US1 e2e tests in curator/curator_test.go — body-only phrase found via `Discover` and credited to the curator persona (SC-001, scenario 2); name match answered like any responder (scenario 1); topic posted *after* curator start is found (scenario 3, live projection); curator + plain responder both credited (scenario 4); after cancelling the curator the same ask returns silence/plain-only and `Board` still lists everything (scenario 5 / SC-004)
-- [ ] T007 [US1] CLI `curate` command (answering slice visible) in internal/cli/curate_cmd.go + cli.go dispatch/usage — long-running under the session persona (required), `--idle`/`--scan-every` flags, OnEvent → one line each; test in internal/cli/curate_cmd_test.go (cancellable Run: banner, projection-ready line, an ask answered by the curator persona)
-- [ ] T008 [US1] Write docs/curator.md (ELI5 — the librarian: knows every shelf including what's *inside* the books, answers fastest, leaves polite sticky notes, never moves your books; fire the librarian and the library still works) + docs/README.md index entry + docs/discovery.md curator paragraph gains the link
+- [X] T003 [US1] Pure pieces in curator/suggest.go + curator/judge.go + curator/doc.go — suggestion constants/builders/recognisers (`[curator]` prefixes, author-independent); `Similarity` (token Jaccard over name+subject+tags, lowercased alphanumeric tokens, topic-id suffix excluded) with `DuplicateThreshold = 0.5`; content search over cached text; serverless tests in curator/judge_test.go (similar pairs above threshold, unrelated pairs below, id-suffix exclusion, recognisers reject ordinary comments mentioning the word curator)
+- [X] T004 [US1] Projection in curator/projection.go — seed from `Board` + `Materialise` per path; cachedTopic {view, DiscoverEntry, searchText, lastReal, birth} per data-model (lastReal excludes recognised suggestions, ≥ BaselineTs); malformed topics cached as skip-markers; dirty-marking via one core subscription on `SOULSTREAM.TOPICS.>` (unknown INFO paths added); `refresh(ctx)` re-materialises dirty paths; `search(query, limit)` matches identity fields + searchText
+- [X] T005 [US1] `curator.Run` (answering slice) in curator/curator.go — Options with defaults (IdleWindow 336h, ScanEvery 1m, OnEvent); build projection, start dirty subscription, serve via `RespondDiscoveryWith(projection answerer)` (refresh dirty before answering), block until cancel; OnEvent lines for projection-ready and answers
+- [X] T006 [US1] US1 e2e tests in curator/curator_test.go — body-only phrase found via `Discover` and credited to the curator persona (SC-001, scenario 2); name match answered like any responder (scenario 1); topic posted *after* curator start is found (scenario 3, live projection); curator + plain responder both credited (scenario 4); after cancelling the curator the same ask returns silence/plain-only and `Board` still lists everything (scenario 5 / SC-004)
+- [X] T007 [US1] CLI `curate` command (answering slice visible) in internal/cli/curate_cmd.go + cli.go dispatch/usage — long-running under the session persona (required), `--idle`/`--scan-every` flags, OnEvent → one line each; test in internal/cli/curate_cmd_test.go (cancellable Run: banner, projection-ready line, an ask answered by the curator persona)
+- [X] T008 [US1] Write docs/curator.md (ELI5 — the librarian: knows every shelf including what's *inside* the books, answers fastest, leaves polite sticky notes, never moves your books; fire the librarian and the library still works) + docs/README.md index entry + docs/discovery.md curator paragraph gains the link
 
 **Checkpoint**: content-aware discovery live in dogfood; `make check` green.
 
@@ -51,8 +51,8 @@ restarts and curators.
 **Independent Test**: near-duplicate start ⇒ exactly one flag naming the older path,
 across a curator restart and a second curator.
 
-- [ ] T009 [US2] Duplicate pass in curator/curator.go — on each scan tick (after refresh): for each non-malformed topic newest-first, best older `Similarity ≥ DuplicateThreshold` and no duplicate-kind suggestion present ⇒ `AddComment(DuplicateSuggestion(olderPath), frontier anchor)` in the newer topic; OnEvent line per flag; skip archived (writes refused) and closed (flagging a resting topic is noise)
-- [ ] T010 [US2] US2 e2e tests in curator/curator_test.go — near-duplicate earns exactly one flag in the *newer* topic naming the older path (scenario 1, SC-002); restart the curator ⇒ no second flag (scenario 2); second concurrent curator stays quiet once flagged (scenario 3); unrelated topics never flagged (scenario 4); flag renders as an ordinary attributed comment in `show` output with zero client changes (SC-005)
+- [X] T009 [US2] Duplicate pass in curator/curator.go — on each scan tick (after refresh): for each non-malformed topic newest-first, best older `Similarity ≥ DuplicateThreshold` and no duplicate-kind suggestion present ⇒ `AddComment(DuplicateSuggestion(olderPath), frontier anchor)` in the newer topic; OnEvent line per flag; skip archived (writes refused) and closed (flagging a resting topic is noise)
+- [X] T010 [US2] US2 e2e tests in curator/curator_test.go — near-duplicate earns exactly one flag in the *newer* topic naming the older path (scenario 1, SC-002); restart the curator ⇒ no second flag (scenario 2); second concurrent curator stays quiet once flagged (scenario 3); unrelated topics never flagged (scenario 4); flag renders as an ordinary attributed comment in `show` output with zero client changes (SC-005)
 
 **Checkpoint**: duplicate noise gets one visible nudge; `make check` green.
 
@@ -65,9 +65,9 @@ across a curator restart and a second curator.
 **Independent Test**: short window ⇒ exactly one proposal; activity + quiet again ⇒
 exactly one more; closed/archived get none.
 
-- [ ] T011 [US3] Dormancy pass in curator/curator.go — on each scan tick: for each topic with lifecycle ∉ {closed, archived}, not malformed, `now − lastReal > IdleWindow`, and no dormancy-kind suggestion newer than lastReal ⇒ `AddComment(DormantSuggestion(idle), frontier anchor)`; OnEvent line per proposal
-- [ ] T012 [US3] US3 e2e tests in curator/curator_test.go — dormant topic gets exactly one proposal across repeated scans and a restart (scenarios 1–2, SC-003); fresh activity then quiet ⇒ exactly one more (scenario 3); a topic whose only recent ops are curator suggestions still counts dormant (scenario 4); closed and archived topics get none (scenario 5); announcement-only topic eligible via BaselineTs (edge case)
-- [ ] T013 [US3] Update docs/curator.md with the two sticky-note kinds' exact wording and the one-per-quiet-spell promise; docs/cli.md gains the `curate` button + idle/scan flags
+- [X] T011 [US3] Dormancy pass in curator/curator.go — on each scan tick: for each topic with lifecycle ∉ {closed, archived}, not malformed, `now − lastReal > IdleWindow`, and no dormancy-kind suggestion newer than lastReal ⇒ `AddComment(DormantSuggestion(idle), frontier anchor)`; OnEvent line per proposal
+- [X] T012 [US3] US3 e2e tests in curator/curator_test.go — dormant topic gets exactly one proposal across repeated scans and a restart (scenarios 1–2, SC-003); fresh activity then quiet ⇒ exactly one more (scenario 3); a topic whose only recent ops are curator suggestions still counts dormant (scenario 4); closed and archived topics get none (scenario 5); announcement-only topic eligible via BaselineTs (edge case)
+- [X] T013 [US3] Update docs/curator.md with the two sticky-note kinds' exact wording and the one-per-quiet-spell promise; docs/cli.md gains the `curate` button + idle/scan flags
 
 **Checkpoint**: all three habits live; `make check` green.
 
@@ -75,7 +75,7 @@ exactly one more; closed/archived get none.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T014 Validate specs/009-curator/quickstart.md against real CLI output and fix drift; root README.md — delivered list gains 009, package table gains the `curator` row; FR-001 sweep: `curator` imports only public library surfaces (no internal/, no unexported reach-ins) and nothing in `realm`/`topic`/`registry`/clients references `curator` (the realm must not know curators exist); final `make fmt && make test && make lint` green, none skipped
+- [X] T014 Validate specs/009-curator/quickstart.md against real CLI output and fix drift; root README.md — delivered list gains 009, package table gains the `curator` row; FR-001 sweep: `curator` imports only public library surfaces (no internal/, no unexported reach-ins) and nothing in `realm`/`topic`/`registry`/clients references `curator` (the realm must not know curators exist); final `make fmt && make test && make lint` green, none skipped
 
 ---
 
