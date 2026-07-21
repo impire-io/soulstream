@@ -28,6 +28,9 @@ corrupted. The reference is verifiable, not just a name you have to trust.
 - A ticket can be **pinned to a page** (anchored to an operation): "this file is the
   answer to *that* question." If the page it points at can't be found, the ticket is
   flagged (loose ticket) but never thrown away.
+- A ticket **pinned to another ticket** means something specific: "I am the newer
+  version of that file." That's how documents grow versions — see
+  [artefacts](./artefacts.md).
 - Fetching a drawer that was never filled gives a clear "not found", not a crash.
 
 ## Not yet

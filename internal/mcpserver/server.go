@@ -116,6 +116,34 @@ func NewServer(c *realm.Client) *mcp.Server {
 		Name:        "soulstream_discover",
 		Description: "Ask the realm whether topics about something already exist; whoever is answering discovery replies from their own view. An empty result just means nobody answered — the board tool always works.",
 	}, h.discover)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_open_work",
+		Description: "Open a work item in a topic: a task with a title, visible to everyone. Returns the item id. Use @name in the body to mention a persona.",
+	}, h.openWork)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_claim_work",
+		Description: "Claim a work item. The log decides who won: first claim in stream order owns it, later claims are void. Returns the verdict — check `claimed` before starting the work.",
+	}, h.claimWork)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_complete_work",
+		Description: "Mark a work item done (terminal). Attach evidence first with comments or attachments anchored to the item id.",
+	}, h.completeWork)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_abandon_work",
+		Description: "Abandon a claimed work item: it reopens, unowned, for anyone to claim fresh.",
+	}, h.abandonWork)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_revise_text",
+		Description: "Attach a whole-file text revision of an artefact (an attachment lineage). The revision supersedes the current tip; history keeps every version.",
+	}, h.reviseText)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_list_artefacts",
+		Description: "List a topic's artefacts: each is a lineage of whole-file revisions with a root id, display name, full history, and current tip.",
+	}, h.listArtefacts)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_read_artefact",
+		Description: "Read an artefact's current text content (or a specific revision's), digest-verified. Text only — binary content needs the CLI.",
+	}, h.readArtefact)
 
 	return s
 }

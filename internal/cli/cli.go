@@ -41,7 +41,15 @@ Commands:
   comment <path> <op-id> <body>      comment, anchored to an op
   attach <path> <file> [--type ct] [--anchor op-id]
                                      attach a file; prints its object key
+  revise <path> <file> --of <artefact> [--type ct]
+                                     attach a whole-file revision of an artefact
+  artefacts <path> [ref] [--json]    list a topic's artefacts, or one's history
   get <object> <outfile> [--force]   download an attachment
+  get <path> --artefact <ref> [--revision op-id] [-o outfile] [--force]
+                                     download an artefact's tip (or a revision)
+  work open|claim|done|abandon|list|show ...
+                                     work items: tasks the log itself arbitrates
+                                     (first claim in stream order wins)
   close <path>                       close a topic (and tidy it up)
   rollup <path>                      compact a topic's history into a fresh baseline
   archive <path>                     archive a topic: final compaction, read-only forever
@@ -116,8 +124,14 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdComment(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "attach":
 		return cmdAttach(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "revise":
+		return cmdRevise(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "artefacts":
+		return cmdArtefacts(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "get":
 		return cmdGet(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "work":
+		return cmdWork(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "close":
 		return cmdClose(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "rollup":

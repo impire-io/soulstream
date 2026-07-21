@@ -183,8 +183,21 @@ func cmdGet(ctx context.Context, connect Connector, cfg Config, args []string, s
 	fs := flag.NewFlagSet("get", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	force := fs.Bool("force", false, "overwrite an existing file")
+	artefact := fs.String("artefact", "", "fetch by artefact (root op-id, revision op-id, or name)")
+	revision := fs.String("revision", "", "a specific revision's op-id (default: the tip)")
+	out := fs.String("o", "", "output file (default: the revision's name)")
 	if err := parseInterspersed(fs, args); err != nil {
 		return 2
+	}
+	if *artefact != "" {
+		if fs.NArg() < 1 {
+			fmt.Fprintln(stderr, "usage: soulstream get <path> --artefact <ref> [--revision op-id] [-o outfile] [--force]")
+			return 2
+		}
+		path := fs.Arg(0)
+		return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
+			return getArtefact(ctx, c, cfg, stdout, path, *artefact, *revision, *out, *force)
+		})
 	}
 	if fs.NArg() < 2 {
 		fmt.Fprintln(stderr, "usage: soulstream get <object> <outfile> [--force]")

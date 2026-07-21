@@ -3,6 +3,7 @@ package topic
 import (
 	"encoding/json"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/impire/soulstream/record"
@@ -65,6 +66,7 @@ type MaterializedTopic struct {
 	Lifecycle     Lifecycle      `json:"lifecycle"`
 	Contributions []Contribution `json:"contributions,omitempty"`
 	Attachments   []Attachment   `json:"attachments,omitempty"`
+	WorkItems     []WorkItem     `json:"work_items,omitempty"`
 	Frontier      []string       `json:"frontier"`            // leaf op-ids
 	Malformed     string         `json:"malformed,omitempty"` // non-empty reason if the log has no usable baseline
 	Warnings      []string       `json:"warnings,omitempty"`  // e.g. ignored unknown op types
@@ -106,9 +108,11 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 	// Seed from the baked conversation (present after a rollup). Baked op-ids stay
 	// anchor-resolvable; the ones not on the frontier are interior — already built
 	// upon — so they must never resurface as frontier leaves.
+	workIdx := map[string]int{} // item id → index in mt.WorkItems
 	if bp.Baked != nil {
 		mt.Contributions = append(mt.Contributions, bp.Baked.Contributions...)
 		mt.Attachments = append(mt.Attachments, bp.Baked.Attachments...)
+		mt.WorkItems = append(mt.WorkItems, bp.Baked.WorkItems...)
 		if bp.Baked.Lifecycle != "" {
 			mt.Lifecycle = bp.Baked.Lifecycle
 		}
@@ -119,6 +123,15 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 		for _, a := range bp.Baked.Attachments {
 			seen[a.OpID] = true
 			referenced[a.OpID] = true
+		}
+		for i, w := range mt.WorkItems {
+			workIdx[w.ID] = i
+			seen[w.ID] = true
+			referenced[w.ID] = true
+			for _, ev := range w.Timeline {
+				seen[ev.OpID] = true
+				referenced[ev.OpID] = true
+			}
 		}
 	}
 
@@ -167,6 +180,62 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 				Name: ap.Name, Object: ap.Object, Digest: ap.Digest, Size: ap.Size,
 				ContentType: ap.ContentType, Anchor: ap.Anchor, StreamSeq: sr.StreamSeq,
 			})
+		case TypeWorkOpen:
+			var wp WorkOpenPayload
+			if err := json.Unmarshal(r.Payload, &wp); err != nil || strings.TrimSpace(wp.Title) == "" {
+				mt.Warnings = append(mt.Warnings, "ignored malformed work.open "+r.ID+" (missing title)")
+				continue
+			}
+			contentOps++
+			workIdx[r.ID] = len(mt.WorkItems)
+			mt.WorkItems = append(mt.WorkItems, WorkItem{
+				ID: r.ID, Author: r.Author, Timestamp: r.Timestamp,
+				Title: wp.Title, Body: wp.Body, Mentions: wp.Mentions,
+				Status: WorkOpen, StreamSeq: sr.StreamSeq,
+			})
+		case TypeWorkClaim, TypeWorkDone, TypeWorkAbandon:
+			var rp WorkRefPayload
+			if err := json.Unmarshal(r.Payload, &rp); err != nil || rp.Anchor == nil || rp.Anchor.OpID == "" {
+				mt.Warnings = append(mt.Warnings, "ignored malformed "+r.Type+" "+r.ID+" (missing item anchor)")
+				continue
+			}
+			contentOps++
+			idx, ok := workIdx[rp.Anchor.OpID]
+			if !ok {
+				mt.Warnings = append(mt.Warnings, r.Type+" "+r.ID+" references unknown work item "+rp.Anchor.OpID+" — void")
+				continue
+			}
+			item := &mt.WorkItems[idx]
+			ev := WorkEvent{
+				OpID: r.ID, Kind: workEventKind(r.Type), Author: r.Author,
+				Timestamp: r.Timestamp, StreamSeq: sr.StreamSeq,
+			}
+			// The state machine, not the author, decides. The fold's in-order
+			// traversal is the arbiter: the first claim that finds the item open
+			// wins, and everything the machine rejects stays visible as void.
+			switch r.Type {
+			case TypeWorkClaim:
+				if item.Status == WorkOpen {
+					item.Status = WorkClaimed
+					item.Owner = r.Author
+				} else {
+					ev.Void = true
+				}
+			case TypeWorkDone:
+				if item.Status == WorkDone {
+					ev.Void = true
+				} else {
+					item.Status = WorkDone
+				}
+			case TypeWorkAbandon:
+				if item.Status == WorkClaimed {
+					item.Status = WorkOpen
+					item.Owner = ""
+				} else {
+					ev.Void = true
+				}
+			}
+			item.Timeline = append(item.Timeline, ev)
 		case TypeLifeTransition:
 			if mt.Lifecycle == Archived {
 				mt.Warnings = append(mt.Warnings, "ignored transition after archived (archived is terminal)")

@@ -25,7 +25,8 @@ func foldRec(seq uint64, id, author, opType string, payload any, parents ...stri
 }
 
 // fullLog builds a log with every element kind: baseline, turns, an anchored comment,
-// an attachment, and a close transition.
+// an attachment plus a whole-file revision of it, a work item with a won and a lost
+// claim, and a close transition.
 func fullLog() []SeqRecord {
 	return []SeqRecord{
 		foldRec(1, "base-0", "daan", TypeBaseline, BaselinePayload{State: json.RawMessage(`{"doc":1}`), Frontier: []string{}}),
@@ -33,7 +34,11 @@ func fullLog() []SeqRecord {
 		foldRec(3, "turn-2", "architect", TypeTurnPost, TurnPayload{Body: "hi back"}, "turn-1"),
 		foldRec(4, "cmnt-1", "daan", TypeCommentAdd, CommentPayload{Body: "re: hello", Anchor: Anchor{Kind: "op", OpID: "turn-1"}}, "turn-2"),
 		foldRec(5, "attn-1", "daan", TypeAttachmentAdd, AttachmentPayload{Name: "n.txt", Object: "o", Digest: "d", Size: 3}, "cmnt-1"),
-		foldRec(6, "life-1", "daan", TypeLifeTransition, TransitionPayload{To: Closed}, "attn-1"),
+		foldRec(6, "attn-2", "architect", TypeAttachmentAdd, AttachmentPayload{Name: "n.txt", Object: "o2", Digest: "d2", Size: 4, Anchor: "attn-1"}, "attn-1"),
+		foldRec(7, "work-1", "daan", TypeWorkOpen, WorkOpenPayload{Title: "draft the intro", Body: "who takes it?"}, "attn-2"),
+		foldRec(8, "wclm-1", "architect", TypeWorkClaim, WorkRefPayload{Anchor: &Anchor{Kind: "op", OpID: "work-1"}}, "work-1"),
+		foldRec(9, "wclm-2", "daan", TypeWorkClaim, WorkRefPayload{Anchor: &Anchor{Kind: "op", OpID: "work-1"}}, "wclm-1"),
+		foldRec(10, "life-1", "daan", TypeLifeTransition, TransitionPayload{To: Closed}, "wclm-2"),
 	}
 }
 
@@ -47,6 +52,7 @@ func rollupOf(recs []SeqRecord, newID string) SeqRecord {
 		Baked: &BakedState{
 			Contributions: mt.Contributions,
 			Attachments:   mt.Attachments,
+			WorkItems:     mt.WorkItems,
 			Lifecycle:     mt.Lifecycle,
 		},
 	}
@@ -64,6 +70,14 @@ func stripVolatile(mt *MaterializedTopic) *MaterializedTopic {
 	for i := range mt.Attachments {
 		mt.Attachments[i].StreamSeq = 0
 		mt.Attachments[i].Sig = ""
+	}
+	for i := range mt.WorkItems {
+		mt.WorkItems[i].StreamSeq = 0
+		mt.WorkItems[i].Sig = ""
+		for j := range mt.WorkItems[i].Timeline {
+			mt.WorkItems[i].Timeline[j].StreamSeq = 0
+			mt.WorkItems[i].Timeline[j].Sig = ""
+		}
 	}
 	mt.Warnings = nil
 	mt.BaselineTs = time.Time{}

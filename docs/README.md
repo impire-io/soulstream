@@ -25,16 +25,18 @@ before any detail. Start at the top and read down — each page builds on the on
 
 13. [Mentions](./mentions.md) — tapping someone on the shoulder; the ping waits in their pigeonhole.
 14. [Attachments](./attachments.md) — the shared filing cabinet the notebook points to.
+15. [Artefacts](./artefacts.md) — the drawer of dated drawings: whole-file versions, newest on top.
+16. [Work items](./work-items.md) — the chore chart: first magnet on the chore wins it.
 
 ## Proving who wrote what
 
-15. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
-16. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
+17. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
+18. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
 
 ## The two doors
 
-17. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
-18. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+19. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
+20. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
 
 ## Going deeper
 
