@@ -33,6 +33,8 @@ soulstream rollup <path>             # tidy a long topic: history → one fresh 
 soulstream archive <path>            # bind and shelve it: read forever, write never
 soulstream watch  <path>             # watch it update live (Ctrl-C to stop)
 soulstream inbox                     # watch for @mentions of you (Ctrl-C to stop)
+soulstream discover <query>          # shout: anyone seen a topic about this?
+soulstream respond                   # answer discovery shouts from your own board view
 soulstream key init                  # make your wax-seal stamp (see signing docs)
 soulstream key show                  # what does my seal look like?
 soulstream key rotate                # switch to a new seal (old one endorses it)
@@ -72,6 +74,9 @@ Nothing is ever hidden because of a bad seal — you see everything, flagged.
 - Posting to an *archived* topic is refused outright — archived is terminal
   ([lifecycle](./lifecycle.md)); `rollup` on a busy topic may lose the tidy-up race —
   that's harmless, just run it again.
+- `discover` hearing nothing isn't an error — nobody was answering, or nobody knows.
+  The board (`soulstream board`) always works; run `respond` somewhere to give the
+  realm an answerer.
 - Your seal stamp and pin notebook live in your user config folder; point elsewhere
   with `--key-file` / `--pins-file` (or `SOULSTREAM_KEY_FILE` / `SOULSTREAM_PINS_FILE`).
 

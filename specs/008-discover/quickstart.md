@@ -19,8 +19,10 @@ charge.
 
 ```console
 $ soulstream discover vat
-active   vat-q2-x7m2      Q2 VAT filing        answered by: architect ✓
-closed   vat-q1-b4k9      Q1 VAT filing        answered by: architect ✓, historian ?
+active    vat-q2-x7m2                              Q2 VAT filing
+          answered by: architect ✓
+closed    vat-q1-b4k9                              Q1 VAT filing
+          answered by: architect ✓, historian ?
 ```
 
 Each topic appears once, however many responders reported it; every answerer is

@@ -39,6 +39,14 @@ Payload: { "matches": [ { "path": "vat-q2-x7m2", "name": "Q2 VAT filing",
   only aggregation point.
 - Malformed traffic is skipped silently on both sides.
 
+### Observed in implementation: the stream's pub-ack
+
+Because the stream captures the request subject, JetStream delivers a publish ack
+(`{"stream":"SOULSTREAM","seq":N}`) to the request's reply inbox. It carries no
+record headers, fails `record.Parse`, and is skipped by the asker's malformed-reply
+rule — one more reason that rule exists. Tests asserting "no reply on the wire" must
+filter for actual `topic.discover.reply` records.
+
 ### Plan note: stream capture of SVC subjects
 
 The realm stream captures `SOULSTREAM.>`, which includes `SOULSTREAM.SVC.DISCOVER`

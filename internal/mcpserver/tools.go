@@ -194,6 +194,25 @@ func (h *handlers) rollupTopic(ctx context.Context, _ *mcp.CallToolRequest, in r
 	return textResult(baselineID)
 }
 
+type discoverInput struct {
+	Query string `json:"query" jsonschema:"what to look for; matched against topic names, subject matter, and tags (empty matches everything)"`
+	Limit int    `json:"limit,omitempty" jsonschema:"per-answerer result cap (default 10)"`
+}
+
+// discover asks the realm's live discovery layer. Silence resolves to an empty
+// list — the board tool remains the always-works fallback.
+func (h *handlers) discover(ctx context.Context, _ *mcp.CallToolRequest, in discoverInput) (*mcp.CallToolResult, any, error) {
+	kr := h.keyring(ctx)
+	results, err := topic.Discover(ctx, h.c, topic.DiscoverInput{Query: in.Query, Limit: in.Limit}, kr)
+	if err != nil {
+		return nil, nil, err
+	}
+	if results == nil {
+		results = []topic.DiscoverResult{}
+	}
+	return jsonResult(results)
+}
+
 type publishProfileInput struct {
 	DisplayName string `json:"display_name,omitempty" jsonschema:"presentation name"`
 	Kind        string `json:"kind,omitempty" jsonschema:"human|agent|service (presentation only; default agent)"`
