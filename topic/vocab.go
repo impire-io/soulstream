@@ -1,6 +1,9 @@
 package topic
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Operation types defined this cycle. Types outside this set are ignored with a
 // warning during materialisation (additive vocabulary growth).
@@ -12,6 +15,8 @@ const (
 	TypeLifeTransition = "life.transition"
 	TypeAttachmentAdd  = "attachment.add"
 	TypeMentionNotify  = "mention.notify"
+	TypeDiscover       = "topic.discover"
+	TypeDiscoverReply  = "topic.discover.reply"
 )
 
 // Lifecycle is a topic's derived state.
@@ -108,4 +113,28 @@ type NotifyPayload struct {
 	Topic  string `json:"topic"`
 	OpID   string `json:"op_id"`
 	Author string `json:"author"`
+}
+
+// DiscoverPayload is the topic.discover request: the question a persona shouts at
+// the realm. The deadline is advisory for answerers (skip stale work); enforcement
+// is the asker's — it simply stops listening.
+type DiscoverPayload struct {
+	Query    string    `json:"query"`
+	Limit    int       `json:"limit,omitempty"`
+	Deadline time.Time `json:"deadline,omitempty"`
+}
+
+// DiscoverEntry is one topic as one answerer knows it, from its own projection.
+type DiscoverEntry struct {
+	Path          string    `json:"path"`
+	Name          string    `json:"name"`
+	SubjectMatter string    `json:"subject_matter,omitempty"`
+	Tags          []string  `json:"tags,omitempty"`
+	Lifecycle     Lifecycle `json:"lifecycle,omitempty"`
+}
+
+// DiscoverReplyPayload is a topic.discover.reply: one answerer's matches. A
+// responder with nothing to say sends nothing — silence is cheaper than noise.
+type DiscoverReplyPayload struct {
+	Matches []DiscoverEntry `json:"matches"`
 }

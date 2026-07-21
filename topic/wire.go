@@ -28,22 +28,40 @@ func publishOp(ctx context.Context, c *realm.Client, subject, opType string, pay
 // record-build and signing path, so an op published with extras is signed and
 // attributed identically to any other.
 func publishOpWith(ctx context.Context, c *realm.Client, subject, opType string, payload any, parents []string, presetID string, extraHeaders map[string]string, opts []jetstream.PublishOpt) (opID string, err error) {
+	msg, opID, err := buildOpMsg(c, subject, canonicalBinding(subject), opType, payload, parents, presetID)
+	if err != nil {
+		return "", err
+	}
+	for k, v := range extraHeaders {
+		msg.Header.Set(k, v)
+	}
+	if _, err := c.JetStream().PublishMsg(ctx, msg, opts...); err != nil {
+		return "", fmt.Errorf("topic: publish %s: %w", opType, err)
+	}
+	return opID, nil
+}
+
+// buildOpMsg builds (and signs, when the client is keyed) an operation record as a
+// ready-to-send NATS message. The canonical binding is explicit because it is not
+// always derivable from the publish subject: a discovery reply travels on an
+// ephemeral inbox but signs over the service name.
+func buildOpMsg(c *realm.Client, subject, binding, opType string, payload any, parents []string, presetID string) (*nats.Msg, string, error) {
 	author := c.Persona()
 	if author == "" {
-		return "", fmt.Errorf("topic: a persona is required to post (client has none)")
+		return nil, "", fmt.Errorf("topic: a persona is required to post (client has none)")
 	}
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("topic: marshal %s payload: %w", opType, err)
+		return nil, "", fmt.Errorf("topic: marshal %s payload: %w", opType, err)
 	}
 
-	opIDValue := presetID
-	if opIDValue == "" {
-		opIDValue = record.NewID()
+	opID := presetID
+	if opID == "" {
+		opID = record.NewID()
 	}
 	rec := record.Record{
-		ID:        opIDValue,
+		ID:        opID,
 		Author:    author,
 		Parents:   parents,
 		Type:      opType,
@@ -52,27 +70,19 @@ func publishOpWith(ctx context.Context, c *realm.Client, subject, opType string,
 	}
 
 	// Sign when the client holds a key: the signature covers the canonical record —
-	// the same bytes any reader can recompute from the wire form and the subject —
+	// the same bytes any reader can recompute from the wire form and the binding —
 	// with the Signature field still empty (the canonical form omits an empty sig).
 	if signer := c.Signer(); signer != nil {
-		canonical, cerr := rec.Canonical(c.Realm(), canonicalBinding(subject))
+		canonical, cerr := rec.Canonical(c.Realm(), binding)
 		if cerr != nil {
-			return "", fmt.Errorf("topic: canonicalise %s for signing: %w", opType, cerr)
+			return nil, "", fmt.Errorf("topic: canonicalise %s for signing: %w", opType, cerr)
 		}
 		rec.Signature = signer.Sign(canonical)
 	}
 
 	headers, body, err := rec.Build()
 	if err != nil {
-		return "", fmt.Errorf("topic: build %s record: %w", opType, err)
+		return nil, "", fmt.Errorf("topic: build %s record: %w", opType, err)
 	}
-
-	msg := &nats.Msg{Subject: subject, Header: nats.Header(headers), Data: body}
-	for k, v := range extraHeaders {
-		msg.Header.Set(k, v)
-	}
-	if _, err := c.JetStream().PublishMsg(ctx, msg, opts...); err != nil {
-		return "", fmt.Errorf("topic: publish %s: %w", opType, err)
-	}
-	return rec.ID, nil
+	return &nats.Msg{Subject: subject, Header: nats.Header(headers), Data: body}, opID, nil
 }

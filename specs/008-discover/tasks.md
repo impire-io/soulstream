@@ -17,8 +17,8 @@ deadlines so the suite stays fast.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Service plumbing — `SvcSubjectPrefix`/`SvcDiscoverSubject` constants and the SVC case in `canonicalBinding` (service-name binding) in topic/subjects.go with table-test rows; `(*realm.Client).Conn()` accessor in realm/connect.go with a test
-- [ ] T002 Vocabulary + explicit-binding build — `TypeDiscover`, `TypeDiscoverReply`, `DiscoverPayload`, `DiscoverEntry`, `DiscoverReplyPayload` in topic/vocab.go per contracts/library.md; factor topic/wire.go so a record can be built+signed over an explicit binding while publishing to a different subject (the discovery reply's inbox), with existing callers unchanged
+- [X] T001 Service plumbing — `SvcSubjectPrefix`/`SvcDiscoverSubject` constants and the SVC case in `canonicalBinding` (service-name binding) in topic/subjects.go with table-test rows; `(*realm.Client).Conn()` accessor in realm/connect.go with a test
+- [X] T002 Vocabulary + explicit-binding build — `TypeDiscover`, `TypeDiscoverReply`, `DiscoverPayload`, `DiscoverEntry`, `DiscoverReplyPayload` in topic/vocab.go per contracts/library.md; factor topic/wire.go so a record can be built+signed over an explicit binding while publishing to a different subject (the discovery reply's inbox), with existing callers unchanged
 
 **Checkpoint**: `make check` green, no behaviour change anywhere.
 

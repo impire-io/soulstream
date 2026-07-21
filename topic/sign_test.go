@@ -238,6 +238,7 @@ func TestCanonicalBinding(t *testing.T) {
 		{"SOULSTREAM.TOPICS.OPS.parent-a1b2.child-c3d4", "parent-a1b2.child-c3d4"},
 		{"SOULSTREAM.TOPICS.INFO.vat-q2-x7m2", "vat-q2-x7m2"},
 		{"SOULSTREAM.PERSONA.NOTIFY.architect", "architect"},
+		{"SOULSTREAM.SVC.DISCOVER", "DISCOVER"},
 		{"SOMETHING.ELSE", ""},
 	}
 	for _, c := range cases {

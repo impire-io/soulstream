@@ -109,6 +109,10 @@ func (c *Client) EnforceAuthor(author string) error {
 // topic package) can build on the realm without re-connecting.
 func (c *Client) JetStream() jetstream.JetStream { return c.js }
 
+// Conn returns the client's raw NATS connection, for the core request-reply
+// surfaces (discovery scatter/gather) that live beside the stream.
+func (c *Client) Conn() *nats.Conn { return c.nc }
+
 // Realm returns the client's realm name.
 func (c *Client) Realm() string { return c.cfg.Realm }
 
