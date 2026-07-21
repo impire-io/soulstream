@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/impire/soulstream/identity"
+	"github.com/impire/soulstream/internal/keystore"
 	"github.com/impire/soulstream/realm"
+	"github.com/impire/soulstream/registry"
 	"github.com/impire/soulstream/topic"
 )
 
@@ -13,12 +16,18 @@ import (
 // client bound to an in-process server instead of a named NATS context.
 type Connector func(ctx context.Context, cfg Config) (*realm.Client, error)
 
-// realmConnect is the production connector: it dials the named NATS context.
+// realmConnect is the production connector: it dials the named NATS context, and
+// signs published ops when the persona's key file exists.
 func realmConnect(ctx context.Context, cfg Config) (*realm.Client, error) {
+	signer, err := loadSigner(cfg)
+	if err != nil {
+		return nil, err
+	}
 	return realm.Connect(ctx, realm.Config{
 		ContextName: cfg.Context,
 		Realm:       cfg.Realm,
 		Persona:     cfg.Persona,
+		Signer:      signer,
 	})
 }
 
@@ -51,4 +60,31 @@ func openAndMaterialise(ctx context.Context, c *realm.Client, path string) (*top
 		return nil, err
 	}
 	return h, nil
+}
+
+// realmKeyring builds the reader's keyring: pins + directory → keyring, persisting
+// extended pins. A realm without a directory and without pins yields nil (signed ops
+// degrade to unknown-key). Errors also degrade to nil — verification state must never
+// break reading.
+func realmKeyring(ctx context.Context, c *realm.Client, cfg Config) *identity.Keyring {
+	pinsPath, err := keystore.ResolvePinsFile(cfg.PinsFile, cfg.Realm)
+	if err != nil {
+		return nil
+	}
+	pins, err := keystore.LoadPins(pinsPath, cfg.Realm)
+	if err != nil {
+		return nil
+	}
+	profiles, err := registry.All(ctx, c)
+	if err != nil {
+		return nil
+	}
+	if len(profiles) == 0 && len(pins.Personas) == 0 {
+		return nil
+	}
+
+	kr, newPins := registry.BuildKeyring(profiles, pins.Personas)
+	pins.Personas = newPins
+	_ = keystore.SavePins(pinsPath, pins) // best effort; reading must not fail on pin I/O
+	return kr
 }

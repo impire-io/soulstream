@@ -18,6 +18,12 @@ type Config struct {
 	Context string
 	Realm   string
 	Persona string
+	// KeyFile is the persona's signing-seed file ("" resolves env → default path).
+	// When the resolved file exists, every write command signs its ops.
+	KeyFile string
+	// PinsFile is the realm's key-pin file ("" resolves env → default path). Pins
+	// are the client's durable trust-on-first-use state.
+	PinsFile string
 }
 
 const usageText = `soulstream — a Soulstream client
@@ -39,11 +45,21 @@ Commands:
   close <path>                       close a topic
   watch <path>                       stream a topic live (Ctrl-C to stop)
   inbox                              stream your notifications live (Ctrl-C to stop)
+  key init                           create this persona's signing key
+  key show                           print this persona's public signing key
+  key rotate                         switch to a new key (old key endorses it)
+  profile publish [--display-name n] [--kind human|agent|service]
+                  [--description d] [--operated-by p]
+                                     publish/update this persona's directory profile
+  profile show <persona>             print a persona's profile, key chain, pin state
 
 Configuration (flags override environment):
-  --context / SOULSTREAM_CONTEXT   named NATS context
-  --realm   / SOULSTREAM_REALM     realm name
-  --persona / SOULSTREAM_PERSONA   persona (required for write commands)
+  --context   / SOULSTREAM_CONTEXT    named NATS context
+  --realm     / SOULSTREAM_REALM      realm name
+  --persona   / SOULSTREAM_PERSONA    persona (required for write commands)
+  --key-file  / SOULSTREAM_KEY_FILE   signing-seed file (default: config dir; when
+                                      present, published ops are signed)
+  --pins-file / SOULSTREAM_PINS_FILE  key-pin file (default: config dir)
 `
 
 // Main wires os streams, a SIGINT-cancellable context, and the natscontext connector.
@@ -62,6 +78,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 	ctxName := global.String("context", os.Getenv("SOULSTREAM_CONTEXT"), "named NATS context")
 	realmName := global.String("realm", os.Getenv("SOULSTREAM_REALM"), "realm name")
 	persona := global.String("persona", os.Getenv("SOULSTREAM_PERSONA"), "persona name")
+	keyFile := global.String("key-file", "", "signing-seed file (default: env, then config dir)")
+	pinsFile := global.String("pins-file", "", "key-pin file (default: env, then config dir)")
 	if err := global.Parse(args); err != nil {
 		return 2
 	}
@@ -71,7 +89,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		fmt.Fprint(stderr, usageText)
 		return 2
 	}
-	cfg := Config{Context: *ctxName, Realm: *realmName, Persona: *persona}
+	cfg := Config{Context: *ctxName, Realm: *realmName, Persona: *persona, KeyFile: *keyFile, PinsFile: *pinsFile}
 	cmd, cmdArgs := rest[0], rest[1:]
 
 	switch cmd {
@@ -97,6 +115,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdWatch(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "inbox":
 		return cmdInbox(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "key":
+		return cmdKey(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "profile":
+		return cmdProfile(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usageText)
 		return 0

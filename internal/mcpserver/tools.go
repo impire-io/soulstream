@@ -3,9 +3,11 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/impire/soulstream/registry"
 	"github.com/impire/soulstream/topic"
 )
 
@@ -33,15 +35,25 @@ type showTopicInput struct {
 	Path string `json:"path" jsonschema:"the topic path to read"`
 }
 
+// topicResult is a materialised view plus the session's distrust warnings — the
+// per-op sig statuses live on the view's elements, the substitution alarm on top.
+type topicResult struct {
+	*topic.MaterializedTopic
+	DistrustedPersonas []string `json:"distrusted_personas,omitempty"`
+}
+
 func (h *handlers) showTopic(ctx context.Context, _ *mcp.CallToolRequest, in showTopicInput) (*mcp.CallToolResult, any, error) {
 	if in.Path == "" {
 		return nil, nil, fmt.Errorf("path is required")
 	}
-	v, err := topic.Open(h.c, in.Path).Materialise(ctx)
+	kr := h.keyring(ctx)
+	th := topic.Open(h.c, in.Path)
+	th.UseKeyring(kr)
+	v, err := th.Materialise(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(v)
+	return jsonResult(topicResult{MaterializedTopic: v, DistrustedPersonas: distrusted(kr)})
 }
 
 type startTopicInput struct {
@@ -157,17 +169,62 @@ func (h *handlers) attachText(ctx context.Context, _ *mcp.CallToolRequest, in at
 	return textResult(opID)
 }
 
+type publishProfileInput struct {
+	DisplayName string `json:"display_name,omitempty" jsonschema:"presentation name"`
+	Kind        string `json:"kind,omitempty" jsonschema:"human|agent|service (presentation only; default agent)"`
+	Description string `json:"description,omitempty" jsonschema:"one-line description of this persona"`
+	OperatedBy  string `json:"operated_by,omitempty" jsonschema:"the persona accountable for this agent"`
+}
+
+// publishProfile publishes (or metadata-updates) the session persona's directory
+// entry, including its public signing key when the session holds one. Stored key
+// material stays authoritative; key changes are rotation, done via the CLI.
+func (h *handlers) publishProfile(ctx context.Context, _ *mcp.CallToolRequest, in publishProfileInput) (*mcp.CallToolResult, any, error) {
+	kind := in.Kind
+	if kind == "" {
+		kind = registry.KindAgent
+	}
+	now := time.Now().UTC()
+	p := registry.Profile{
+		Name:        h.c.Persona(),
+		DisplayName: in.DisplayName,
+		Kind:        kind,
+		Description: in.Description,
+		OperatedBy:  in.OperatedBy,
+		CreatedAt:   now,
+	}
+	if s := h.c.Signer(); s != nil {
+		p.SigningKey = &registry.SigningKeyInfo{Ed25519: s.PublicKey(), Since: now}
+	}
+	if err := registry.Publish(ctx, h.c, p); err != nil {
+		return nil, nil, err
+	}
+	published, _, err := registry.Lookup(ctx, h.c, h.c.Persona())
+	if err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(published)
+}
+
 type checkInboxInput struct {
 	Limit int `json:"limit,omitempty" jsonschema:"maximum notifications to return (default 50)"`
 }
 
+// inboxResult carries the notifications (each with its sig status) plus the
+// session's distrust warnings.
+type inboxResult struct {
+	Notifications      []topic.Notification `json:"notifications"`
+	DistrustedPersonas []string             `json:"distrusted_personas,omitempty"`
+}
+
 func (h *handlers) checkInbox(ctx context.Context, _ *mcp.CallToolRequest, in checkInboxInput) (*mcp.CallToolResult, any, error) {
-	notes, err := topic.FetchInbox(ctx, h.c, h.c.Persona(), in.Limit)
+	kr := h.keyring(ctx)
+	notes, err := topic.FetchInbox(ctx, h.c, h.c.Persona(), in.Limit, kr)
 	if err != nil {
 		return nil, nil, err
 	}
 	if notes == nil {
 		notes = []topic.Notification{}
 	}
-	return jsonResult(notes)
+	return jsonResult(inboxResult{Notifications: notes, DistrustedPersonas: distrusted(kr)})
 }

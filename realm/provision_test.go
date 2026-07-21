@@ -63,6 +63,9 @@ func TestProvisionFresh(t *testing.T) {
 	if got[ArtefactObjectStore].Outcome != OutcomeCreated {
 		t.Errorf("object store outcome = %q, want created", got[ArtefactObjectStore].Outcome)
 	}
+	if got[ArtefactPersonas].Outcome != OutcomeCreated {
+		t.Errorf("personas outcome = %q, want created", got[ArtefactPersonas].Outcome)
+	}
 
 	// Read back the stream config and verify every mandated setting.
 	stream, err := js.Stream(ctx, StreamName)
@@ -93,6 +96,17 @@ func TestProvisionFresh(t *testing.T) {
 	if _, err := js.ObjectStore(ctx, ObjectBucket); err != nil {
 		t.Errorf("object store lookup: %v", err)
 	}
+
+	// Persona directory exists with the mandated history depth.
+	kv, err := js.KeyValue(ctx, PersonasBucket)
+	if err != nil {
+		t.Fatalf("personas lookup: %v", err)
+	}
+	if st, err := kv.Status(ctx); err != nil {
+		t.Errorf("personas status: %v", err)
+	} else if st.History() != PersonasHistory {
+		t.Errorf("personas history = %d, want %d", st.History(), PersonasHistory)
+	}
 }
 
 // US2: a second run on a conformant realm makes zero changes and reports conformant.
@@ -120,6 +134,9 @@ func TestProvisionIdempotent(t *testing.T) {
 	}
 	if got[ArtefactObjectStore].Outcome != OutcomeConformant {
 		t.Errorf("object store outcome on re-run = %q, want conformant", got[ArtefactObjectStore].Outcome)
+	}
+	if got[ArtefactPersonas].Outcome != OutcomeConformant {
+		t.Errorf("personas outcome on re-run = %q, want conformant", got[ArtefactPersonas].Outcome)
 	}
 
 	// Zero changes: the stream was not recreated (its creation time is unchanged).
@@ -170,6 +187,36 @@ func TestProvisionPartialCreatesOnlyMissing(t *testing.T) {
 	}
 	if _, err := js.ObjectStore(ctx, ObjectBucket); err != nil {
 		t.Errorf("object store should now exist: %v", err)
+	}
+}
+
+// 006: a pre-existing persona directory is reported, never modified — even when its
+// history depth differs from the mandate (existence is the mandate).
+func TestProvisionPersonasNeverModified(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newJS(t)
+	defer cleanup()
+
+	if _, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: PersonasBucket, History: 3}); err != nil {
+		t.Fatalf("pre-create personas bucket: %v", err)
+	}
+
+	report, err := ProvisionOn(ctx, js)
+	if err != nil {
+		t.Fatalf("ProvisionOn: %v", err)
+	}
+	if got := outcomeByArtefact(report); got[ArtefactPersonas].Outcome != OutcomeConformant {
+		t.Errorf("personas outcome = %q, want conformant (already present)", got[ArtefactPersonas].Outcome)
+	}
+
+	kv, err := js.KeyValue(ctx, PersonasBucket)
+	if err != nil {
+		t.Fatalf("personas lookup: %v", err)
+	}
+	if st, err := kv.Status(ctx); err != nil {
+		t.Fatalf("personas status: %v", err)
+	} else if st.History() != 3 {
+		t.Errorf("pre-existing bucket history changed to %d — provisioning mutated it", st.History())
 	}
 }
 

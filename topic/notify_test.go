@@ -12,7 +12,7 @@ func TestFetchInbox(t *testing.T) {
 	c := provisionedClient(t, "daan")
 
 	// Empty inbox.
-	got, err := FetchInbox(ctx, c, "bookkeeper-agent", 10)
+	got, err := FetchInbox(ctx, c, "bookkeeper-agent", 10, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestFetchInbox(t *testing.T) {
 		}
 	}
 
-	got, err = FetchInbox(ctx, c, "bookkeeper-agent", 10)
+	got, err = FetchInbox(ctx, c, "bookkeeper-agent", 10, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestFetchInbox(t *testing.T) {
 	}
 
 	// Honour the limit.
-	got, err = FetchInbox(ctx, c, "bookkeeper-agent", 2)
+	got, err = FetchInbox(ctx, c, "bookkeeper-agent", 2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestMentionNotifiesInbox(t *testing.T) {
 	fctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	notes := make(chan Notification, 8)
-	go func() { _ = FollowInbox(fctx, c2, "bookkeeper-agent", func(n Notification) { notes <- n }) }()
+	go func() { _ = FollowInbox(fctx, c2, "bookkeeper-agent", nil, func(n Notification) { notes <- n }) }()
 
 	opID, err := h.PostTurn(ctx, "please check box 5 @bookkeeper-agent")
 	if err != nil {

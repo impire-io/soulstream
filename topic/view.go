@@ -16,6 +16,7 @@ type Announcement struct {
 	Parent        string
 	Expected      []string
 	Tags          []string
+	Sig           SigStatus // verification status of the announce op
 }
 
 // Contribution is a materialised turn or comment.
@@ -25,9 +26,10 @@ type Contribution struct {
 	Timestamp time.Time
 	Type      string // TypeTurnPost | TypeCommentAdd
 	Body      string
-	Mentions  []string // persona names mentioned in the body
-	Anchor    string   // comment's anchored op-id ("" for turns)
-	Dangling  bool     // comment anchor not present in the topic
+	Mentions  []string  // persona names mentioned in the body
+	Anchor    string    // comment's anchored op-id ("" for turns)
+	Dangling  bool      // comment anchor not present in the topic
+	Sig       SigStatus // verification status of this op's signature
 	StreamSeq uint64
 }
 
@@ -43,6 +45,7 @@ type Attachment struct {
 	ContentType string
 	Anchor      string
 	Dangling    bool
+	Sig         SigStatus // verification status of this op's signature
 	StreamSeq   uint64
 }
 

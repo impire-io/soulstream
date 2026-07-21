@@ -1,0 +1,76 @@
+package topic
+
+import (
+	"github.com/impire/soulstream/identity"
+	"github.com/impire/soulstream/record"
+)
+
+// SigStatus is the per-op outcome of signature verification. It is annotation only:
+// no status ever drops, hides, or reorders an op — losing testimony is worse than
+// reading it with a warning.
+type SigStatus string
+
+const (
+	// SigUnsigned means the op carries no signature. Valid forever (testimony-grade).
+	SigUnsigned SigStatus = "unsigned"
+	// SigVerified means the signature verifies against a key in the author's
+	// validated chain (exhibit-grade).
+	SigVerified SigStatus = "verified"
+	// SigFailed means a signature is present but wrong — malformed, matching no key
+	// of the author's, or the author is distrusted after a suspected substitution.
+	SigFailed SigStatus = "failed"
+	// SigUnknownKey means a signature is present but the author has no known key (no
+	// keyring, no profile, or a profile without one). Not a failure — the op may
+	// verify retroactively once the key is learned.
+	SigUnknownKey SigStatus = "unknown-key"
+)
+
+// VerifyRecord computes one record's verification status against the author's
+// validated key chain. The binding is the canonical topic value derived from the
+// subject the op was consumed on (the topic path for ops/info, the persona for
+// notify). A nil keyring degrades signed ops to unknown-key — verification never
+// blocks reading.
+func VerifyRecord(rec record.Record, realmName, binding string, kr *identity.Keyring) SigStatus {
+	if rec.Signature == "" {
+		return SigUnsigned
+	}
+	chain, distrusted := kr.ChainFor(rec.Author)
+	if distrusted {
+		return SigFailed
+	}
+	if len(chain) == 0 {
+		return SigUnknownKey
+	}
+
+	unsigned := rec
+	unsigned.Signature = ""
+	canonical, err := unsigned.Canonical(realmName, binding)
+	if err != nil {
+		return SigFailed
+	}
+	for _, key := range chain {
+		if identity.VerifySignature(key, canonical, rec.Signature) {
+			return SigVerified
+		}
+	}
+	return SigFailed
+}
+
+// annotate computes the status of every record in a replay, keyed by op-id.
+func annotate(recs []SeqRecord, realmName, binding string, kr *identity.Keyring) map[string]SigStatus {
+	statuses := make(map[string]SigStatus, len(recs))
+	for _, sr := range recs {
+		statuses[sr.Record.ID] = VerifyRecord(sr.Record, realmName, binding, kr)
+	}
+	return statuses
+}
+
+// annotateView attaches per-op statuses to a materialised view's elements.
+func annotateView(mt *MaterializedTopic, statuses map[string]SigStatus) {
+	for i := range mt.Contributions {
+		mt.Contributions[i].Sig = statuses[mt.Contributions[i].OpID]
+	}
+	for i := range mt.Attachments {
+		mt.Attachments[i].Sig = statuses[mt.Attachments[i].OpID]
+	}
+}

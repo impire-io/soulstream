@@ -20,6 +20,10 @@ type Config struct {
 	Realm string
 	// Persona is optional; when set, write-side attribution is enforced against it.
 	Persona string
+	// Signer is optional; when set, every op this client publishes carries an
+	// Ed25519 signature over its canonical record. Nil publishes unsigned, exactly
+	// as before signing existed.
+	Signer *identity.SigningKey
 }
 
 // Client wraps a live NATS connection and JetStream handle for one realm.
@@ -110,6 +114,10 @@ func (c *Client) Realm() string { return c.cfg.Realm }
 
 // Persona returns the client's configured persona (empty if read-only).
 func (c *Client) Persona() string { return c.cfg.Persona }
+
+// Signer returns the client's signing key, or nil when this client publishes
+// unsigned.
+func (c *Client) Signer() *identity.SigningKey { return c.cfg.Signer }
 
 // Close releases the underlying NATS connection.
 func (c *Client) Close() error {

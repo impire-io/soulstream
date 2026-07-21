@@ -34,6 +34,12 @@ func ProvisionOn(ctx context.Context, js jetstream.JetStream) (*ProvisionReport,
 	}
 	report.Results = append(report.Results, storeResult)
 
+	personasResult, err := provisionPersonas(ctx, js)
+	if err != nil {
+		return nil, err
+	}
+	report.Results = append(report.Results, personasResult)
+
 	return report, nil
 }
 
@@ -50,6 +56,23 @@ func provisionStream(ctx context.Context, js jetstream.JetStream) (ArtefactResul
 		return ArtefactResult{Artefact: ArtefactStream, Outcome: OutcomeCreated}, nil
 	default:
 		return ArtefactResult{}, fmt.Errorf("realm: look up stream %q: %w", StreamName, err)
+	}
+}
+
+func provisionPersonas(ctx context.Context, js jetstream.JetStream) (ArtefactResult, error) {
+	_, err := js.KeyValue(ctx, PersonasBucket)
+	switch {
+	case err == nil:
+		// Already present. Existence is the mandate; history depth is advisory and
+		// never mutated in place.
+		return ArtefactResult{Artefact: ArtefactPersonas, Outcome: OutcomeConformant}, nil
+	case errors.Is(err, jetstream.ErrBucketNotFound):
+		if _, err := js.CreateKeyValue(ctx, personasConfig()); err != nil {
+			return ArtefactResult{}, fmt.Errorf("realm: create persona directory %q: %w", PersonasBucket, err)
+		}
+		return ArtefactResult{Artefact: ArtefactPersonas, Outcome: OutcomeCreated}, nil
+	default:
+		return ArtefactResult{}, fmt.Errorf("realm: look up persona directory %q: %w", PersonasBucket, err)
 	}
 }
 

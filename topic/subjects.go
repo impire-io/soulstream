@@ -20,6 +20,24 @@ func OpsSubject(path string) string { return OpsSubjectPrefix + path }
 // InfoSubject returns the info subject for a topic-path.
 func InfoSubject(path string) string { return InfoSubjectPrefix + path }
 
+// canonicalBinding returns the topic value bound into an op's canonical record for
+// the subject it is published on: the topic path for ops/info subjects, the persona
+// name for notify subjects. The rule is deliberately derivable from the subject alone,
+// so any reader can recompute the signing input from the subject it consumed the op
+// on. An unknown subject shape returns "" (canonicalisation will refuse it).
+func canonicalBinding(subject string) string {
+	switch {
+	case strings.HasPrefix(subject, OpsSubjectPrefix):
+		return strings.TrimPrefix(subject, OpsSubjectPrefix)
+	case strings.HasPrefix(subject, InfoSubjectPrefix):
+		return strings.TrimPrefix(subject, InfoSubjectPrefix)
+	case strings.HasPrefix(subject, NotifySubjectPrefix):
+		return strings.TrimPrefix(subject, NotifySubjectPrefix)
+	default:
+		return ""
+	}
+}
+
 // ChildPath joins a parent topic-path and a child topic-id ("" parent → top-level).
 func ChildPath(parent, childID string) string {
 	if parent == "" {

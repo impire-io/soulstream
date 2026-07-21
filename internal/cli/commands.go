@@ -83,13 +83,17 @@ func cmdShow(ctx context.Context, connect Connector, cfg Config, args []string, 
 	}
 	path := fs.Arg(0)
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-		v, err := topic.Open(c, path).Materialise(ctx)
+		kr := realmKeyring(ctx, c, cfg)
+		h := topic.Open(c, path)
+		h.UseKeyring(kr)
+		v, err := h.Materialise(ctx)
 		if err != nil {
 			return err
 		}
 		if *asJSON {
 			return printJSON(stdout, v)
 		}
+		warnDistrusted(stdout, stderr, kr)
 		renderView(stdout, v)
 		return nil
 	})

@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"github.com/impire/soulstream/identity"
 	"github.com/impire/soulstream/realm"
 	"github.com/impire/soulstream/record"
 )
@@ -24,6 +25,7 @@ type Notification struct {
 	Topic  string
 	OpID   string
 	Author string
+	Sig    SigStatus // verification status of the notify op itself
 }
 
 // publishNotify publishes a mention.notify record to a persona's inbox.
@@ -37,8 +39,9 @@ func publishNotify(ctx context.Context, c *realm.Client, persona string, payload
 // FetchInbox returns the persona's mention notifications, newest-first, capped at limit
 // (a limit of 0 or less means the default of 50). It returns an empty slice (no error)
 // when the inbox is empty. Unlike FollowInbox, it is a bounded one-shot read — the shape
-// a request/response caller (such as the MCP adapter) needs.
-func FetchInbox(ctx context.Context, c *realm.Client, persona string, limit int) ([]Notification, error) {
+// a request/response caller (such as the MCP adapter) needs. Each notification carries
+// its verification status against kr (nil kr: signed notifies report unknown-key).
+func FetchInbox(ctx context.Context, c *realm.Client, persona string, limit int, kr *identity.Keyring) ([]Notification, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -86,7 +89,10 @@ func FetchInbox(ctx context.Context, c *realm.Client, persona string, limit int)
 		if rec, perr := record.Parse(msg.Headers(), msg.Data()); perr == nil && rec.Type == TypeMentionNotify {
 			var np NotifyPayload
 			if json.Unmarshal(rec.Payload, &np) == nil {
-				all = append(all, Notification(np))
+				all = append(all, Notification{
+					Topic: np.Topic, OpID: np.OpID, Author: np.Author,
+					Sig: VerifyRecord(rec, c.Realm(), persona, kr),
+				})
 			}
 		}
 		if md.NumPending == 0 {
@@ -105,8 +111,9 @@ func FetchInbox(ctx context.Context, c *realm.Client, persona string, limit int)
 }
 
 // FollowInbox subscribes to persona's notify subject and calls onNotify for each
-// mention.notify (history then live). It blocks until ctx is cancelled, then returns nil.
-func FollowInbox(ctx context.Context, c *realm.Client, persona string, onNotify func(Notification)) error {
+// mention.notify (history then live). It blocks until ctx is cancelled, then returns
+// nil. Each notification carries its verification status against kr.
+func FollowInbox(ctx context.Context, c *realm.Client, persona string, kr *identity.Keyring, onNotify func(Notification)) error {
 	stream, err := c.JetStream().Stream(ctx, realm.StreamName)
 	if err != nil {
 		return fmt.Errorf("topic: look up stream: %w", err)
@@ -153,7 +160,10 @@ func FollowInbox(ctx context.Context, c *realm.Client, persona string, onNotify 
 			continue
 		}
 		if onNotify != nil {
-			onNotify(Notification(np))
+			onNotify(Notification{
+				Topic: np.Topic, OpID: np.OpID, Author: np.Author,
+				Sig: VerifyRecord(rec, c.Realm(), persona, kr),
+			})
 		}
 	}
 }

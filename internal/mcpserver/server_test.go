@@ -139,8 +139,8 @@ func TestCheckInbox(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(resultText(t, res)) != "[]" {
-		t.Errorf("empty inbox = %q, want []", resultText(t, res))
+	if !strings.Contains(resultText(t, res), `"notifications": []`) {
+		t.Errorf("empty inbox = %q, want empty notifications list", resultText(t, res))
 	}
 
 	// Another persona mentions this agent.

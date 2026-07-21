@@ -28,7 +28,7 @@ func TestParticipationWalkthrough(t *testing.T) {
 	fctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	notes := make(chan Notification, 4)
-	go func() { _ = FollowInbox(fctx, agent, "bookkeeper-agent", func(n Notification) { notes <- n }) }()
+	go func() { _ = FollowInbox(fctx, agent, "bookkeeper-agent", nil, func(n Notification) { notes <- n }) }()
 
 	if _, err := h.PostTurn(ctx, "numbers are in, @bookkeeper-agent please check box 5"); err != nil {
 		t.Fatal(err)

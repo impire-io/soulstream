@@ -40,13 +40,15 @@ misfiled:
 Add those, and nobody can lift a slip out of one workshop and pretend it came from
 another — the sealed page itself would no longer match.
 
-## Not yet: the actual seal
+## And now: the actual seal
 
-Soulstream can make the standard form today, but it does **not** stamp the wax seal
-yet — signing comes later. What matters now is that the form is nailed down, so
-whatever signs it later signs *these* exact bytes.
+For a while Soulstream could make the standard form but nothing stamped it. That day
+came: personas can now own a seal stamp and press it on these exact bytes — see
+[signing](./signing.md). The form was nailed down first precisely so that the seal,
+arriving later, would seal bytes that never wobbled.
 
 ## Related
 
 - [The operation record](./operation-record.md) — the everyday slip this is a tidy
   copy of.
+- [Signing](./signing.md) — the wax seal pressed on this form.

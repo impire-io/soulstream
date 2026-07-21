@@ -15,6 +15,13 @@ const (
 	StreamSubject = "SOULSTREAM.>"
 	// ObjectBucket is the single object store every realm holds.
 	ObjectBucket = "soulstream-objects"
+	// PersonasBucket is the single persona-directory KV bucket every realm holds:
+	// persona name → profile (display metadata + published signing key).
+	PersonasBucket = "soulstream-personas"
+	// PersonasHistory is the KV history depth kept per persona profile — enough to
+	// see recent profile edits and rotations without relying on it for trust (the
+	// profile's own rotation chain is the trust record).
+	PersonasHistory = 10
 	// MinDuplicateWindow is the minimum acceptable duplicate-tracking window; the
 	// mandated stream uses exactly this value.
 	MinDuplicateWindow = 2 * time.Minute
@@ -38,5 +45,13 @@ func streamConfig() jetstream.StreamConfig {
 func objectStoreConfig() jetstream.ObjectStoreConfig {
 	return jetstream.ObjectStoreConfig{
 		Bucket: ObjectBucket,
+	}
+}
+
+// personasConfig is the mandated persona-directory KV configuration.
+func personasConfig() jetstream.KeyValueConfig {
+	return jetstream.KeyValueConfig{
+		Bucket:  PersonasBucket,
+		History: PersonasHistory,
 	}
 }
