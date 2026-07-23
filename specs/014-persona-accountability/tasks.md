@@ -88,7 +88,7 @@ newest fast, older mentions still intact inside topic history.
 - [x] T018 [P] Sweep every remaining current-behaviour `kind` reference: `plugins/soulstream/README.md`, `plugins/soulstream/skills/setup/SKILL.md` (if present), `docs/README.md` index, root `README.md`; historical `specs/00x` stay untouched (archived records)
 - [x] T019 [P] Bump `plugins/soulstream/.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` to 0.3.0
 - [x] T020 Full gate `make check` (fmt+tidy+build+test+lint — all green, none skipped); fix everything it raises
-- [ ] T021 Merge `014-persona-accountability` → `main` with `--no-ff`, push, tag `v0.3.0` (signed) and push the tag — the release workflow publishes the binaries the 0.3.0 plugin wrapper will download
+- [x] T021 Merge `014-persona-accountability` → `main` with `--no-ff`, push, tag `v0.3.0` (signed) and push the tag — the release workflow publishes the binaries the 0.3.0 plugin wrapper will download
 
 ## Dependencies & Execution Order
 
