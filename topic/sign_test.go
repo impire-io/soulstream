@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,12 @@ func rawMessages(t *testing.T, c *realm.Client, subject string) []struct {
 	t.Helper()
 	ctx := context.Background()
 
-	stream, err := c.JetStream().Stream(ctx, realm.StreamName)
+	// Notify subjects live in the inbox stream since 014; everything else in the op-log.
+	streamName := realm.StreamName
+	if strings.HasPrefix(subject, NotifySubjectPrefix) {
+		streamName = realm.NotifyStreamName
+	}
+	stream, err := c.JetStream().Stream(ctx, streamName)
 	if err != nil {
 		t.Fatalf("look up stream: %v", err)
 	}

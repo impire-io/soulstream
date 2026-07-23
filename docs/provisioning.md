@@ -1,8 +1,8 @@
 # What is provisioning?
 
 **Provisioning** is setting up the empty workshop before anyone starts working: making
-sure the notebook, the supply cupboard, and the phone book by the door exist, and that
-they're the *right kind*.
+sure the notebook, the message tray, the supply cupboard, and the phone book by the
+door exist, and that they're the *right kind*.
 
 You run it once, and you can safely run it again any time — on every restart, in a
 setup script, whenever. It follows one simple rule:
@@ -34,6 +34,23 @@ So provisioning refuses to touch it. Instead it tells you plainly:
 
 Now *you* decide what to do — because you're the only one who knows whether that
 history matters. Looking is safe; silently rearranging someone's notebook is not.
+
+## The one planned renovation
+
+There is a single exception, and it's deliberate. Workshops set up before the message
+tray existed had one notebook that collected *everything* — topic history, shoulder
+taps, even the shouted questions that were never meant to be kept. Provisioning
+recognises exactly that old layout and renovates it, once:
+
+1. the notebook goes back to holding topic history only (every other setting on it —
+   even a size limit an operator added — is left exactly as found);
+2. the message tray is put by the door;
+3. each persona's newest 100 shoulder-tap notes are moved from the notebook into the
+   tray, unchanged (their wax seals still check out);
+4. the notes and stale shouts left behind in the notebook are cleared away.
+
+It reports `updated` for that run, and `conformant` ever after. Any layout it does
+*not* recognise is still only reported, never touched.
 
 ## Related
 

@@ -3,9 +3,10 @@ package realm
 // Artefact identifies which realm artefact a provisioning result concerns.
 type Artefact string
 
-// The three artefacts a realm holds.
+// The four artefacts a realm holds.
 const (
 	ArtefactStream      Artefact = "stream"
+	ArtefactNotify      Artefact = "notify_stream"
 	ArtefactObjectStore Artefact = "object_store"
 	ArtefactPersonas    Artefact = "personas"
 )
@@ -21,6 +22,9 @@ const (
 	// OutcomeNonconformant means the artefact already existed but drifts from the
 	// mandated shape. It is reported, never mutated.
 	OutcomeNonconformant Outcome = "nonconformant"
+	// OutcomeUpdated means the artefact held the recognised legacy shape and was
+	// deliberately converged to the mandate (the one exception to report-only).
+	OutcomeUpdated Outcome = "updated"
 )
 
 // ArtefactResult is the provisioning outcome for one artefact. Nonconformities is

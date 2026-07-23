@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
 	"github.com/impire-io/soulstream/record"
 )
 
@@ -457,5 +458,53 @@ func TestDiscoverWrongKeyAnswerIsFailed(t *testing.T) {
 	}
 	if results[0].Answers[0].Sig != SigFailed {
 		t.Errorf("wrong-key answer sig = %s, want failed (delivered, labelled)", results[0].Answers[0].Sig)
+	}
+}
+
+// 014/US3: a discovery round-trip leaves zero retained messages in either stream —
+// requests and replies are transient by construction now that no stream captures
+// the service subjects.
+func TestDiscoveryLeavesNoResidue(t *testing.T) {
+	ctx := context.Background()
+	url := testServer(t)
+	starter := connectClient(t, url, "starter")
+	if _, err := starter.Provision(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := StartTopic(ctx, starter, StartTopicInput{Name: "Q2 VAT filing"}); err != nil {
+		t.Fatal(err)
+	}
+	stop, _ := startResponder(t, url, "architect")
+	defer stop()
+
+	countAll := func() uint64 {
+		t.Helper()
+		var total uint64
+		for _, name := range []string{realm.StreamName, realm.NotifyStreamName} {
+			s, err := starter.JetStream().Stream(ctx, name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := s.Info(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			total += info.State.Msgs
+		}
+		return total
+	}
+
+	before := countAll()
+	for i := 0; i < 3; i++ {
+		results, err := Discover(ctx, starter, DiscoverInput{Query: "vat", Timeout: 500 * time.Millisecond}, nil)
+		if err != nil {
+			t.Fatalf("Discover: %v", err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("results = %+v, want the VAT topic", results)
+		}
+	}
+	if after := countAll(); after != before {
+		t.Errorf("stored messages grew %d → %d across discovery round-trips; must be zero growth", before, after)
 	}
 }

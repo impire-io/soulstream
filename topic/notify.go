@@ -36,6 +36,19 @@ func publishNotify(ctx context.Context, c *realm.Client, persona string, payload
 	return nil
 }
 
+// notifyStream looks up the realm's inbox stream. A realm provisioned before the
+// inbox stream existed gets a clear pointer at the fix rather than a bare not-found.
+func notifyStream(ctx context.Context, c *realm.Client) (jetstream.Stream, error) {
+	stream, err := c.JetStream().Stream(ctx, realm.NotifyStreamName)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrStreamNotFound) {
+			return nil, fmt.Errorf("topic: this realm has no inbox stream yet — run `soulstream provision` to converge it: %w", err)
+		}
+		return nil, fmt.Errorf("topic: look up inbox stream: %w", err)
+	}
+	return stream, nil
+}
+
 // FetchInbox returns the persona's mention notifications, newest-first, capped at limit
 // (a limit of 0 or less means the default of 50). It returns an empty slice (no error)
 // when the inbox is empty. Unlike FollowInbox, it is a bounded one-shot read — the shape
@@ -46,9 +59,9 @@ func FetchInbox(ctx context.Context, c *realm.Client, persona string, limit int,
 		limit = 50
 	}
 
-	stream, err := c.JetStream().Stream(ctx, realm.StreamName)
+	stream, err := notifyStream(ctx, c)
 	if err != nil {
-		return nil, fmt.Errorf("topic: look up stream: %w", err)
+		return nil, err
 	}
 	subject := NotifySubject(persona)
 
@@ -114,9 +127,9 @@ func FetchInbox(ctx context.Context, c *realm.Client, persona string, limit int,
 // mention.notify (history then live). It blocks until ctx is cancelled, then returns
 // nil. Each notification carries its verification status against kr.
 func FollowInbox(ctx context.Context, c *realm.Client, persona string, kr *identity.Keyring, onNotify func(Notification)) error {
-	stream, err := c.JetStream().Stream(ctx, realm.StreamName)
+	stream, err := notifyStream(ctx, c)
 	if err != nil {
-		return fmt.Errorf("topic: look up stream: %w", err)
+		return err
 	}
 
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
