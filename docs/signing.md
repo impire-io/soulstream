@@ -63,3 +63,4 @@ update — see [the persona directory](./persona-directory.md) for how readers s
 - [Personas & attribution](./persona-and-attribution.md) — whose name is on the slip.
 - [The persona directory](./persona-directory.md) — where seals are shown, remembered,
   and checked.
+- [Operators](./operators.md) — the seal also co-signs "I operate this persona".

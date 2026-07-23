@@ -69,5 +69,6 @@ phone book is a helper, never a requirement.
 ## Related
 
 - [Signing](./signing.md) — the wax seal itself.
+- [Operators](./operators.md) — the `operated by` line and its co-signed permission slip.
 - [Provisioning](./provisioning.md) — the directory is the workshop's third fixture.
 - [Personas & attribution](./persona-and-attribution.md) — who the cards are about.

@@ -45,6 +45,60 @@ func TestPublishProfileWithSessionKey(t *testing.T) {
 	}
 }
 
+// The operated persona includes its operator's attestation token at publish; a token
+// for the wrong persona is refused.
+func TestPublishProfileWithAttestation(t *testing.T) {
+	url, key := signedSetupURL(t)
+	c := signedClientOn(t, url, "bookkeeper-agent", key)
+	h := newHandlers(c)
+	ctx := context.Background()
+
+	operatorKey, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := registry.NewAttestationToken(operatorKey, "daan", "bookkeeper-agent", key.PublicKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, _, err := h.publishProfile(ctx, nil, publishProfileInput{OperatedBy: "daan", Attestation: token})
+	if err != nil {
+		t.Fatalf("publishProfile with attestation: %v", err)
+	}
+	out := resultText(t, res)
+	for _, want := range []string{`"operated_by": "daan"`, `"operator_attestation"`, `"sig"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("result missing %s:\n%s", want, out)
+		}
+	}
+
+	// The stored claim verifies against the operator's key.
+	p, ok, err := registry.Lookup(ctx, c, "bookkeeper-agent")
+	if err != nil || !ok {
+		t.Fatalf("Lookup: ok=%v err=%v", ok, err)
+	}
+	status := registry.AttestationStatus(p, []string{operatorKey.PublicKey()}, false, []string{key.PublicKey()})
+	if status != registry.ClaimAttested {
+		t.Errorf("stored claim status = %q, want attested", status)
+	}
+
+	// Refusals: wrong operated persona, mismatched operated_by, missing operated_by.
+	wrong, err := registry.NewAttestationToken(operatorKey, "daan", "someone-else", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := h.publishProfile(ctx, nil, publishProfileInput{OperatedBy: "daan", Attestation: wrong}); err == nil {
+		t.Error("token for another persona accepted")
+	}
+	if _, _, err := h.publishProfile(ctx, nil, publishProfileInput{OperatedBy: "mallory", Attestation: token}); err == nil {
+		t.Error("token with mismatched operated_by accepted")
+	}
+	if _, _, err := h.publishProfile(ctx, nil, publishProfileInput{Attestation: token}); err == nil {
+		t.Error("token without operated_by accepted")
+	}
+}
+
 // signedSetupURL starts a provisioned realm and returns its URL plus a fresh key.
 func signedSetupURL(t *testing.T) (string, *identity.SigningKey) {
 	t.Helper()

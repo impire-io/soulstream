@@ -80,3 +80,12 @@ func VerifySignature(publicKeyB64 string, canonical []byte, sigB64 string) bool 
 func RotationProofBytes(persona, newPublicKeyB64 string) []byte {
 	return []byte("soulstream-key-rotation\n" + persona + "\n" + newPublicKeyB64)
 }
+
+// AttestationBytes is the domain-separated statement an operator signs to vouch
+// "I operate this persona". Binding both names plus the operated persona's current
+// public key prevents replaying a vouch onto another persona or onto a substituted
+// key. operatedKeyB64 may be "" when the operated persona has no key yet — the
+// binding then rests on the directory-unique name alone.
+func AttestationBytes(operator, operated, operatedKeyB64 string) []byte {
+	return []byte("soulstream-operator-attestation\n" + operator + "\n" + operated + "\n" + operatedKeyB64)
+}

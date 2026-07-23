@@ -29,13 +29,26 @@ type Rotation struct {
 // carries presentation text and key material, never a classification — the protocol
 // cannot verify what sort of entity controls the key, so it does not pretend to know.
 type Profile struct {
-	Name        string          `json:"name"`
-	DisplayName string          `json:"display_name,omitempty"`
-	Description string          `json:"description,omitempty"`
-	OperatedBy  string          `json:"operated_by,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
-	SigningKey  *SigningKeyInfo `json:"signing_key,omitempty"`
-	Rotations   []Rotation      `json:"rotations,omitempty"`
+	Name                string               `json:"name"`
+	DisplayName         string               `json:"display_name,omitempty"`
+	Description         string               `json:"description,omitempty"`
+	OperatedBy          string               `json:"operated_by,omitempty"`
+	OperatorAttestation *OperatorAttestation `json:"operator_attestation,omitempty"`
+	CreatedAt           time.Time            `json:"created_at"`
+	SigningKey          *SigningKeyInfo      `json:"signing_key,omitempty"`
+	Rotations           []Rotation           `json:"rotations,omitempty"`
+}
+
+// OperatorAttestation is the operator's countersignature over the operator claim:
+// Sig is the operator's Ed25519 signature over
+// identity.AttestationBytes(operated_by, name, operated_key). The operator and
+// operated names are NOT duplicated here — they are OperatedBy and Name on the same
+// profile, so there is exactly one copy that can never disagree with itself.
+// OperatedKey is the operated persona's public key as the operator saw it, "" when
+// the persona had none.
+type OperatorAttestation struct {
+	OperatedKey string `json:"operated_key,omitempty"`
+	Sig         string `json:"sig"`
 }
 
 // Validate checks the profile's shape: slug names and well-formed key material.
@@ -50,6 +63,19 @@ func (p Profile) Validate() error {
 		}
 		if p.OperatedBy == p.Name {
 			return fmt.Errorf("registry: profile %q: operated_by must name another persona", p.Name)
+		}
+	}
+	if p.OperatorAttestation != nil {
+		if p.OperatedBy == "" {
+			return fmt.Errorf("registry: profile %q: operator_attestation without operated_by", p.Name)
+		}
+		if p.OperatorAttestation.Sig == "" {
+			return fmt.Errorf("registry: profile %q: operator_attestation: missing sig", p.Name)
+		}
+		if k := p.OperatorAttestation.OperatedKey; k != "" {
+			if err := checkKeyB64(k); err != nil {
+				return fmt.Errorf("registry: profile %q: operator_attestation.operated_key: %w", p.Name, err)
+			}
 		}
 	}
 	if p.SigningKey != nil {
