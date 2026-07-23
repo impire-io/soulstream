@@ -74,10 +74,12 @@ Commands:
   key init                           create this persona's signing key
   key show                           print this persona's public signing key
   key rotate                         switch to a new key (old key endorses it)
-  profile publish [--display-name n] [--kind human|agent|service]
-                  [--description d] [--operated-by p]
-                                     publish/update this persona's directory profile
-  profile show <persona>             print a persona's profile, key chain, pin state
+  profile publish [--display-name n] [--description d] [--operated-by p]
+                  [--attestation t]  publish/update this persona's directory profile
+  profile attest <persona>           countersign that this persona operates another
+                                     (prints a token the other includes at publish)
+  profile show <persona>             print a persona's profile, operator claim,
+                                     key chain, pin state
   config                             show the effective identity and where each
                                      value came from (never connects)
   version                            print the client version

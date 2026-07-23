@@ -9,6 +9,8 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"sort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -39,9 +41,13 @@ func (h *handlers) keyring(ctx context.Context) *identity.Keyring {
 	if err != nil {
 		return nil
 	}
-	profiles, err := registry.All(ctx, h.c)
+	profiles, warnings, err := registry.All(ctx, h.c)
 	if err != nil {
 		return nil
+	}
+	for _, w := range warnings {
+		// stderr is the stdio server's log channel — loud without corrupting MCP traffic.
+		fmt.Fprintf(os.Stderr, "soulstream-mcp: WARNING: directory profile %q is invalid and was skipped (republish it): %v\n", w.Persona, w.Err)
 	}
 	if len(profiles) == 0 && len(pins.Personas) == 0 {
 		return nil

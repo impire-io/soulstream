@@ -104,6 +104,12 @@ func Discover(ctx context.Context, c *realm.Client, in DiscoverInput, kr *identi
 			if errors.Is(err, nats.ErrTimeout) {
 				break
 			}
+			// Nobody at all is listening on the service subject (since 014 no
+			// stream captures it either, so the server can say so outright).
+			// Silence is an answer, not an error.
+			if errors.Is(err, nats.ErrNoResponders) {
+				break
+			}
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}

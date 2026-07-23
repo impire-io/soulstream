@@ -1,31 +1,31 @@
 <!-- SPECKIT START -->
-Active feature: **013-config** — config-file identity resolution + self-installing
-plugin binary. Five who-acts-where fields (context, realm, persona, key_file,
-pins_file) resolve PER-FIELD through: flag (only if actually passed — flag.Visit;
-flags no longer default to os.Getenv) > SOULSTREAM_* env > nearest `.soulstream.json`
-walking up from cwd (nearest file ONLY, no stacking) > `<UserConfigDir>/soulstream/
-config.json` > unset. New `internal/config` (stdlib only, no NATS): File/Resolve/
-Resolved with per-field Source provenance. Strict JSON decode (DisallowUnknownFields)
-— malformed/unknown field = fail loud naming the file; absent file = skip. Relative
-key/pins paths resolve against the config file's dir at load. Config files can NEVER
-carry credentials — names/paths only, keys stay in the local keystore. New CLI
-`soulstream config`: prints field/value/source, never connects, exit 0. Wired into
-internal/cli/Run AND cmd/soulstream-mcp. Byte-for-byte old behaviour when no files
-exist. Plugin wrapper self-installs: SOULSTREAM_MCP_BIN > PATH > cached
-$DATA/bin/v<ver>/soulstream-mcp (sha256 recorded at install, RE-VERIFIED every start)
-> download release matching plugin's own version (parsed from plugin.json) for
-uname-detected os/arch, verify vs checksums.txt, temp-dir + atomic mv (failed =
-nothing cached), exec. $DATA = CLAUDE_PLUGIN_DATA else XDG_DATA_HOME else
-~/.local/share, /soulstream-plugin. Plugin + marketplace 0.2.0; tag v0.2.0 ships in
-the same delivery. ELI5: docs/configuration.md NEW; cli/mcp docs, plugin README,
-setup skill updated.
+Active feature: **014-persona-accountability** — remove persona `kind` outright
+(no backwards compat; strict profile decode rejects unknown fields naming persona +
+field; bulk reads skip + warn, direct reads fail), replace the taxonomy with
+verifiable accountability: `operated_by` may carry an operator COUNTERSIGNATURE —
+statement `identity.AttestationBytes(operator, operated, operatedKeyB64)` =
+`"soulstream-operator-attestation\n"+…`, signed with the operator's existing Ed25519
+key, valid against ANY key in the operator's validated chain; bound operated-key must
+be "" or ∈ operated persona's chain. Status attested/unverified/failed; operator
+distrusted ⇒ failed. Portable token (base64 JSON {operator,operated,operated_key,sig}):
+CLI `profile attest <persona>` generates, `profile publish --attestation` includes;
+profiles stay self-published. `profile show` prints status + operator chain to its
+terminal (principal/dangling/cycle). MCP publish_profile: -kind +attestation. Stream
+hygiene: main stream narrows to `SOULSTREAM.TOPICS.>` (SVC.> captured by NOTHING —
+008 pub-ack gotcha gone); NEW stream `SOULSTREAM_NOTIFY` on
+`SOULSTREAM.PERSONA.NOTIFY.>` with MaxMsgsPerSubject 100, DiscardOld, MaxBytes 64MiB
+(NGS R1-safe); FetchInbox/FollowInbox read it. Provision converges ONLY the exact
+legacy shape (subjects ["SOULSTREAM.>"]): narrow subjects → create notify stream →
+migrate newest ≤100 notifies/persona verbatim (same subjects ⇒ sigs still verify) →
+purge PERSONA.>/SVC.> residue; OutcomeUpdated. Ships v0.3.0 + plugin/marketplace
+bumps in the same delivery (wrapper downloads by its own plugin.json version).
 
-For details read: [specs/013-config/plan.md](specs/013-config/plan.md)
-(spec: `specs/013-config/spec.md`, contract: `specs/013-config/contracts/library.md`,
-model: `specs/013-config/data-model.md`).
+For details read: [specs/014-persona-accountability/plan.md](specs/014-persona-accountability/plan.md)
+(spec: `specs/014-persona-accountability/spec.md`, research decisions:
+`research.md` D1–D6, contract: `contracts/library.md`, model: `data-model.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
-`010-work`, `011-vocab`, `012-distribution` (plugin marketplace + goreleaser
-pipeline + module rename, v0.1.0 released) merged + pushed.
+`010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (per-project
+`.soulstream.json` + self-installing plugin, v0.2.0) merged + pushed.
 
 Project conventions:
 - Go 1.26; module `github.com/impire-io/soulstream`.

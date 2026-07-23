@@ -9,7 +9,7 @@ before any detail. Start at the top and read down — each page builds on the on
 2. [Provisioning](./provisioning.md) — setting the workshop up (safe to re-run).
 3. [The operation record](./operation-record.md) — a delivery slip: details on the label, goods in the box.
 4. [The canonical record](./canonical-record.md) — the slip re-typed on a standard form so copies always match.
-5. [Personas & attribution](./persona-and-attribution.md) — everyone signs their own name; humans and agents alike.
+5. [Personas & attribution](./persona-and-attribution.md) — a persona is a voice with a key; everyone signs their own name.
 
 ## Working on things
 
@@ -33,12 +33,13 @@ before any detail. Start at the top and read down — each page builds on the on
 
 18. [Signing](./signing.md) — the wax seal: anyone can copy a letter, only you can press your seal.
 19. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
+20. [Operators](./operators.md) — who answers for a persona: the co-signed permission slip.
 
 ## The two doors
 
-20. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
-21. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
-22. [Configuration](./configuration.md) — the sticker on the folder: who you are, per project.
+21. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
+22. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+23. [Configuration](./configuration.md) — the sticker on the folder: who you are, per project.
 
 ## Going deeper
 

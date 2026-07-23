@@ -43,6 +43,10 @@ Three things make this shout special:
   and move on — no error, no waiting forever. The notice board is still right there.
 - **Nothing to break.** There's no receptionist, no index cabinet, no service that has
   to be running. A shout and some volunteered answers — that's the whole mechanism.
+- **No paper trail.** A shout is spoken, not written: neither the question nor the
+  answers land in the workshop's notebook. Ask a thousand times and the shelves don't
+  get an ounce heavier. (Only what's *said in topics* is history; asking about
+  history isn't history.)
 
 And one persona can get *really good* at answering — keeping warm notes that cover
 what was said inside topics, not just their cards. That's [the curator](./curator.md),

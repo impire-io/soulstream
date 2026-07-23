@@ -2,6 +2,7 @@ package realm
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -106,6 +107,165 @@ func TestProvisionFresh(t *testing.T) {
 		t.Errorf("personas status: %v", err)
 	} else if st.History() != PersonasHistory {
 		t.Errorf("personas history = %d, want %d", st.History(), PersonasHistory)
+	}
+}
+
+// 014/US3+US4: a fresh provision creates the inbox stream with its bounded window,
+// and neither stream captures service subjects.
+func TestProvisionFreshNotifyStream(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newJS(t)
+	defer cleanup()
+
+	report, err := ProvisionOn(ctx, js)
+	if err != nil {
+		t.Fatalf("ProvisionOn: %v", err)
+	}
+	got := outcomeByArtefact(report)
+	if got[ArtefactNotify].Outcome != OutcomeCreated {
+		t.Fatalf("notify stream outcome = %q, want created", got[ArtefactNotify].Outcome)
+	}
+
+	stream, err := js.Stream(ctx, NotifyStreamName)
+	if err != nil {
+		t.Fatalf("look up inbox stream: %v", err)
+	}
+	cfg := stream.CachedInfo().Config
+	if issues := notifyNonconformities(cfg); len(issues) != 0 {
+		t.Errorf("fresh inbox stream nonconformant: %v", issues)
+	}
+	if cfg.MaxMsgsPerSubject != InboxWindow {
+		t.Errorf("MaxMsgsPerSubject = %d, want %d", cfg.MaxMsgsPerSubject, InboxWindow)
+	}
+
+	// Service traffic is captured by neither stream: a message published on a SVC
+	// subject must land in no store.
+	nc := js.Conn()
+	if err := nc.Publish("SOULSTREAM.SVC.DISCOVER", []byte("transient ask")); err != nil {
+		t.Fatalf("publish svc: %v", err)
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	for _, name := range []string{StreamName, NotifyStreamName} {
+		s, err := js.Stream(ctx, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := s.Info(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.State.Msgs != 0 {
+			t.Errorf("stream %s retained %d messages; service traffic must leave no residue", name, info.State.Msgs)
+		}
+	}
+}
+
+// 014/US3: the recognised legacy shape (subjects ["SOULSTREAM.>"]) is converged —
+// subjects narrowed with every other setting preserved, the inbox stream created,
+// the newest notifications migrated verbatim, and persona/service residue purged —
+// while topic history stays untouched.
+func TestProvisionConvergesLegacyRealm(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newJS(t)
+	defer cleanup()
+
+	// A pre-014 realm: one stream capturing everything, with an operator-tuned
+	// MaxBytes that must survive convergence.
+	legacy := streamConfig()
+	legacy.Subjects = []string{LegacyStreamSubject}
+	legacy.MaxBytes = 1 << 30
+	if _, err := js.CreateStream(ctx, legacy); err != nil {
+		t.Fatalf("create legacy stream: %v", err)
+	}
+
+	// Seed it the way life would have: topic history, inbox traffic beyond the
+	// window for one persona, a little for another, and service residue.
+	publish := func(subject, body string) {
+		t.Helper()
+		if _, err := js.Publish(ctx, subject, []byte(body)); err != nil {
+			t.Fatalf("seed %s: %v", subject, err)
+		}
+	}
+	publish("SOULSTREAM.TOPICS.OPS.demo-aaaa", "turn one")
+	publish("SOULSTREAM.TOPICS.OPS.demo-aaaa", "turn two")
+	publish("SOULSTREAM.TOPICS.INFO.demo-aaaa", "announce")
+	for i := 0; i < InboxWindow+20; i++ {
+		publish("SOULSTREAM.PERSONA.NOTIFY.busy", fmt.Sprintf("ping %d", i))
+	}
+	publish("SOULSTREAM.PERSONA.NOTIFY.quiet", "one ping")
+	publish("SOULSTREAM.SVC.DISCOVER", "stale ask")
+
+	report, err := ProvisionOn(ctx, js)
+	if err != nil {
+		t.Fatalf("ProvisionOn: %v", err)
+	}
+	got := outcomeByArtefact(report)
+	if got[ArtefactStream].Outcome != OutcomeUpdated {
+		t.Fatalf("legacy stream outcome = %q, want updated (results: %+v)", got[ArtefactStream].Outcome, report.Results)
+	}
+	if got[ArtefactNotify].Outcome != OutcomeCreated {
+		t.Fatalf("notify stream outcome = %q, want created", got[ArtefactNotify].Outcome)
+	}
+	if !report.Conformant() {
+		t.Errorf("converged report not conformant: %+v", report.Results)
+	}
+
+	// The op-log: narrowed subjects, preserved MaxBytes, topic history intact,
+	// persona + service residue gone.
+	stream, err := js.Stream(ctx, StreamName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := stream.CachedInfo().Config
+	if len(cfg.Subjects) != 1 || cfg.Subjects[0] != StreamSubject {
+		t.Errorf("subjects after convergence = %v, want [%s]", cfg.Subjects, StreamSubject)
+	}
+	if cfg.MaxBytes != 1<<30 {
+		t.Errorf("operator-tuned MaxBytes not preserved: %d", cfg.MaxBytes)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State.Msgs != 3 {
+		t.Errorf("op-log holds %d messages after purge, want 3 (topic history only)", info.State.Msgs)
+	}
+
+	// The inbox stream: busy capped at the window (the NEWEST window), quiet intact.
+	notify, err := js.Stream(ctx, NotifyStreamName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ninfo, err := notify.Info(ctx, jetstream.WithSubjectFilter(NotifyStreamSubject))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := ninfo.State.Subjects["SOULSTREAM.PERSONA.NOTIFY.busy"]; n != InboxWindow {
+		t.Errorf("busy inbox migrated %d notifications, want %d", n, InboxWindow)
+	}
+	if n := ninfo.State.Subjects["SOULSTREAM.PERSONA.NOTIFY.quiet"]; n != 1 {
+		t.Errorf("quiet inbox migrated %d notifications, want 1", n)
+	}
+	last, err := notify.GetLastMsgForSubject(ctx, "SOULSTREAM.PERSONA.NOTIFY.busy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := fmt.Sprintf("ping %d", InboxWindow+19); string(last.Data) != want {
+		t.Errorf("newest migrated notification = %q, want %q", last.Data, want)
+	}
+
+	// Re-provision: everything is now conformant, nothing converges twice.
+	again, err := ProvisionOn(ctx, js)
+	if err != nil {
+		t.Fatalf("second ProvisionOn: %v", err)
+	}
+	if !again.Conformant() {
+		t.Errorf("re-provision after convergence not conformant: %+v", again.Results)
+	}
+	if o := outcomeByArtefact(again)[ArtefactStream].Outcome; o != OutcomeConformant {
+		t.Errorf("second run stream outcome = %q, want conformant", o)
 	}
 }
 

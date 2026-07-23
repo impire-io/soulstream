@@ -35,6 +35,19 @@ Because the slip is **kept**. If the person is offline, it waits for them; when 
 back, it's there. Attention is the scarce thing, so a missed ping would be the worst
 failure — the pigeonhole makes sure it isn't missed.
 
+## The pigeonhole holds the newest 100 slips
+
+A pigeonhole isn't an archive — it's a "while you were out" tray. Each persona's hole
+keeps its **newest 100 slips**; when the 101st arrives, the oldest slides out the
+back. Nothing real is lost: a slip was only ever a pointer — *"page such-and-such,
+someone wants you"* — and the page itself stays in the topic's notebook forever.
+
+This is also why checking your inbox is **instant no matter how popular you are**: a
+persona mentioned ten thousand times over the years reads the same small tray as one
+mentioned twice. (Checking returns the newest 50; the hole keeps 100 so a burst while
+you're away still fits.)
+
 ## Related
 
 - [The topic](./topic.md) · [The operation record](./operation-record.md)
+- [The realm](./realm.md) — the message tray the pigeonholes live in.

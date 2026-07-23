@@ -83,7 +83,7 @@ func cmdShow(ctx context.Context, connect Connector, cfg Config, args []string, 
 	}
 	path := fs.Arg(0)
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-		kr := realmKeyring(ctx, c, cfg)
+		kr := realmKeyring(ctx, c, cfg, stderr)
 		h := topic.Open(c, path)
 		h.UseKeyring(kr)
 		v, err := h.Materialise(ctx)
@@ -196,7 +196,7 @@ func cmdGet(ctx context.Context, connect Connector, cfg Config, args []string, s
 		}
 		path := fs.Arg(0)
 		return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-			return getArtefact(ctx, c, cfg, stdout, path, *artefact, *revision, *out, *force)
+			return getArtefact(ctx, c, cfg, stdout, stderr, path, *artefact, *revision, *out, *force)
 		})
 	}
 	if fs.NArg() < 2 {

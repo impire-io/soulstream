@@ -215,27 +215,38 @@ func (h *handlers) discover(ctx context.Context, _ *mcp.CallToolRequest, in disc
 
 type publishProfileInput struct {
 	DisplayName string `json:"display_name,omitempty" jsonschema:"presentation name"`
-	Kind        string `json:"kind,omitempty" jsonschema:"human|agent|service (presentation only; default agent)"`
 	Description string `json:"description,omitempty" jsonschema:"one-line description of this persona"`
-	OperatedBy  string `json:"operated_by,omitempty" jsonschema:"the persona accountable for this agent"`
+	OperatedBy  string `json:"operated_by,omitempty" jsonschema:"the persona that operates (answers for) this one"`
+	Attestation string `json:"attestation,omitempty" jsonschema:"attestation token from the operator (their countersignature of the operated_by claim)"`
 }
 
 // publishProfile publishes (or metadata-updates) the session persona's directory
 // entry, including its public signing key when the session holds one. Stored key
 // material stays authoritative; key changes are rotation, done via the CLI.
 func (h *handlers) publishProfile(ctx context.Context, _ *mcp.CallToolRequest, in publishProfileInput) (*mcp.CallToolResult, any, error) {
-	kind := in.Kind
-	if kind == "" {
-		kind = registry.KindAgent
-	}
 	now := time.Now().UTC()
 	p := registry.Profile{
 		Name:        h.c.Persona(),
 		DisplayName: in.DisplayName,
-		Kind:        kind,
 		Description: in.Description,
 		OperatedBy:  in.OperatedBy,
 		CreatedAt:   now,
+	}
+	if in.Attestation != "" {
+		tok, err := registry.ParseAttestationToken(in.Attestation)
+		if err != nil {
+			return nil, nil, err
+		}
+		if in.OperatedBy == "" {
+			return nil, nil, fmt.Errorf("attestation requires operated_by %q", tok.Operator)
+		}
+		if tok.Operator != in.OperatedBy {
+			return nil, nil, fmt.Errorf("attestation token is from %q but operated_by names %q", tok.Operator, in.OperatedBy)
+		}
+		if tok.Operated != h.c.Persona() {
+			return nil, nil, fmt.Errorf("attestation token vouches for %q, not this persona (%q)", tok.Operated, h.c.Persona())
+		}
+		p.OperatorAttestation = &registry.OperatorAttestation{OperatedKey: tok.OperatedKey, Sig: tok.Sig}
 	}
 	if s := h.c.Signer(); s != nil {
 		p.SigningKey = &registry.SigningKeyInfo{Ed25519: s.PublicKey(), Since: now}

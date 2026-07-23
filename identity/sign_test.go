@@ -119,6 +119,30 @@ func TestRotationProofSignsAndVerifies(t *testing.T) {
 	}
 }
 
+func TestAttestationBytes(t *testing.T) {
+	got := AttestationBytes("daan", "scribe", "QUJD")
+	want := []byte("soulstream-operator-attestation\ndaan\nscribe\nQUJD")
+	if !bytes.Equal(got, want) {
+		t.Errorf("AttestationBytes = %q, want %q", got, want)
+	}
+	// Every input is bound in: change any one and the statement differs.
+	base := AttestationBytes("daan", "scribe", "QUJD")
+	for name, other := range map[string][]byte{
+		"operator":  AttestationBytes("mallory", "scribe", "QUJD"),
+		"operated":  AttestationBytes("daan", "copyist", "QUJD"),
+		"bound key": AttestationBytes("daan", "scribe", "WFla"),
+	} {
+		if bytes.Equal(base, other) {
+			t.Errorf("statement does not distinguish the %s", name)
+		}
+	}
+	// The empty-key form (operated persona has no key yet) is well-defined.
+	if !bytes.Equal(AttestationBytes("daan", "scribe", ""),
+		[]byte("soulstream-operator-attestation\ndaan\nscribe\n")) {
+		t.Error("empty-key statement has an unexpected shape")
+	}
+}
+
 func TestPublicKeyIsBase64(t *testing.T) {
 	k, err := GenerateSigningKey()
 	if err != nil {

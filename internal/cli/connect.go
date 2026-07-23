@@ -65,8 +65,9 @@ func openAndMaterialise(ctx context.Context, c *realm.Client, path string) (*top
 // realmKeyring builds the reader's keyring: pins + directory → keyring, persisting
 // extended pins. A realm without a directory and without pins yields nil (signed ops
 // degrade to unknown-key). Errors also degrade to nil — verification state must never
-// break reading.
-func realmKeyring(ctx context.Context, c *realm.Client, cfg Config) *identity.Keyring {
+// break reading. Invalid directory entries are skipped with a loud warning on stderr;
+// their personas simply stay unknown to the keyring.
+func realmKeyring(ctx context.Context, c *realm.Client, cfg Config, stderr io.Writer) *identity.Keyring {
 	pinsPath, err := keystore.ResolvePinsFile(cfg.PinsFile, cfg.Realm)
 	if err != nil {
 		return nil
@@ -75,9 +76,12 @@ func realmKeyring(ctx context.Context, c *realm.Client, cfg Config) *identity.Ke
 	if err != nil {
 		return nil
 	}
-	profiles, err := registry.All(ctx, c)
+	profiles, warnings, err := registry.All(ctx, c)
 	if err != nil {
 		return nil
+	}
+	for _, w := range warnings {
+		fmt.Fprintf(stderr, "soulstream: WARNING: directory profile %q is invalid and was skipped (republish it): %v\n", w.Persona, w.Err)
 	}
 	if len(profiles) == 0 && len(pins.Personas) == 0 {
 		return nil

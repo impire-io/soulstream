@@ -3,8 +3,14 @@ package topic
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
+
+	"github.com/impire-io/soulstream/identity"
+	"github.com/impire-io/soulstream/realm"
 )
 
 func TestFetchInbox(t *testing.T) {
@@ -47,6 +53,129 @@ func TestFetchInbox(t *testing.T) {
 	}
 	if len(got) != 2 || got[0].OpID != "op-2" {
 		t.Errorf("limited inbox = %+v, want 2 newest-first", got)
+	}
+}
+
+// 014/US4: an inbox holds only the newest realm.InboxWindow notifications — the
+// stream sheds the oldest per persona — and a fetch reads the bounded window, never
+// lifetime history. The mentioning history itself is untouched by the bound.
+func TestInboxIsBounded(t *testing.T) {
+	ctx := context.Background()
+	c := provisionedClient(t, "daan")
+
+	total := realm.InboxWindow + 20
+	for i := 0; i < total; i++ {
+		if err := publishNotify(ctx, c, "busy", NotifyPayload{
+			Topic: "vat", OpID: fmt.Sprintf("op-%d", i), Author: "daan",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Storage: exactly the window remains for that persona.
+	stream, err := c.JetStream().Stream(ctx, realm.NotifyStreamName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := stream.Info(ctx, jetstream.WithSubjectFilter(NotifySubject("busy")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := info.State.Subjects[NotifySubject("busy")]; n != realm.InboxWindow {
+		t.Fatalf("stored notifications = %d, want the window of %d", n, realm.InboxWindow)
+	}
+
+	// Fetch: the default cap of 50, newest first, all from inside the window.
+	got, err := FetchInbox(ctx, c, "busy", 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 50 {
+		t.Fatalf("fetched %d, want the default cap of 50", len(got))
+	}
+	if got[0].OpID != fmt.Sprintf("op-%d", total-1) {
+		t.Errorf("newest fetched = %s, want op-%d", got[0].OpID, total-1)
+	}
+	if got[49].OpID != fmt.Sprintf("op-%d", total-50) {
+		t.Errorf("oldest fetched = %s, want op-%d", got[49].OpID, total-50)
+	}
+
+	// Another persona's inbox is untouched by busy's overflow.
+	if err := publishNotify(ctx, c, "quiet", NotifyPayload{Topic: "vat", OpID: "only", Author: "daan"}); err != nil {
+		t.Fatal(err)
+	}
+	q, err := FetchInbox(ctx, c, "quiet", 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(q) != 1 || q[0].OpID != "only" {
+		t.Errorf("quiet inbox = %+v, want the single notification", q)
+	}
+}
+
+// 014/US3: a realm provisioned before the inbox stream existed gets a pointer at
+// the fix, not a bare stream-not-found.
+func TestInboxWithoutNotifyStreamSaysReprovision(t *testing.T) {
+	ctx := context.Background()
+	url := testServer(t)
+	c := connectClient(t, url, "daan")
+	// Deliberately NOT provisioned: no notify stream on this server.
+	_, err := FetchInbox(ctx, c, "daan", 0, nil)
+	if err == nil {
+		t.Fatal("fetch on an unprovisioned realm succeeded")
+	}
+	if !strings.Contains(err.Error(), "provision") {
+		t.Errorf("error does not point at provisioning: %v", err)
+	}
+}
+
+// 014/US3: converging a legacy realm keeps migrated notifications verifiable — the
+// bytes and subjects are unchanged, so the signature still binds.
+func TestMigratedNotificationsStillVerify(t *testing.T) {
+	ctx := context.Background()
+	url := testServer(t)
+
+	// Build the pre-014 world by hand: one stream capturing everything.
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := connectClientSigned(t, url, "signer", key)
+	legacy := jetstream.StreamConfig{
+		Name:        realm.StreamName,
+		Subjects:    []string{realm.LegacyStreamSubject},
+		Retention:   jetstream.LimitsPolicy,
+		AllowRollup: true,
+		Duplicates:  2 * time.Minute,
+		Storage:     jetstream.FileStorage,
+	}
+	if _, err := c.JetStream().CreateStream(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	// A signed mention lands its notification in the legacy stream.
+	h, err := StartTopic(ctx, c, StartTopicInput{Name: "legacy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.PostTurn(ctx, "hello @reader"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Converge, then read the inbox through the new stream with the signer's key.
+	if _, err := realm.ProvisionOn(ctx, c.JetStream()); err != nil {
+		t.Fatalf("converge: %v", err)
+	}
+	kr := &identity.Keyring{Keys: map[string][]string{"signer": {key.PublicKey()}}}
+	notes, err := FetchInbox(ctx, c, "reader", 0, kr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(notes) != 1 {
+		t.Fatalf("migrated inbox = %+v, want 1 notification", notes)
+	}
+	if notes[0].Sig != SigVerified {
+		t.Errorf("migrated notification sig = %q, want %q", notes[0].Sig, SigVerified)
 	}
 }
 

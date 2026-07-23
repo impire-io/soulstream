@@ -28,7 +28,7 @@ The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
 
 **[extensions/](./hq/02-DESIGN/extensions/)** — optional conventions; a realm running none of them is still a working soulstream:
 
-- [registry.md](./hq/02-DESIGN/extensions/registry.md) — rich persona profiles, `kind`, key distribution.
+- [registry.md](./hq/02-DESIGN/extensions/registry.md) — rich persona profiles, operator attestation, key distribution.
 - [library-and-adapters.md](./hq/02-DESIGN/extensions/library-and-adapters.md) — the reference library, MCP adapter, WebSocket door, bridges, presence.
 - [curation.md](./hq/02-DESIGN/extensions/curation.md) — curator personas (what the old "steward" became).
 - [work.md](./hq/02-DESIGN/extensions/work.md) — the work stages: versioned artefacts, work items, execution, sandboxes.
@@ -56,7 +56,7 @@ The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
 | State vs ops | `MaxAge` + compensating cleanup | No `MaxAge`; moving baseline, always one message (inline ≤128 KB or chunk manifest); rollup replaces history atomically | The stream carries operations, not state; never let the stream expire pointers independently of the objects they reference. Full story in [rationale.md](./hq/00-GENESIS/rationale.md). |
 | Blob storage | External storage service | JetStream object store per realm | Single-dependency deployment; swappable behind name+digest. |
 | Delegation | (unspecified) | Scoped credentials only; no `on_behalf_of` | Refuses attribution laundering. |
-| Identity kind | Structural | `kind` is presentation metadata (extension); behaviour may never branch on it | The peer principle, made testable. |
+| Identity kind | Structural, then presentation metadata | **Removed entirely** (014): a persona is a voice with a key; accountability is `operated_by` + a countersigned operator attestation, never a human/agent label | The protocol cannot verify what controls a key, so it refuses to record the claim. The peer principle, made testable: no field to branch on at all. |
 | Confidentiality | (unaddressed) | Sealed topics extension: E2EE, operator excluded, MLS as upgrade path | Threat model includes the operator. |
 | Search / memory | (open question) | Extension: persona-local indexes + scatter/gather testimony, graded by citation | The realm's memory is the union of what personas bothered to remember. |
 | Wire format | Envelope JSON in payload | Record in headers; payload is pure data; canonical JCS record for signing/exhibits | A NATS message is already an envelope. |

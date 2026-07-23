@@ -61,7 +61,13 @@ soulstream key init                  # make your wax-seal stamp (see signing doc
 soulstream key show                  # what does my seal look like?
 soulstream key rotate                # switch to a new seal (old one endorses it)
 soulstream profile publish           # put your card (and seal) in the phone book
-soulstream profile show <persona>    # read someone's card, seals, and pin state
+                                     #   (--operated-by names who answers for you;
+                                     #    --attestation includes their co-signed slip)
+soulstream profile attest <persona>  # co-sign "I operate that persona" — prints a
+                                     #   token they include when publishing their card
+soulstream profile show <persona>    # read someone's card: operator claim
+                                     #   (attested/unverified/FAILED), principal,
+                                     #   seals, and pin state
 soulstream config                    # who am I, where, and says-who (never connects)
 ```
 
