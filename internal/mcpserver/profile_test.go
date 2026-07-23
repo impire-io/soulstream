@@ -26,7 +26,7 @@ func TestPublishProfileWithSessionKey(t *testing.T) {
 		t.Fatalf("publishProfile: %v", err)
 	}
 	out := resultText(t, res)
-	for _, want := range []string{`"name": "bookkeeper-agent"`, `"kind": "agent"`, key.PublicKey(), `"operated_by": "daan"`} {
+	for _, want := range []string{`"name": "bookkeeper-agent"`, key.PublicKey(), `"operated_by": "daan"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("result missing %s:\n%s", want, out)
 		}

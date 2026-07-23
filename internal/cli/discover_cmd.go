@@ -29,7 +29,7 @@ func cmdDiscover(ctx context.Context, connect Connector, cfg Config, args []stri
 	query := fs.Arg(0)
 
 	return withClient(ctx, connect, cfg, true, stderr, func(c *realm.Client) error {
-		kr := realmKeyring(ctx, c, cfg)
+		kr := realmKeyring(ctx, c, cfg, stderr)
 		warnDistrusted(stdout, stderr, kr)
 
 		results, err := topic.Discover(ctx, c, topic.DiscoverInput{

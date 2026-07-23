@@ -166,7 +166,7 @@ func cmdWorkList(ctx context.Context, connect Connector, cfg Config, args []stri
 	}
 	path := fs.Arg(0)
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-		v, err := materialiseForRead(ctx, c, cfg, path)
+		v, err := materialiseForRead(ctx, c, cfg, path, stderr)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func cmdWorkShow(ctx context.Context, connect Connector, cfg Config, args []stri
 	}
 	path, itemID := fs.Arg(0), fs.Arg(1)
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-		v, err := materialiseForRead(ctx, c, cfg, path)
+		v, err := materialiseForRead(ctx, c, cfg, path, stderr)
 		if err != nil {
 			return err
 		}
@@ -229,8 +229,8 @@ func findWorkItem(v *topic.MaterializedTopic, ref string) (topic.WorkItem, bool)
 }
 
 // materialiseForRead opens the topic with the realm keyring for a read-only view.
-func materialiseForRead(ctx context.Context, c *realm.Client, cfg Config, path string) (*topic.MaterializedTopic, error) {
+func materialiseForRead(ctx context.Context, c *realm.Client, cfg Config, path string, stderr io.Writer) (*topic.MaterializedTopic, error) {
 	h := topic.Open(c, path)
-	h.UseKeyring(realmKeyring(ctx, c, cfg))
+	h.UseKeyring(realmKeyring(ctx, c, cfg, stderr))
 	return h.Materialise(ctx)
 }

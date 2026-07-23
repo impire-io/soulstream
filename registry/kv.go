@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,30 @@ import (
 	"github.com/impire-io/soulstream/identity"
 	"github.com/impire-io/soulstream/realm"
 )
+
+// decodeProfile decodes a stored profile document strictly: any unknown field —
+// including the retired "kind" — makes the whole document invalid, never silently
+// accepted or stripped. The json error names the offending field; callers add the
+// persona. We are the only users: an out-of-date document is republished, not
+// tolerated.
+func decodeProfile(data []byte) (Profile, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var p Profile
+	if err := dec.Decode(&p); err != nil {
+		return Profile{}, err
+	}
+	return p, nil
+}
+
+// ProfileWarning names a directory entry a bulk read skipped because its stored
+// document is invalid (strict decode). Bulk readers warn loudly and continue: the
+// persona's signatures then report unknown-key, and the surrounding read never fails
+// — losing testimony is worse than reading it with a warning.
+type ProfileWarning struct {
+	Persona string
+	Err     error
+}
 
 // BucketName is the persona directory's KV bucket (provisioned by realm.Provision).
 const BucketName = realm.PersonasBucket
@@ -55,9 +80,9 @@ func Publish(ctx context.Context, c *realm.Client, p Profile) error {
 		return fmt.Errorf("registry: read profile %q: %w", p.Name, err)
 	}
 
-	var stored Profile
-	if uerr := json.Unmarshal(entry.Value(), &stored); uerr != nil {
-		return fmt.Errorf("registry: stored profile %q is not valid JSON: %w", p.Name, uerr)
+	stored, uerr := decodeProfile(entry.Value())
+	if uerr != nil {
+		return fmt.Errorf("registry: stored profile %q is invalid: %w", p.Name, uerr)
 	}
 
 	// Stored key material is authoritative. A different incoming key without a
@@ -107,9 +132,9 @@ func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey *identity.Signi
 		}
 		return Profile{}, fmt.Errorf("registry: read profile %q: %w", persona, err)
 	}
-	var p Profile
-	if err := json.Unmarshal(entry.Value(), &p); err != nil {
-		return Profile{}, fmt.Errorf("registry: stored profile %q is not valid JSON: %w", persona, err)
+	p, err := decodeProfile(entry.Value())
+	if err != nil {
+		return Profile{}, fmt.Errorf("registry: stored profile %q is invalid: %w", persona, err)
 	}
 	if p.SigningKey == nil {
 		return Profile{}, fmt.Errorf("registry: profile %q has no signing key to rotate from", persona)
@@ -154,45 +179,49 @@ func Lookup(ctx context.Context, c *realm.Client, persona string) (Profile, bool
 		}
 		return Profile{}, false, fmt.Errorf("registry: read profile %q: %w", persona, err)
 	}
-	var p Profile
-	if err := json.Unmarshal(entry.Value(), &p); err != nil {
-		return Profile{}, false, fmt.Errorf("registry: profile %q is not valid JSON: %w", persona, err)
+	p, err := decodeProfile(entry.Value())
+	if err != nil {
+		return Profile{}, false, fmt.Errorf("registry: profile %q is invalid: %w", persona, err)
 	}
 	return p, true, nil
 }
 
-// All reads every profile in the directory. A realm without a directory yields an
-// empty slice — readers degrade, they do not fail.
-func All(ctx context.Context, c *realm.Client) ([]Profile, error) {
+// All reads every profile in the directory, plus a warning per entry whose stored
+// document is invalid (skipped, never silently). A realm without a directory yields
+// an empty slice — readers degrade, they do not fail.
+func All(ctx context.Context, c *realm.Client) ([]Profile, []ProfileWarning, error) {
 	kv, err := bucket(ctx, c)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	lister, err := kv.ListKeys(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("registry: list personas: %w", err)
+		return nil, nil, fmt.Errorf("registry: list personas: %w", err)
 	}
 
 	var profiles []Profile
+	var warnings []ProfileWarning
 	for name := range lister.Keys() {
 		entry, err := kv.Get(ctx, name)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue // deleted between list and get
 			}
-			return nil, fmt.Errorf("registry: read profile %q: %w", name, err)
+			return nil, nil, fmt.Errorf("registry: read profile %q: %w", name, err)
 		}
-		var p Profile
-		if err := json.Unmarshal(entry.Value(), &p); err != nil {
-			// One corrupt entry must not hide the rest of the directory.
+		p, derr := decodeProfile(entry.Value())
+		if derr != nil {
+			// One invalid entry must not hide the rest of the directory — but it
+			// must not pass silently either.
+			warnings = append(warnings, ProfileWarning{Persona: name, Err: derr})
 			continue
 		}
 		profiles = append(profiles, p)
 	}
-	return profiles, nil
+	return profiles, warnings, nil
 }
 
 func bucket(ctx context.Context, c *realm.Client) (jetstream.KeyValue, error) {

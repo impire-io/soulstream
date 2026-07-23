@@ -22,7 +22,6 @@ func TestProfileValidate(t *testing.T) {
 	key := testKey(t)
 	good := Profile{
 		Name:       "architect",
-		Kind:       KindAgent,
 		OperatedBy: "daan",
 		CreatedAt:  time.Now().UTC(),
 		SigningKey: &SigningKeyInfo{Ed25519: key.PublicKey(), Since: time.Now().UTC()},
@@ -36,8 +35,8 @@ func TestProfileValidate(t *testing.T) {
 		mutate func(p *Profile)
 	}{
 		{"bad name", func(p *Profile) { p.Name = "Not A Slug" }},
-		{"bad kind", func(p *Profile) { p.Kind = "robot" }},
 		{"bad operated_by", func(p *Profile) { p.OperatedBy = "Bad.Name" }},
+		{"self-operated", func(p *Profile) { p.OperatedBy = p.Name }},
 		{"bad key encoding", func(p *Profile) { p.SigningKey = &SigningKeyInfo{Ed25519: "%%%"} }},
 		{"bad key length", func(p *Profile) { p.SigningKey = &SigningKeyInfo{Ed25519: "c2hvcnQ="} }},
 		{"rotation missing proof", func(p *Profile) {
@@ -63,7 +62,6 @@ func TestProfileJSONShape(t *testing.T) {
 	key := testKey(t)
 	p := Profile{
 		Name:      "architect",
-		Kind:      KindAgent,
 		CreatedAt: time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC),
 		SigningKey: &SigningKeyInfo{
 			Ed25519: key.PublicKey(),
@@ -75,14 +73,14 @@ func TestProfileJSONShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(raw)
-	for _, want := range []string{`"name":"architect"`, `"kind":"agent"`, `"created_at"`, `"signing_key"`, `"ed25519"`, `"since"`} {
+	for _, want := range []string{`"name":"architect"`, `"created_at"`, `"signing_key"`, `"ed25519"`, `"since"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("JSON missing %s: %s", want, s)
 		}
 	}
-	for _, absent := range []string{"display_name", "description", "operated_by", "rotations"} {
+	for _, absent := range []string{"kind", "display_name", "description", "operated_by", "rotations"} {
 		if strings.Contains(s, absent) {
-			t.Errorf("empty optional %q not omitted: %s", absent, s)
+			t.Errorf("field %q present in JSON but must be absent: %s", absent, s)
 		}
 	}
 
@@ -92,5 +90,30 @@ func TestProfileJSONShape(t *testing.T) {
 	}
 	if back.SigningKey == nil || back.SigningKey.Ed25519 != key.PublicKey() {
 		t.Error("round-trip lost the signing key")
+	}
+}
+
+// A stored document carrying any unknown field — the retired "kind" above all — is
+// invalid: rejected loudly naming the field, never silently accepted or stripped.
+func TestDecodeProfileStrict(t *testing.T) {
+	legacy := []byte(`{"name":"architect","kind":"agent","created_at":"2026-07-21T09:00:00Z"}`)
+	if _, err := decodeProfile(legacy); err == nil {
+		t.Fatal("legacy document with kind accepted")
+	} else if !strings.Contains(err.Error(), "kind") {
+		t.Fatalf("error does not name the offending field: %v", err)
+	}
+
+	unknown := []byte(`{"name":"architect","favourite_colour":"blue"}`)
+	if _, err := decodeProfile(unknown); err == nil {
+		t.Fatal("document with unknown field accepted")
+	} else if !strings.Contains(err.Error(), "favourite_colour") {
+		t.Fatalf("error does not name the offending field: %v", err)
+	}
+
+	good := []byte(`{"name":"architect","created_at":"2026-07-21T09:00:00Z"}`)
+	if p, err := decodeProfile(good); err != nil {
+		t.Fatalf("valid document rejected: %v", err)
+	} else if p.Name != "architect" {
+		t.Fatalf("decoded name = %q", p.Name)
 	}
 }

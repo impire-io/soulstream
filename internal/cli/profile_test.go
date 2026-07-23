@@ -23,7 +23,7 @@ func TestProfilePublishAndShow(t *testing.T) {
 		t.Fatalf("load key: %v", err)
 	}
 
-	code, out, errs := run(connect, append(base, "profile", "publish", "--display-name", "Daan", "--kind", "human")...)
+	code, out, errs := run(connect, append(base, "profile", "publish", "--display-name", "Daan")...)
 	if code != 0 {
 		t.Fatalf("profile publish exit %d: %s", code, errs)
 	}
@@ -35,14 +35,14 @@ func TestProfilePublishAndShow(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("profile show exit %d: %s", code, errs)
 	}
-	for _, want := range []string{"name:         daan", "display name: Daan", "kind:         human", key.PublicKey(), "(current)"} {
+	for _, want := range []string{"name:         daan", "display name: Daan", key.PublicKey(), "(current)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("profile show missing %q:\n%s", want, out)
 		}
 	}
 
 	// Metadata update: same persona republished with new metadata keeps the key.
-	code, _, errs = run(connect, append(base, "profile", "publish", "--display-name", "Daan G", "--kind", "human")...)
+	code, _, errs = run(connect, append(base, "profile", "publish", "--display-name", "Daan G")...)
 	if code != 0 {
 		t.Fatalf("metadata update exit %d: %s", code, errs)
 	}

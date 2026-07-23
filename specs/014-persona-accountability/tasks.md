@@ -27,11 +27,11 @@ tasks and US4 builds on them.
 no classification stored/shown; a stored profile carrying `kind` rejects loudly on
 direct read and is skipped-with-warning on bulk reads.
 
-- [ ] T001 [US1] Remove `Kind` field, `KindHuman/KindAgent/KindService` constants, and the kind validation branch from `registry/profile.go`; add strict `decodeProfile([]byte) (Profile, error)` (json.Decoder + DisallowUnknownFields, error names persona + field) and use it in `Publish`/`Rotate`/`Lookup` in `registry/kv.go`; change `All` to return `([]Profile, []ProfileWarning, error)` with `ProfileWarning{Persona, Err}` for skipped entries; update `registry/profile_test.go` + `registry/kv_test.go` (drop kind cases; add: unknown-field rejection naming field, `kind`-carrying legacy document rejected on Lookup, skipped-but-warned on All)
-- [ ] T002 [US1] Update every `registry.All` caller to the new signature and surface warnings loudly: `internal/cli` (stderr warning per skipped persona wherever keyrings are built or profiles listed) and any other caller found via grep; adjust affected tests
-- [ ] T003 [P] [US1] Remove `--kind` flag and `kind:` display line from `internal/cli/profile.go`; update `internal/cli/profile_test.go`
-- [ ] T004 [P] [US1] Remove `Kind` from `publishProfileInput` (and its agent-default) in `internal/mcpserver/tools.go`; update `internal/mcpserver/profile_test.go`
-- [ ] T005 [P] [US1] Docs (ELI5): rewrite `docs/persona-and-attribution.md` and `docs/persona-directory.md` around voice-with-a-key (no human/agent/service taxonomy; description is free-form self-presentation; strict decode = "the librarian refuses a card with scribbles in the margin"); update publish sections of `docs/cli.md` + `docs/mcp.md`
+- [x] T001 [US1] Remove `Kind` field, `KindHuman/KindAgent/KindService` constants, and the kind validation branch from `registry/profile.go`; add strict `decodeProfile([]byte) (Profile, error)` (json.Decoder + DisallowUnknownFields, error names persona + field) and use it in `Publish`/`Rotate`/`Lookup` in `registry/kv.go`; change `All` to return `([]Profile, []ProfileWarning, error)` with `ProfileWarning{Persona, Err}` for skipped entries; update `registry/profile_test.go` + `registry/kv_test.go` (drop kind cases; add: unknown-field rejection naming field, `kind`-carrying legacy document rejected on Lookup, skipped-but-warned on All)
+- [x] T002 [US1] Update every `registry.All` caller to the new signature and surface warnings loudly: `internal/cli` (stderr warning per skipped persona wherever keyrings are built or profiles listed) and any other caller found via grep; adjust affected tests
+- [x] T003 [P] [US1] Remove `--kind` flag and `kind:` display line from `internal/cli/profile.go`; update `internal/cli/profile_test.go`
+- [x] T004 [P] [US1] Remove `Kind` from `publishProfileInput` (and its agent-default) in `internal/mcpserver/tools.go`; update `internal/mcpserver/profile_test.go`
+- [x] T005 [P] [US1] Docs (ELI5): rewrite `docs/persona-and-attribution.md` and `docs/persona-directory.md` around voice-with-a-key (no human/agent/service taxonomy; description is free-form self-presentation; strict decode = "the librarian refuses a card with scribbles in the margin"); update publish sections of `docs/cli.md` + `docs/mcp.md`
 
 **Checkpoint**: `make check` green; grep for `Kind` in non-historical code returns nothing.
 

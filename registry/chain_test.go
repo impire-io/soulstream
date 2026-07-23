@@ -13,7 +13,6 @@ func rotatedProfile(t *testing.T, persona string, keys ...*identity.SigningKey) 
 	t.Helper()
 	p := Profile{
 		Name:      persona,
-		Kind:      KindAgent,
 		CreatedAt: time.Now().UTC(),
 		SigningKey: &SigningKeyInfo{
 			Ed25519: keys[len(keys)-1].PublicKey(),
@@ -42,7 +41,7 @@ func TestChainSingleKey(t *testing.T) {
 }
 
 func TestChainNoKey(t *testing.T) {
-	chain, err := Chain(Profile{Name: "keyless", Kind: KindHuman})
+	chain, err := Chain(Profile{Name: "keyless"})
 	if err != nil || chain != nil {
 		t.Errorf("keyless profile: chain=%v err=%v, want nil/nil", chain, err)
 	}
@@ -151,7 +150,7 @@ func TestBuildKeyringShortenedAndVanishedChains(t *testing.T) {
 	}
 
 	// Vanished key: profile now has no signing key at all while a pin exists.
-	keyless := Profile{Name: "architect", Kind: KindAgent, CreatedAt: time.Now().UTC()}
+	keyless := Profile{Name: "architect", CreatedAt: time.Now().UTC()}
 	kr, _ = BuildKeyring([]Profile{keyless}, pins)
 	if !kr.Distrusted["architect"] {
 		t.Error("vanished key not distrusted")

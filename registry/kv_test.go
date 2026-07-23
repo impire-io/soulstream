@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,7 +45,6 @@ func provisioned(t *testing.T, persona string) (*realm.Client, string) {
 func profileFor(persona string, key *identity.SigningKey) Profile {
 	p := Profile{
 		Name:      persona,
-		Kind:      KindAgent,
 		CreatedAt: time.Now().UTC().Truncate(time.Second),
 	}
 	if key != nil {
@@ -150,9 +150,9 @@ func TestLookupAndAllTolerateMissingDirectory(t *testing.T) {
 	if _, ok, err := Lookup(ctx, c, "anyone"); err != nil || ok {
 		t.Errorf("Lookup without directory: ok=%v err=%v, want false/nil", ok, err)
 	}
-	profiles, err := All(ctx, c)
-	if err != nil || profiles != nil {
-		t.Errorf("All without directory: %v, %v — want nil, nil", profiles, err)
+	profiles, warnings, err := All(ctx, c)
+	if err != nil || profiles != nil || warnings != nil {
+		t.Errorf("All without directory: %v, %v, %v — want nil, nil, nil", profiles, warnings, err)
 	}
 }
 
@@ -241,9 +241,12 @@ func TestAllListsEveryProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	profiles, err := All(ctx, c)
+	profiles, warnings, err := All(ctx, c)
 	if err != nil {
 		t.Fatalf("All: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
 	}
 	names := map[string]bool{}
 	for _, p := range profiles {
@@ -251,5 +254,44 @@ func TestAllListsEveryProfile(t *testing.T) {
 	}
 	if !names["architect"] || !names["historian"] {
 		t.Errorf("All = %v, want architect + historian", names)
+	}
+}
+
+// A legacy document (retired "kind" field) is scoped to its target: direct Lookup
+// fails loudly naming the persona; All skips it with a warning and never fails.
+func TestInvalidStoredProfileIsScoped(t *testing.T) {
+	ctx := context.Background()
+	c, url := provisioned(t, "architect")
+
+	if err := Publish(ctx, c, profileFor("architect", nil)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Plant a legacy document directly in the bucket, as a pre-014 client would have.
+	kv, err := c.JetStream().KeyValue(ctx, BucketName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := []byte(`{"name":"old-timer","kind":"human","created_at":"2026-07-01T00:00:00Z"}`)
+	if _, err := kv.Create(ctx, "old-timer", legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := Lookup(ctx, c, "old-timer"); err == nil {
+		t.Fatal("Lookup accepted a legacy document")
+	} else if !strings.Contains(err.Error(), "old-timer") || !strings.Contains(err.Error(), "kind") {
+		t.Fatalf("Lookup error must name persona and field: %v", err)
+	}
+
+	reader := clientOn(t, url, "reader")
+	profiles, warnings, err := All(ctx, reader)
+	if err != nil {
+		t.Fatalf("All must not fail on one bad entry: %v", err)
+	}
+	if len(profiles) != 1 || profiles[0].Name != "architect" {
+		t.Fatalf("All = %+v, want just architect", profiles)
+	}
+	if len(warnings) != 1 || warnings[0].Persona != "old-timer" {
+		t.Fatalf("warnings = %+v, want one for old-timer", warnings)
 	}
 }

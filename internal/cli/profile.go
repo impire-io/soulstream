@@ -34,9 +34,8 @@ func profilePublish(ctx context.Context, connect Connector, cfg Config, args []s
 	fs := flag.NewFlagSet("profile publish", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	displayName := fs.String("display-name", "", "presentation name")
-	kind := fs.String("kind", registry.KindHuman, "human|agent|service (presentation only)")
 	description := fs.String("description", "", "one-line description")
-	operatedBy := fs.String("operated-by", "", "persona accountable for an agent")
+	operatedBy := fs.String("operated-by", "", "persona that operates (answers for) this one")
 	if err := parseInterspersed(fs, args); err != nil {
 		return 2
 	}
@@ -45,7 +44,6 @@ func profilePublish(ctx context.Context, connect Connector, cfg Config, args []s
 		p := registry.Profile{
 			Name:        cfg.Persona,
 			DisplayName: *displayName,
-			Kind:        *kind,
 			Description: *description,
 			OperatedBy:  *operatedBy,
 			CreatedAt:   time.Now().UTC(),
@@ -91,7 +89,6 @@ func profileShow(ctx context.Context, connect Connector, cfg Config, args []stri
 		if p.DisplayName != "" {
 			fmt.Fprintf(stdout, "display name: %s\n", p.DisplayName)
 		}
-		fmt.Fprintf(stdout, "kind:         %s\n", p.Kind)
 		if p.Description != "" {
 			fmt.Fprintf(stdout, "description:  %s\n", p.Description)
 		}

@@ -25,7 +25,7 @@ func cmdArtefacts(ctx context.Context, connect Connector, cfg Config, args []str
 	}
 	path := fs.Arg(0)
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-		v, err := materialiseForRead(ctx, c, cfg, path)
+		v, err := materialiseForRead(ctx, c, cfg, path, stderr)
 		if err != nil {
 			return err
 		}
@@ -98,9 +98,9 @@ func cmdRevise(ctx context.Context, connect Connector, cfg Config, args []string
 
 // getArtefact is `get <path> --artefact <ref>`: fetch the tip (or a chosen
 // revision) of an artefact, digest-verified, into outfile.
-func getArtefact(ctx context.Context, c *realm.Client, cfg Config, stdout io.Writer,
+func getArtefact(ctx context.Context, c *realm.Client, cfg Config, stdout, stderr io.Writer,
 	path, ref, revision, outfile string, force bool) error {
-	v, err := materialiseForRead(ctx, c, cfg, path)
+	v, err := materialiseForRead(ctx, c, cfg, path, stderr)
 	if err != nil {
 		return err
 	}
