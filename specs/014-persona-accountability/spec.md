@@ -17,6 +17,25 @@ honest one costs nothing; every day of delay adds profiles and habits shaped aro
 model. The two hygiene defects compound silently with use (every discovery request and every
 mention is retained forever in a store that never ages out), so they are cheapest to fix now.
 
+## Clarifications
+
+### Session 2026-07-23
+
+- Q: How does an operator's countersignature get into the operated persona's profile, given
+  profiles are self-published only? → A: As a portable attestation token. The operator
+  generates the token on their own side (their secret key never moves); the operated persona
+  includes it when publishing its own profile. Profiles remain exclusively self-published —
+  no persona ever writes another persona's directory entry.
+- Q: What is the blast radius of an invalid profile (unknown field, malformed document)? →
+  A: Scoped to its target. Operations aimed at that profile directly (showing it, resolving
+  its chain link) fail loudly naming the persona and the offending field. Bulk read paths
+  that consult many profiles (signature verification, keyring building) warn loudly and
+  treat that persona's profile as absent — its signatures report unknown-key — and never
+  fail the surrounding read. Losing testimony is worse than reading it with a warning.
+- Q: What is the concrete inbox retention bound? → A: 100 most-recent mention notifications
+  per persona — double the per-check return cap of 50, leaving burst headroom while keeping
+  reads flat.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A persona is a voice, not a classification (Priority: P1)
@@ -147,9 +166,9 @@ the bound.
 
 **Acceptance Scenarios**:
 
-1. **Given** a persona with more lifetime mentions than the retention bound, **When** it
-   checks its inbox, **Then** it receives the most recent notifications (newest first, up to
-   the existing per-check cap) and the check reads no more than the bounded window.
+1. **Given** a persona with more lifetime mentions than the retention bound of 100, **When**
+   it checks its inbox, **Then** it receives the most recent notifications (newest first, up
+   to the existing per-check cap of 50) and the check reads no more than the bounded window.
 2. **Given** the retention bound is reached for a persona, **When** a new mention notification
    arrives, **Then** it is retained and the oldest notification for that persona falls away.
 3. **Given** a notification that has fallen out of the inbox window, **When** the mentioned
@@ -200,7 +219,10 @@ the bound.
   to it MUST be removed rather than deprecated.
 - **FR-003**: A profile document containing any unknown field — including the removed
   classification field — MUST be rejected loudly as invalid, naming the field and the persona,
-  and MUST NOT be silently accepted, stripped, or repaired.
+  and MUST NOT be silently accepted, stripped, or repaired. The rejection is scoped to its
+  target: direct reads of that profile fail; bulk paths consulting many profiles (signature
+  verification, keyring building) warn loudly, treat that persona's profile as absent
+  (signatures report unknown-key), and never fail the surrounding read.
 - **FR-004**: All project documentation and specifications that present the human / agent /
   service taxonomy as current behaviour MUST be updated to the voice-with-a-key model;
   historical feature specs remain as archived records of their time.
@@ -226,7 +248,9 @@ the bound.
   as such without looping or failing the read.
 - **FR-010**: Creating an attestation MUST be possible with the same key material the operator
   already uses for op signing — no new key types or side channels — and the operator's secret
-  key MUST never leave the operator's side in the process.
+  key MUST never leave the operator's side in the process. The attestation travels as a
+  portable token: the operator generates it, the operated persona includes it when publishing
+  its own profile; profiles remain exclusively self-published.
 - **FR-011**: Documentation MUST describe the accountability model: every persona either
   answers for itself (a principal) or names an operator; chains terminate at a principal; the
   protocol never defines or detects "human" versus "agent"; whether a tool session speaks as
@@ -241,9 +265,9 @@ the bound.
   the retention shape of FR-012/FR-014 (create-or-update), without loss of topic history,
   announcements, or in-window notifications.
 - **FR-014**: Mention notifications MUST be retained per persona as a bounded window of the
-  most recent notifications; the bound MUST be at least the per-check return cap (currently
-  50) and MUST apply only to mention notifications, leaving all other retained categories
-  unbounded as before.
+  100 most recent notifications (double the per-check return cap of 50, leaving burst
+  headroom); the bound MUST apply only to mention notifications, leaving all other retained
+  categories unbounded as before.
 - **FR-015**: Checking an inbox MUST read an amount of data bounded by the retention window,
   independent of the persona's lifetime mention count.
 - **FR-016**: All existing guarantees over retained records MUST survive the retention
@@ -306,8 +330,8 @@ the bound.
   operator who wants to disavow can say so on the record in a topic. A dedicated revocation
   mechanism can be layered on later without changing this feature's shape.
 - **The inbox retention bound is a realm-level constant, not per-persona configuration.** A
-  single sensible bound (at least the per-check cap of 50) keeps provisioning simple; nothing
-  in this feature prevents making it tunable later.
+  single bound of 100 (see Clarifications) keeps provisioning simple; nothing in this feature
+  prevents making it tunable later.
 - **Previously retained discovery-request residue may simply be left in place or purged at
   re-provisioning time** — nothing reads it through any product surface; the requirement is
   that no *new* residue accumulates (FR-012).
