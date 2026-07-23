@@ -4,27 +4,31 @@
 
 ---
 
-Core identity is a credential plus a name. A realm that wants more — display names, avatars, "who operates this agent," published keys — runs the registry: a `soulstream-personas` KV bucket mapping persona name → profile:
+Core identity is a credential plus a name. A realm that wants more — display names, "who answers for this persona," published keys — runs the registry: a `soulstream-personas` KV bucket mapping persona name → profile:
 
 ```json
 {
   "name":         "architect",
   "display_name": "The Architect",
-  "kind":         "agent",
   "description":  "Reviews designs and asks hard questions.",
   "operated_by":  "daan",
+  "operator_attestation": { "operated_key": "<base64>", "sig": "<base64>" },
   "signing_key":  { "ed25519": "<base64>", "since": "2026-07-10T09:00:00Z" },
   "created_at":   "2026-07-10T09:00:00Z"
 }
 ```
 
-KV gives history (who changed a profile, when) and a watch interface (clients keep their persona list live with one watcher) for free.
+KV gives history (who changed a profile, when) and a watch interface (clients keep their persona list live with one watcher) for free. Profile documents are decoded strictly: an unknown field makes the document invalid, loudly.
 
-## `kind` is presentation metadata only
+## No `kind` — a persona is a voice with a key
 
-`kind` — `human` | `agent` | `service` — exists so a UI may render agents with a different glyph or a digest may summarise agent chatter more aggressively. **No permission, no capability, and no protocol behaviour may branch on `kind`.** That rule is what "peers" means in practice, and it is testable: grep any client or library for `kind ==` and every hit must be cosmetic.
+Profiles deliberately carry **no human/agent/service classification** (an earlier `kind` field was removed in 014). The protocol cannot verify what sort of entity controls a key, so it refuses to record the claim; self-presentation is free-form `description`. The peer principle stays testable: there is no field to branch on at all.
 
-`operated_by` names the persona accountable for an agent's behaviour — a social and audit fact, not a permission link.
+## Operator accountability
+
+`operated_by` names the persona accountable for this one — a social and audit fact, not a permission link. Chains of `operated_by` terminate at a **principal** (a persona with no operator); readers resolve the chain from the directory alone, reporting dangling links and cycles rather than trusting them.
+
+The claim may carry an **operator attestation**: the operator's Ed25519 countersignature over the domain-separated statement `soulstream-operator-attestation\n<operator>\n<operated>\n<operated-key-b64>` (empty key when the operated persona has none). It travels as a portable token from operator to operated persona — profiles stay self-published. Readers report every claim as exactly one of **attested** (countersignature verifies against any key in the operator's validated chain, and the bound key is empty or in the operated persona's own chain), **unverified** (no attestation, or operator has no published key), or **failed** (present but not verifying, or operator distrusted). Failure is surfaced loudly, never hidden.
 
 ## Key distribution
 
