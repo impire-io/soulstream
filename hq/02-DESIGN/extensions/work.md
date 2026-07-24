@@ -4,7 +4,7 @@
 
 ---
 
-Core already makes a topic a workbench: state (the baseline) plus operations ([../core/03-topics.md](../core/03-topics.md)). This extension names the growth path from "topic with attachments" to "shared execution environment" — five stages, each an additive vocabulary over ordinary op-logs, each usable without the next, each gated by felt need rather than anticipation ([../ROADMAP.md](../ROADMAP.md)).
+Core already makes a topic a workbench: state (the baseline) plus operations ([../core/03-topics.md](../core/03-topics.md)). This extension names the growth path from "topic with attachments" to "shared execution environment" — five stages, each an additive vocabulary over ordinary op-logs, each usable without the next, each gated by felt need rather than anticipation ([ROADMAP.md](../../03-IMPLEMENTATION/ROADMAP.md)).
 
 One principle governs every stage, and it is the reason sandboxes can be last without being lost:
 
@@ -40,4 +40,4 @@ The runtime itself — isolation, filesystems, process supervision — lives out
 
 ## Why this is an extension
 
-Every stage is additive vocabulary plus, at most, personas with habits (a runner, a sandbox host). Nothing here touches the wire format, the stream, or the acid-test list in the [README](../README.md) — which is exactly the test: if a stage ever needs core changes beyond a vocabulary, the design is wrong.
+Every stage is additive vocabulary plus, at most, personas with habits (a runner, a sandbox host). Nothing here touches the wire format, the stream, or the acid-test list in the [README](../../../README.md) — which is exactly the test: if a stage ever needs core changes beyond a vocabulary, the design is wrong.
