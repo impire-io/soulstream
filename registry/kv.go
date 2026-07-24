@@ -82,7 +82,14 @@ func Publish(ctx context.Context, c *realm.Client, p Profile) error {
 
 	stored, uerr := decodeProfile(entry.Value())
 	if uerr != nil {
-		return fmt.Errorf("registry: stored profile %q is invalid: %w", p.Name, uerr)
+		// Republishing is the ONE documented recovery from an invalid stored
+		// document (e.g. a pre-014 profile still carrying "kind"): fall back to a
+		// lenient decode of the old document so the key-conflict guard below still
+		// holds — the stored key material stays authoritative even during recovery.
+		// Only unreadable JSON remains a hard error.
+		if lerr := json.Unmarshal(entry.Value(), &stored); lerr != nil {
+			return fmt.Errorf("registry: stored profile %q is unreadable: %w", p.Name, lerr)
+		}
 	}
 
 	// Stored key material is authoritative. A different incoming key without a
@@ -94,7 +101,8 @@ func Publish(ctx context.Context, c *realm.Client, p Profile) error {
 		p.SigningKey = stored.SigningKey
 		p.Rotations = stored.Rotations
 	}
-	if stored.CreatedAt.After(p.CreatedAt) || p.CreatedAt.IsZero() {
+	// Creation time is set on first publish and preserved ever after.
+	if !stored.CreatedAt.IsZero() {
 		p.CreatedAt = stored.CreatedAt
 	}
 

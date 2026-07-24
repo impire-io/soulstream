@@ -257,6 +257,51 @@ func TestAllListsEveryProfile(t *testing.T) {
 	}
 }
 
+// Republish is the documented recovery from a legacy document: publishing over a
+// stored profile that fails strict decode succeeds, while the stored key material
+// and creation time stay authoritative — and the rewritten document is clean.
+func TestPublishRecoversLegacyProfile(t *testing.T) {
+	ctx := context.Background()
+	c, _ := provisioned(t, "architect")
+	key := testKey(t)
+
+	kv, err := c.JetStream().KeyValue(ctx, BucketName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := []byte(`{"name":"architect","kind":"human","display_name":"Old Card",` +
+		`"created_at":"2026-07-01T00:00:00Z",` +
+		`"signing_key":{"ed25519":"` + key.PublicKey() + `","since":"2026-07-01T00:00:00Z"}}`)
+	if _, err := kv.Create(ctx, "architect", legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	// A different incoming key is still refused during recovery — the guard holds.
+	wrong := profileFor("architect", testKey(t))
+	if err := Publish(ctx, c, wrong); !errors.Is(err, ErrKeyConflict) {
+		t.Fatalf("recovery publish with a different key: err=%v, want ErrKeyConflict", err)
+	}
+
+	// Republish with matching (or no) key succeeds and rewrites a clean document.
+	fresh := Profile{Name: "architect", DisplayName: "New Card", CreatedAt: time.Now().UTC()}
+	if err := Publish(ctx, c, fresh); err != nil {
+		t.Fatalf("recovery publish: %v", err)
+	}
+	got, ok, err := Lookup(ctx, c, "architect")
+	if err != nil || !ok {
+		t.Fatalf("Lookup after recovery: ok=%v err=%v", ok, err)
+	}
+	if got.DisplayName != "New Card" {
+		t.Errorf("display name = %q, want New Card", got.DisplayName)
+	}
+	if got.SigningKey == nil || got.SigningKey.Ed25519 != key.PublicKey() {
+		t.Errorf("stored key not preserved through recovery: %+v", got.SigningKey)
+	}
+	if got.CreatedAt.Format("2006-01-02") != "2026-07-01" {
+		t.Errorf("created_at not preserved: %v", got.CreatedAt)
+	}
+}
+
 // A legacy document (retired "kind" field) is scoped to its target: direct Lookup
 // fails loudly naming the persona; All skips it with a warning and never fails.
 func TestInvalidStoredProfileIsScoped(t *testing.T) {
