@@ -2,7 +2,7 @@
 
 **Feature Branch**: `009-curator`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "The curator persona (roadmap Day-2 item 4, extensions/curation.md). An active realm accumulates near-duplicate topics, drift, and noise; what remains after the deterministic core is judgment, and judgment belongs to personas. A curator is an ordinary persona — ordinary credentials, ordinary operations, zero protocol standing — that maintains a high-quality topic projection, answers topic.discover from it (the best responder, never the only one), flags likely duplicates with a comment in the newer topic, and proposes closing long-dormant topics with a comment in place. A curator suggests, never enforces. Run none and the realm still works; run one, run two competing ones, or replace it any time."
 
 ## Why now

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-cli`
 **Created**: 2026-07-12
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "A minimal command-line client so a human can use Soulstream from a terminal: provision a realm, list the board, start a topic, show/watch a topic, post turns and comments (with @mentions), attach and download files, close a topic, and watch their notification inbox. Connects via a named NATS context."
 
 ## Overview

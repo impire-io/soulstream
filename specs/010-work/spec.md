@@ -2,7 +2,7 @@
 
 **Feature Branch**: `010-work`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "Work stages 1–2 from hq/02-DESIGN/extensions/work.md (Day-2 #5). Stage 1 — versioned artefacts: a document is a topic-anchored attachment revised whole-file; each revision is an attachment.add anchored to its predecessor revision's op-ID; an artefact is the resulting lineage — a named chain of revisions with full authorship history and a current tip determined by projection rule (same supersession mechanic as edit). No new machinery — existing ops only. Stage 2 — work items: a work-tracking vocabulary over ordinary ops — work.open, work.claim, work.done, work.abandon — tasks are conversations with status, attached evidence, and an owner. Any persona may publish work.claim; when two race, the first claim in stream order wins and later claims are void by projection — deterministic, no lock service, no arbiter. An abandoned claim reopens the item. Both stages are additive vocabulary over the existing op-log: no wire-format changes, no new subjects, no privileged services. Expose through the library (topic package projection + Handle methods), CLI, and MCP as appropriate."
 
 ## Why now

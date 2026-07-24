@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-rollup`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "Re-baselining (rollup), manifest baselines, and the archived lifecycle (roadmap Day-2 item 1). Any persona can compact a topic: take the current baseline, apply all operations since, and publish the result as the new baseline in one atomic stroke that replaces the old baseline and the consumed tail. Leaderless, race-safe by optimistic concurrency (first writer wins, losers discard). Baselines stay exactly one message: inline under the realm threshold, manifest via the object store above it. Triggers: manual plus lifecycle-driven (closed and archived always re-baseline). Archived is terminal: final re-baseline, readable, refuses writes. CLI gains rollup and archive; MCP gains a rollup tool."
 
 ## Why now

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `006-signing`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "Op signing and key distribution (roadmap Day-2 item 2, feature 006-signing). Personas can hold an Ed25519 signing keypair and sign every op they publish: Soulstream-Sig carries a signature over the canonical op record. Signing is optional per persona; unsigned ops remain valid forever. Key distribution is the minimal persona-registry slice: a soulstream-personas KV bucket with signing_key, TOFU pinning, rotation signed by the old key. Verification on read paths surfaces per-op status and never drops an op. CLI and MCP adapter gain key setup, automatic signing, key publication, and verification display."
 
 ## Why now
