@@ -42,6 +42,12 @@ links in the living hq areas — files that moved in the 2026-07-11 restructure 
 kept old link targets — were repaired; the link check skips the frozen
 `99-ARCHIVE/` subtree by design.
 
+The owner also settled the repo's license — **MIT** — closing a gap: the code had
+shipped through v0.3.1 with no `LICENSE` file. A `LICENSE` (MIT, Copyright (c)
+2026 Daan Gerits) was added and the README now states it, making concrete the OSS
+stance the vision already assumes ("run it yourself; the substrate is the
+product") [judgment].
+
 ## What was refuted or reversed
 
 The task brief that launched this work carried a stale audit: it believed the repo
@@ -73,5 +79,5 @@ Trail: the `hq-alignment` branch series — GENESIS (constitution v1.1.0 + symli
 vision, how-we-work, decision test); the hq map, research + journey scaffolds,
 and the design/implementation indexes; the ROADMAP refresh + spec `Status`
 flips; the ported lifecycle skills; `internal/hqlint`; the orientation pointers
-(AGENTS.md, CLAUDE.md, README); and this journey seed. Reference: PRA's `hq/` and
-`tests/test_hq_structure.py`.
+(AGENTS.md, CLAUDE.md, README); the MIT `LICENSE`; and this journey seed.
+Reference: PRA's `hq/`, `LICENSE`, and `tests/test_hq_structure.py`.

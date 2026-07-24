@@ -198,3 +198,9 @@ make lint      # golangci-lint run
 
 Requires Go 1.26+. The provisioning tests start an in-process JetStream server, so no
 external NATS is needed to run the suite.
+
+## License
+
+Soulstream is open source under the [MIT License](./LICENSE) — Copyright (c) 2026
+Daan Gerits. This matches the protocol's stance: the substrate is the product,
+run it yourself.
