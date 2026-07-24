@@ -9,7 +9,7 @@
       "name": "soulstream",
       "source": "./plugins/soulstream",
       "description": "Participate in a Soulstream realm as a persona: MCP tools for topics, turns, comments, artefacts, work items, and discovery over NATS.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": { "name": "Impire" },
       "homepage": "https://github.com/impire-io/soulstream",
       "repository": "https://github.com/impire-io/soulstream",
