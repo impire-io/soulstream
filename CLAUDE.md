@@ -1,31 +1,31 @@
 <!-- SPECKIT START -->
-Active feature: **014-persona-accountability** — remove persona `kind` outright
-(no backwards compat; strict profile decode rejects unknown fields naming persona +
-field; bulk reads skip + warn, direct reads fail), replace the taxonomy with
-verifiable accountability: `operated_by` may carry an operator COUNTERSIGNATURE —
-statement `identity.AttestationBytes(operator, operated, operatedKeyB64)` =
-`"soulstream-operator-attestation\n"+…`, signed with the operator's existing Ed25519
-key, valid against ANY key in the operator's validated chain; bound operated-key must
-be "" or ∈ operated persona's chain. Status attested/unverified/failed; operator
-distrusted ⇒ failed. Portable token (base64 JSON {operator,operated,operated_key,sig}):
-CLI `profile attest <persona>` generates, `profile publish --attestation` includes;
-profiles stay self-published. `profile show` prints status + operator chain to its
-terminal (principal/dangling/cycle). MCP publish_profile: -kind +attestation. Stream
-hygiene: main stream narrows to `SOULSTREAM.TOPICS.>` (SVC.> captured by NOTHING —
-008 pub-ack gotcha gone); NEW stream `SOULSTREAM_NOTIFY` on
-`SOULSTREAM.PERSONA.NOTIFY.>` with MaxMsgsPerSubject 100, DiscardOld, MaxBytes 64MiB
-(NGS R1-safe); FetchInbox/FollowInbox read it. Provision converges ONLY the exact
-legacy shape (subjects ["SOULSTREAM.>"]): narrow subjects → create notify stream →
-migrate newest ≤100 notifies/persona verbatim (same subjects ⇒ sigs still verify) →
-purge PERSONA.>/SVC.> residue; OutcomeUpdated. Ships v0.3.0 + plugin/marketplace
-bumps in the same delivery (wrapper downloads by its own plugin.json version).
+Active feature: **015-memory** — the memory convention (Day-2 #8): the substrate
+forgets by design, so remembering is what personas do for each other. New vocabulary
+on `SOULSTREAM.SVC.MEMORY` (binding `MEMORY`, 008 triad cloned): `memory.query`
+{query, scope{topics,after}, deadline} → `memory.answer` {answer, citations
+[{topic,op_id}], coverage_from?}; `memory.fetch` {topic, op_id, deadline} →
+`memory.exhibit` {exhibit}. EXHIBIT = `record.Exhibit` (pure, strict-decode JSON):
+verbatim wire capture {version 1, realm, binding, subject, headers, payload_b64} —
+same bytes + binding ⇒ sigs keep verifying (014-migration invariant); verdicts ARE
+`SigStatus`. Asker `topic.MemoryQuery` grades citations BY CHECKING (materialise
+memoised per topic + new pure `mt.ContainsOp`): fact | unverifiable; explicit
+`FetchExhibit` (live-first `CaptureExhibit` ordered scan, else scatter/gather,
+first-VERIFYING-wins, unsigned = fallback, failed = discarded) upgrades to
+fact-with-provenance | testimony; citation-less answers = gossip. Witness surface
+`RespondMemory(MemoryWitness{CoverageFrom, Answer?, Fetch?, OnServed?})` — nilable
+capabilities, library owns signing/deadlines. Timeout default 3s clamp [100ms,30s];
+≤100 answers/query; failed answer sigs discarded, unsigned kept + status. NO
+archivist/store/index in this repo — the archivist is a SEPARATE repo under
+impire-io built ONLY on these public surfaces (SC-005 proves sufficiency via test
+witness). CLI `memory query|fetch|exhibit|verify` (verify = OFFLINE, pins-only, no
+connect); MCP +2 tools = 23. No new streams; SVC.> uncaptured ⇒ zero residue.
 
-For details read: [specs/014-persona-accountability/plan.md](specs/014-persona-accountability/plan.md)
-(spec: `specs/014-persona-accountability/spec.md`, research decisions:
-`research.md` D1–D6, contract: `contracts/library.md`, model: `data-model.md`).
+For details read: [specs/015-memory/plan.md](specs/015-memory/plan.md)
+(spec: `specs/015-memory/spec.md`, research decisions: `research.md` D1–D9,
+contracts: `contracts/library.md` + `contracts/wire.md`, model: `data-model.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
-`010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (per-project
-`.soulstream.json` + self-installing plugin, v0.2.0) merged + pushed.
+`010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (v0.2.0),
+`014-persona-accountability` (v0.3.0/v0.3.1) merged + pushed.
 
 Project conventions:
 - Go 1.26; module `github.com/impire-io/soulstream`.
