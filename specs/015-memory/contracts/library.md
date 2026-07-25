@@ -89,6 +89,10 @@ func FetchExhibit(ctx context.Context, c *realm.Client, path, opID string, timeo
 // VerifyExhibit reconstructs the record and verifies its embedded signature against the
 // author's validated chain in kr. Pure check: no realm connectivity.
 func VerifyExhibit(e record.Exhibit, kr *identity.Keyring) (SigStatus, error)
+
+// GradeForVerdict maps a fetched exhibit's verdict to the citation grade it supports:
+// verified → fact-with-provenance, unsigned → testimony, failed/unknown-key → unverifiable.
+func GradeForVerdict(s SigStatus) MemoryGrade
 ```
 
 ### Witness surface

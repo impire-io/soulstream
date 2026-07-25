@@ -88,7 +88,8 @@ topic/
 ├── subjects.go          # + SvcMemorySubject, ServiceMemory const
 ├── vocab.go             # + TypeMemoryQuery/Answer/Fetch/Exhibit + payload structs
 ├── memory.go            # MemoryQuery (asker), FetchExhibit (live-first), RespondMemory (witness)
-├── memory_test.go       # embedded-server: query/answer/fetch round-trips, caps, deadlines, SC-004 compaction recall, SC-005 outsider witness, SC-006 zero residue
+├── memory_test.go       # embedded-server: query/answer/fetch round-trips, caps, deadlines, SC-004 compaction recall, SC-006 zero residue
+├── memory_pubsurface_test.go  # package topic_test — SC-005 outsider witness, public identifiers only
 ├── exhibit.go           # CaptureExhibit (ordered scan), VerifyExhibit (wraps VerifyRecord), ErrOpNotLive
 ├── exhibit_test.go      # embedded-server capture + pure verify paths
 ├── resolve.go           # (mt *MaterializedTopic) ContainsOp — pure
