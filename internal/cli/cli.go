@@ -67,6 +67,15 @@ Commands:
                                      ask the realm: is there a topic about this?
   respond                            answer discovery asks from your own board view
                                      (Ctrl-C to stop)
+  memory query <question> [--topics a,b] [--after ts] [--timeout d] [--json]
+                                     ask whoever remembers; answers arrive graded
+                                     (fact / testimony / gossip — checked, not trusted)
+  memory fetch <path> <op-id> [-o file] [--timeout d] [--force] [--json]
+                                     get an op as evidence: the stream first,
+                                     then whoever kept it
+  memory exhibit <path> <op-id> [-o file] [--force] [--json]
+                                     export a live op as a portable exhibit
+  memory verify <file>               check an exhibit offline against your pins
   curate [--idle 336h] [--scan-every 1m] [--mark-dormant] [--reclaim <dur>]
                                      run the curator: best discovery answers,
                                      duplicate flags, dormancy nudges — plus the
@@ -214,6 +223,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, connect C
 		return cmdDiscover(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "respond":
 		return cmdRespond(ctx, connect, cfg, cmdArgs, stdout, stderr)
+	case "memory":
+		return cmdMemory(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "curate":
 		return cmdCurate(ctx, connect, cfg, cmdArgs, stdout, stderr)
 	case "watch":

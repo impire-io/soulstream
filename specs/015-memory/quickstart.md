@@ -11,14 +11,14 @@ soulstream memory query "what did we decide about the Q2 VAT cadence?" \
 Example output:
 
 ```text
-WITNESS    historian ✓  (coverage from 2026-05-01)
+WITNESS historian ✓  (coverage from 2026-05-01)
   Weekly cadence, decided 2026-05-12; Bloem & Co. excepted.
-  [fact]          vat-q2-2026-x7m2 / 9f86d081-…
-  [unverifiable]  vat-q1-2026-a1b2 / deadbeef-…   (compacted or fabricated — fetch to check)
+  [fact]  vat-q2-2026-x7m2 / 9f86d081-…
+  [unverifiable]  vat-q1-2026-a1b2 / deadbeef-…   (compacted or fabricated — try: soulstream memory fetch vat-q1-2026-a1b2 deadbeef-…)
 
-WITNESS    scribbler ?  (coverage undeclared)
+WITNESS scribbler ?  (coverage undeclared)
   I think it was monthly.
-  [gossip]        (no citations)
+  [gossip]  (no citations — a lead, never a decision)
 ```
 
 No witnesses in the realm? The query completes cleanly at the deadline with
@@ -41,8 +41,13 @@ soulstream memory fetch vat-q2-2026-x7m2 9f86d081-… -o decision.exhibit.json
 
 ```sh
 soulstream memory verify decision.exhibit.json
-# → verified: author daan, realm soulstream, binding vat-q2-2026-x7m2,
-#   type turn.post, ts 2026-05-12T09:00:00Z
+# → verdict: verified
+#   author:  daan
+#   realm:   soulstream
+#   topic:   vat-q2-2026-x7m2
+#   type:    turn.post
+#   ts:      2026-05-12T09:00:00Z
+#   op:      9f86d081-…
 ```
 
 Works offline against your pinned keys; flip one byte in the file and the verdict is

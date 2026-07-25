@@ -32,7 +32,7 @@ type archivist struct {
 func (a *archivist) witness() topic.MemoryWitness {
 	return topic.MemoryWitness{
 		CoverageFrom: a.coverageFrom,
-		Answer: func(q topic.MemoryQueryRequest) []topic.MemoryAnswerDraft {
+		Answer: func(topic.MemoryQueryRequest) []topic.MemoryAnswerDraft {
 			return a.notes // a real archivist searches its index here
 		},
 		Fetch: func(topicPath, opID string) (record.Exhibit, bool) {

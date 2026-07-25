@@ -125,7 +125,7 @@ func (mt *MaterializedTopic) ContainsOp(opID string) bool
 | `memory query "q" [--topics a,b] [--after RFC3339] [--timeout d] [--json]` | Publish query, print graded attributed answers (witness, sig marker, coverage, per-citation grade; citation-less answers tagged gossip). Empty result prints "no answers" cleanly. | 0 on gather success (even empty); 2 usage |
 | `memory fetch <topic> <op-id> [--timeout d] [-o file] [--force] [--json]` | Live-first, then witnesses. Prints verdict + author + realm/binding + source; `-o` writes exhibit JSON (overwrite-guard). Nothing found ⇒ message + exit 1. | 0 found; 1 not found; 2 usage |
 | `memory exhibit <topic> <op-id> [-o file] [--force] [--json]` | Live-only export; on ErrOpNotLive: error pointing at `memory fetch`. | 0; 1 not live; 2 usage |
-| `memory verify <file>` | OFFLINE: never connects; keyring from pins file alone; prints verdict, author, realm, binding, type, timestamp. Exit mirrors verdict: verified/unsigned ⇒ 0 with clear wording; failed ⇒ 1; unknown-key ⇒ 0 with warning. Works with broken/absent realm config (013 lesson: diagnostics survive). | see behaviour |
+| `memory verify <file>` | OFFLINE: never connects; keyring from the pins file alone; prints verdict, author, realm, binding, type, timestamp, op-id. Exit mirrors verdict: verified/unsigned ⇒ 0 with clear wording; failed ⇒ 1; unknown-key ⇒ 0 with warning. Works with empty/absent realm config: no realm or no pins simply degrades signed evidence to unknown-key. | see behaviour |
 
 ## MCP contract
 

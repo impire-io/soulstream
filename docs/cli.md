@@ -55,6 +55,11 @@ soulstream watch  <path>             # watch it update live (Ctrl-C to stop)
 soulstream inbox                     # watch for @mentions of you (Ctrl-C to stop)
 soulstream discover <query>          # shout: anyone seen a topic about this?
 soulstream respond                   # answer discovery shouts from your own board view
+soulstream memory query "question"   # ask whoever remembers → graded answers
+                                     #   (fact / testimony / gossip — checked, not trusted)
+soulstream memory fetch <path> <op>  # get an op as evidence: stream first, then keepers
+soulstream memory exhibit <path> <op> -o f.json     # export a live op as a sealed note
+soulstream memory verify f.json      # check a sealed note offline, against your pins
 soulstream curate                    # run the librarian: best answers + sticky notes
                                      #   (--idle 336h --scan-every 1m to tune)
 soulstream key init                  # make your wax-seal stamp (see signing docs)

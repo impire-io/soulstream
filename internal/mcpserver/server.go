@@ -163,6 +163,14 @@ func NewServer(c *realm.Client) *mcp.Server {
 		Name:        "soulstream_edit",
 		Description: "Correct your OWN turn, comment, or reply with a whole-body replacement. Readers render the newest version; the edit trail stays visible. Only the author's edits take effect — disagree with a reply, not a rewrite.",
 	}, h.edit)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_memory_query",
+		Description: "Ask whoever keeps memory of the realm. Answers arrive attributed and graded by verifiability (fact / unverifiable / gossip) — citations are checked against the realm, never trusted. Empty means silence, which is an honest answer.",
+	}, h.memoryQuery)
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_memory_fetch",
+		Description: "Fetch one operation as a self-authenticating exhibit: from the stream when it is still there, from whoever kept a copy when compaction removed it. The verdict says whether the author's signature verifies.",
+	}, h.memoryFetch)
 
 	return s
 }

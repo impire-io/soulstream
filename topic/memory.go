@@ -42,18 +42,18 @@ const (
 type MemoryGrade string
 
 const (
-	// GradeFact: the citation resolves in its topic's current state — checked.
+	// GradeFact means the citation resolves in its topic's current state — checked.
 	GradeFact MemoryGrade = "fact"
-	// GradeProvenance: an exhibit obtained by an explicit fetch verifies.
+	// GradeProvenance means an exhibit obtained by an explicit fetch verifies.
 	GradeProvenance MemoryGrade = "fact-with-provenance"
-	// GradeTestimony: readable but unverifiable content — an unsigned exhibit,
-	// or the witness's word. As trustworthy as its keeper.
+	// GradeTestimony means readable but unverifiable content — an unsigned
+	// exhibit, or the witness's word. As trustworthy as its keeper.
 	GradeTestimony MemoryGrade = "testimony"
-	// GradeGossip: an uncited answer. Useful for leads, never decisions.
+	// GradeGossip means an uncited answer. Useful for leads, never decisions.
 	GradeGossip MemoryGrade = "gossip"
-	// GradeUnverifiable: cited, but the citation resolves nowhere live. Compacted
-	// history and fabrication are indistinguishable here — presented with caution,
-	// never as fact; an explicit fetch may upgrade it.
+	// GradeUnverifiable means cited, but the citation resolves nowhere live.
+	// Compacted history and fabrication are indistinguishable here — presented
+	// with caution, never as fact; an explicit fetch may upgrade it.
 	GradeUnverifiable MemoryGrade = "unverifiable"
 )
 
