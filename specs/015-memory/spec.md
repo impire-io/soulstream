@@ -24,6 +24,27 @@ in a separate repository under the impire-io organisation: the convention must b
 servable by an outsider built only on public surfaces, and the cleanest proof is that its
 first real consumer *is* an outsider.
 
+## Clarifications
+
+### Session 2026-07-25
+
+- Q: Do answers carry exhibits inline, or is provenance a separate step? → A: Explicit fetch
+  only. Answers carry citations, never exhibit documents — answers stay small and
+  payload-safe; a query grades what resolves live, and upgrading an unverifiable citation to
+  fact-with-provenance is a deliberate follow-up fetch.
+- Q: What are the query deadline bounds? → A: Default 3 seconds when unspecified; clamped to
+  the range 100 milliseconds – 30 seconds.
+- Q: Is the number of gathered answers bounded? → A: The deadline is the primary bound, with
+  a safety cap of 100 answers per query; arrivals beyond the cap are discarded.
+- Q: Must a witness serve both queries and fetches? → A: No — the two capabilities are
+  independently optional. A fetch-only exhibit keeper is a legitimate witness; a witness
+  stays silent on the capability it does not serve.
+- Q: Is an exhibit of a manifest-carrying baseline verifiable offline, given its baked
+  content lives in the realm's object store? → A: Yes. The signature covers the operation's
+  wire form (the standing rollup rule), so the exhibit verifies with no realm connection;
+  resolving the full baked content may still require the realm's object store. Exhibits are
+  evidence of the record, not blob bundles.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Ask the realm, get graded testimony (Priority: P1)
@@ -175,6 +196,10 @@ away by rollup, a fetch through the witness restores it as a verifying exhibit.
 - An exhibit's author rotated keys after signing → verification accepts any key in the
   author's validated chain (the standing chain rule); a verifier who knows none of the
   chain's keys reports unknown-key.
+- An exhibit is exported for a baseline whose baked content lives behind a manifest in the
+  realm's object store → the exhibit verifies offline (the signature covers the wire form,
+  the standing rollup rule); resolving the full baked content may still require the realm's
+  object store — exhibits are evidence of the record, not blob bundles.
 - Sealed topics → out of scope entirely: no sealed content in queries, answers, or exhibits;
   that convention lands with sealed topics.
 - Two valid signed exhibits arrive for the same op → signatures cover canonical content, so
@@ -191,15 +216,18 @@ away by rollup, a fetch through the witness restores it as a verifying exhibit.
   transient — the realm's permanent store retains none of it (the discovery hygiene rule).
 - **FR-002**: A memory query MUST carry a free-text question, an answer deadline, and MAY
   carry a scope of topic-name patterns and an "after" moment; scope is a relevance hint for
-  witnesses, not an enforced filter.
+  witnesses, not an enforced filter. The deadline defaults to 3 seconds when unspecified and
+  is clamped to the range 100 milliseconds – 30 seconds.
 - **FR-003**: Any persona MAY answer any query or fetch; non-answers are silent; a realm with
   zero witnesses MUST be indistinguishable from a realm where no witness had anything to say:
   the asker completes cleanly at its deadline with the answers that arrived.
 - **FR-004**: A memory answer MUST carry the witness's prose answer, zero or more citations
-  (each naming a topic and an operation id), and MAY carry the witness's coverage start
-  (`coverage_from`); answers and queries follow the realm's standing signing convention for
-  service traffic — an answer whose signature fails verification MUST be discarded, an
-  unsigned answer MUST be kept with its signature status visible.
+  (each naming a topic and an operation id — never inline exhibit documents), and MAY carry
+  the witness's coverage start (`coverage_from`); answers and queries follow the realm's
+  standing signing convention for service traffic — an answer whose signature fails
+  verification MUST be discarded, an unsigned answer MUST be kept with its signature status
+  visible. Gathering is bounded by the deadline and a safety cap of 100 answers per query;
+  arrivals beyond the cap are discarded.
 - **FR-005**: A memory fetch MUST name exactly one operation (topic + op id); a fetch reply
   carries an exhibit of that operation; the asker MUST prefer the first verifying exhibit and
   MUST fall back to an unsigned exhibit only as testimony when no verifying exhibit arrived
@@ -227,9 +255,11 @@ away by rollup, a fetch through the witness restores it as a verifying exhibit.
 - **FR-010**: The asker-side library MUST grade every citation in every answer by actually
   checking, never by trusting the witness: **fact** (the cited op resolves in its topic's
   current state — as a live op or baked into the current baseline), **fact with provenance**
-  (a fetched or supplied exhibit verifies), **testimony** (an unsigned exhibit, or the
-  witness's word), **gossip** (uncited), and **unverifiable citation** (cited, resolves
-  nowhere, no exhibit) — the last presented distinctly and cautiously, never as fact.
+  (an exhibit obtained by a follow-up fetch verifies), **testimony** (an unsigned exhibit,
+  or the witness's word), **gossip** (uncited), and **unverifiable citation** (cited,
+  resolves nowhere) — the last presented distinctly and cautiously, never as fact. A query
+  grades what resolves live; upgrading an unverifiable citation is an explicit fetch step,
+  never an automatic side effect of the query.
 - **FR-011**: Grading MUST be deterministic for the same inputs; merged results MUST keep
   every answer attributed to its witness; the library MUST NOT rank, arbitrate, or suppress
   conflicting answers beyond the grade itself.
@@ -241,9 +271,12 @@ away by rollup, a fetch through the witness restores it as a verifying exhibit.
   realm when possible, via witnesses otherwise).
 - **FR-013**: The library MUST offer a public witness surface through which any persona can
   serve answers and exhibits from an arbitrary private store, declaring its coverage start;
-  the surface MUST be sufficient for the external archivist repository to be built with no
-  access to library internals (the curator discipline: public surfaces only). This repo
-  ships NO archivist, NO store, and NO index — persona memory stays persona-defined.
+  the query-answering and fetch-serving capabilities are independently optional (a
+  fetch-only exhibit keeper is a legitimate witness; a witness stays silent on the
+  capability it does not serve). The surface MUST be sufficient for the external archivist
+  repository to be built with no access to library internals (the curator discipline:
+  public surfaces only). This repo ships NO archivist, NO store, and NO index — persona
+  memory stays persona-defined.
 - **FR-014**: The human client MUST be able to: ask a query and read graded, attributed
   answers; export an exhibit of a named operation to a file; verify an exhibit file with no
   realm connection; and fetch a compacted operation as an exhibit via witnesses. The AI
@@ -302,9 +335,9 @@ away by rollup, a fetch through the witness restores it as a verifying exhibit.
   reputation stays a social fact. The library grades verifiability and stops.
 - **Scope is a hint.** Witnesses decide relevance; the asker's protection is grading, not
   filtering. This keeps responders free to answer helpfully (e.g., adjacent topics).
-- **Deadlines are bounded.** Queries carry a default deadline when unspecified and a sane
-  upper clamp, mirroring discovery's ask-window behaviour; a witness seeing an expired
-  deadline stays silent.
+- **Deadlines are bounded.** Queries default to a 3-second deadline, clamped to
+  100 milliseconds – 30 seconds (see Clarifications), mirroring discovery's ask-window
+  behaviour; a witness seeing an expired deadline stays silent.
 - **Exhibit verification trusts the verifier's own key knowledge** (pinned/known keys and
   validated chains). A verifier that knows nothing of the author honestly reports
   unknown-key; distributing key material is the registry's job, unchanged here.
