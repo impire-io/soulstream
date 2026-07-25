@@ -23,11 +23,13 @@ retrospective): foundation + op-log engine, CLI + MCP clients, signing, rollup,
 scatter-gather discovery, the curator, work stages 1–2, distribution, config-file
 identity, and persona accountability (`kind` removed in favour of a countersigned
 operator attestation). The **memory convention** has now landed on `main`
-([episode 0003](0003-memory-convention-and-exhibits.md)): collective search as
-graded testimony, portable self-authenticating exhibits, and a public witness
-surface — with the first archivist deliberately a separate impire-io repository,
-its contract proven from outside. The central architectural bet — leaderless
-coordination, no coordinator and no consensus — stands, un-refuted.
+([episode 0003](0003-memory-convention-and-exhibits.md)) and shipped as
+**`v0.4.0`**: collective search as graded testimony, portable self-authenticating
+exhibits, and a public witness surface — with the first archivist deliberately a
+separate repository, [impire-io/soulstream-archivist](https://github.com/impire-io/soulstream-archivist)
+(live the same day), its contract proven from outside. The central architectural
+bet — leaderless coordination, no coordinator and no consensus — stands,
+un-refuted.
 
 **The project's working structure lives in `hq/`**
 ([episode 0002](0002-adopting-the-hq-way.md)): GENESIS holds the vision, the
