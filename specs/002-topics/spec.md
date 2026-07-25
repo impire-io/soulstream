@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-topics`
 **Created**: 2026-07-12
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "The topics op-log engine on top of the foundation: announce a topic with an initial baseline, hold a conversation (turn.post, comment.add), move it through its lifecycle (proposed→active→closed), organise with sub-topics, materialise a topic by replaying its ops in stream order, and discover the realm's topics from the info board. Deferred: mentions and attachments (next cycle), and rollup/edit/reply/resolve/dormant/archived/scatter-gather (day-2)."
 
 ## Overview

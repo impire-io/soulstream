@@ -16,6 +16,18 @@ A topic is a **shared workbench**, not a chat room: it has state (the baseline �
 
 Nothing else. No API tier, no database, no coordinator, no curator process. Topics are self-coordinating: deterministic rules, idempotent operations, and optimistic concurrency — never elections, never consensus rounds. If a future design addition doesn't survive this list staying this short, it goes in `extensions/` or it goes nowhere.
 
+## How this project is run
+
+Everything about *how Soulstream is run* lives in [hq/](./hq/README.md): the
+vision, constitution, and working agreement in [hq/00-GENESIS/](./hq/00-GENESIS/README.md);
+active research in [hq/01-RESEARCH/](./hq/01-RESEARCH/README.md); the normative
+design in [hq/02-DESIGN/](./hq/02-DESIGN/README.md); the plan in
+[hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md); and the
+honest, numbered log of what happened in [hq/04-JOURNEY/](./hq/04-JOURNEY/README.md).
+Agents start with [AGENTS.md](./AGENTS.md). The gate before every commit is
+`make fmt && make test && make lint` (the test target includes the
+`internal/hqlint` structural check).
+
 ## Layout
 
 The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
@@ -186,3 +198,9 @@ make lint      # golangci-lint run
 
 Requires Go 1.26+. The provisioning tests start an in-process JetStream server, so no
 external NATS is needed to run the suite.
+
+## License
+
+Soulstream is open source under the [MIT License](./LICENSE) — Copyright (c) 2026
+Daan Gerits. This matches the protocol's stance: the substrate is the product,
+run it yourself.

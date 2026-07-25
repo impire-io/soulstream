@@ -2,7 +2,7 @@
 
 **Feature Branch**: `013-config`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.2.0)
 **Input**: User description: "Config-file resolution for Soulstream identity, plus a self-installing plugin binary. Today the CLI and MCP server resolve who-acts-where (NATS context, realm, persona, key file, pins file) from flags and environment variables only. Add a third and fourth source: a project-level config file and a user-level default. Per-field precedence flag > env > nearest project file > user file. The Claude Code plugin's wrapper script should self-install the soulstream-mcp binary from GitHub releases, verified, cached in the plugin data dir. Bump the plugin to 0.2.0."
 
 ## User Scenarios & Testing *(mandatory)*

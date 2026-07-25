@@ -2,7 +2,7 @@
 
 **Feature Branch**: `011-vocab`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "Remaining vocabulary (roadmap Day-2 item 7): `edit` (anchors to and supersedes a prior op — supersession is a projection rule, readers render the latest in the chain, history stays replayable), `comment.reply` (anchors to a comment) and `comment.resolve` (closes one without deleting it), `attachment.remove` (references the add-op's ID; the blob itself is deleted only at topic archival, so replay never dangles within a topic's lifetime), and `dormant` automation (the lifecycle state core defines: idle past the realm's window, resumable, applied by any persona via the deterministic rule, reactivated by any content op). Plus the claim-timeout reopen rule 010 explicitly deferred here: a timed-out claim reopens the item via the same deterministic idle-rule clock semantics as dormant."
 
 ## Why now

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-foundation`
 **Created**: 2026-07-12
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "Soulstream foundation library (Go): the wire layer — realm provisioning and the operation record on NATS JetStream, plus identity basics. Deferred: topics/lifecycle, baselines, materialisation, mentions, discovery, CLI, MCP, and Ed25519 signing implementation."
 
 ## Overview

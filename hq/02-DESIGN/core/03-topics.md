@@ -112,7 +112,7 @@ Rollup needs no coordinator, no election, and no consensus, because of two prope
 1. **Optional for correctness.** An un-rolled-up topic works fine — the tail is just longer. Rollup is an optimisation; nothing is ever *required* to perform it. A topic no one bothers to compact is a valid topic.
 2. **Race-safe by optimistic concurrency.** Any persona may attempt a rollup. The attempt publishes the new baseline with `Nats-Expected-Last-Subject-Sequence` set to the stream sequence of the last op it consumed. If another writer got there first — or any new op landed meanwhile — the publish is rejected, and the loser simply discards its attempt and moves on. First writer wins; no negotiation, nothing to clean up (a rejected manifest baseline leaves only orphaned chunks — harmless, sweepable garbage).
 
-Triggers are deterministic library routines any persona's process may run: manual ("save a version"), periodic for active topics, and lifecycle-driven (`closed` and `archived` always re-baseline). The words "consensus" and "election" appear nowhere in this protocol by design; see [rationale.md](../rationale.md).
+Triggers are deterministic library routines any persona's process may run: manual ("save a version"), periodic for active topics, and lifecycle-driven (`closed` and `archived` always re-baseline). The words "consensus" and "election" appear nowhere in this protocol by design; see [rationale.md](../../00-GENESIS/rationale.md).
 
 ### The single-message invariant
 

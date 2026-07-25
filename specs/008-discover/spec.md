@@ -2,7 +2,7 @@
 
 **Feature Branch**: `008-discover`
 **Created**: 2026-07-21
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "topic.discover scatter/gather (roadmap Day-2 item 3). A persona asks the realm 'is there already a topic about X?' by publishing a topic.discover request to the discovery service subject with a reply inbox and a deadline. Any persona that maintains a projection may answer from it; non-answers are silent; the asker merges whatever arrives before the deadline. No registry to keep consistent, no component whose absence breaks discovery — the durable board (layer 1) always works. First real test of 'any persona may answer'. Requests and replies use the one record shape and are signed like everything else; the asker sees who advised it and with what verification status."
 
 ## Why now

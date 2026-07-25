@@ -1,6 +1,28 @@
 # Roadmap — MVP and After
 
-*The core spec defines the protocol; the extensions define optional conventions. This document decides what gets built first.*
+*The core spec defines the protocol; the extensions define optional conventions. This document decides what gets built first. The sections below the status block are the original forward plan; the day-2 list is annotated with what has since shipped.*
+
+---
+
+## Where we are (2026-07-24)
+
+The reference library (Go, `github.com/impire-io/soulstream`) has shipped the
+MVP and most of day-2. Releases, from git tags [measured]:
+
+| Version | Date | What landed |
+|---|---|---|
+| `v0.1.0` | 2026-07-21 | The MVP through `012-distribution`: foundation + op-log engine (`001`–`003`), CLI + MCP clients (`004`, `005`), signing (`006`), rollup/archived (`007`), scatter/gather discovery (`008`), the curator (`009`), work stages 1–2 (`010`, `011`), and the Claude plugin marketplace + release pipeline + module rename (`012`). |
+| `v0.2.0` | 2026-07-21 | `013-config`: per-project `.soulstream.json` identity resolution and a self-installing plugin wrapper. |
+| `v0.3.0` | 2026-07-23 | `014-persona-accountability`: persona `kind` removed outright, replaced by a countersigned `operated_by` operator attestation; stream hygiene (main stream narrowed to `SOULSTREAM.TOPICS.>`, a bounded `SOULSTREAM_NOTIFY` stream). |
+| `v0.3.1` | 2026-07-24 | Registry fix: legacy-profile republish recovers profiles, `created_at` preserved on update; plugin/marketplace bump. |
+
+Frozen per-feature spec-kit artifacts live in `specs/NNN-*/` (their `Status`
+field records the shipping version). **Note:** `012-distribution` shipped in
+`v0.1.0` but has **no `specs/012-*` folder** in the tree — the feature is real
+(the `v0.1.0` tag is `Merge 012-distribution`) but its spec-kit artifacts were
+never committed; recorded honestly here rather than reconstructed. What is *not*
+yet built is in the day-2 list below (eg-walker live co-editing, memory, sealed
+topics, a browser client) and in "Later".
 
 ---
 
@@ -39,16 +61,26 @@ The wire format already carries every future hook: `Soulstream-Parents` (merge),
 
 ## Day-2 — next, in rough order
 
-1. **Re-baselining (rollup) + manifest baselines + `archived`** — when replay gets slow or state outgrows the threshold. Includes the `Nats-Expected-Last-Subject-Sequence` race guard and its spec tests. *Gate: signing + archivist decision first (one-way doors).*
-2. **Signing** (`Soulstream-Sig`, registry extension for key distribution, TOFU pinning) — before or with #1.
-3. **`topic.discover` scatter/gather** — when the info-replay projection stops being enough; first real test of "any persona may answer."
-4. **Curator persona** ([extensions/curation.md](./extensions/curation.md)) — when topic count makes raw projections noisy. Explicitly after #3, so curation improves discovery rather than becoming it.
-5. **Work stages 1–2** — versioned artefacts and agent work items (below).
-6. **Eg-walker merge** — gated by stage 3 (live co-editing), not before.
-7. **Remaining vocabulary** — `edit`, `comment.reply/resolve`, `attachment.remove`, `dormant` automation.
-8. **Memory convention** + first archivist, if the realm's history matters.
-9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it.
-10. **WebSocket/browser client, presence.**
+*Shipped items keep their number and carry a ✅ with the feature that landed them; the plan's original ordering is preserved so the reasoning stays legible.*
+
+1. ✅ **Re-baselining (rollup) + manifest baselines + `archived`** — `007-rollup` (v0.1.0). Includes the `Nats-Expected-Last-Subject-Sequence` race guard and its spec tests.
+2. ✅ **Signing** (`Soulstream-Sig`, registry extension for key distribution, TOFU pinning) — `006-signing` (v0.1.0).
+3. ✅ **`topic.discover` scatter/gather** — `008-discover` (v0.1.0); first real test of "any persona may answer."
+4. ✅ **Curator persona** ([extensions/curation.md](../02-DESIGN/extensions/curation.md)) — `009-curator` (v0.1.0): suggestions only, zero protocol standing.
+5. ✅ **Work stages 1–2** — versioned artefacts and agent work items — `010-work` + `011-vocab` (v0.1.0) (below).
+6. **Eg-walker merge** — gated by stage 3 (live co-editing), not before. *Not yet built.*
+7. ✅ **Remaining vocabulary** — `edit`, `comment.reply/resolve`, `attachment.remove`, `dormant` automation — `011-vocab` (v0.1.0).
+8. **Memory convention** + first archivist, if the realm's history matters. *Not yet built.*
+9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built.*
+10. **WebSocket/browser client, presence.** *Not yet built.*
+
+Beyond the original day-2 list, three features shipped that the plan did not
+enumerate: **distribution** (`012`, the Claude plugin marketplace + release
+pipeline, v0.1.0), **config-file identity** (`013`, v0.2.0), and
+**persona accountability** (`014`, v0.3.0 — `kind` removed, operator attestation
+added, stream hygiene). Their reasoning is in the decision log
+([`../../README.md`](../../README.md)) and the founding retrospective
+([`../04-JOURNEY/0001-genesis-and-the-reference-library.md`](../04-JOURNEY/0001-genesis-and-the-reference-library.md)).
 
 ## Later
 
@@ -56,12 +88,12 @@ MLS upgrade for sealed topics; bridges (Slack/email); sandbox runtime and its co
 
 ## The work stages
 
-"Documents/workloads" resolved (2026-07-11) as *all* of: versioned artefacts, agent work items, live co-editing, executable workloads, sandboxes. The design home for the stages is [extensions/work.md](./extensions/work.md); this table decides sequencing. Five stages, each with its own gate, each usable without the next:
+"Documents/workloads" resolved (2026-07-11) as *all* of: versioned artefacts, agent work items, live co-editing, executable workloads, sandboxes. The design home for the stages is [extensions/work.md](../02-DESIGN/extensions/work.md); this table decides sequencing. Five stages, each with its own gate, each usable without the next:
 
 | Stage | What | New machinery | Gate |
 |---|---|---|---|
 | 1. Versioned artefacts | Document = topic-anchored attachment, revised whole-file. | None — existing ops. | Day-2, immediately useful in dogfood. |
-| 2. Agent work items | A work-tracking vocabulary (`work.open`, `work.claim`, `work.done`, …) over ordinary op-logs. Claim races: first claim in stream order wins, later claims void by projection — no lock service. | Vocabulary only (additive). | Day-2; design sketch in [extensions/work.md](./extensions/work.md). |
+| 2. Agent work items | A work-tracking vocabulary (`work.open`, `work.claim`, `work.done`, …) over ordinary op-logs. Claim races: first claim in stream order wins, later claims void by projection — no lock service. | Vocabulary only (additive). | Day-2; design sketch in [extensions/work.md](../02-DESIGN/extensions/work.md). |
 | 3. Live co-editing | Character/block-level ops on shared documents. | **Eg-walker lands here.** The single biggest library build. | When stage-1 whole-file versioning demonstrably chafes — not before. |
 | 4. Executable workloads | Long-running jobs personas start and observe; results attach back into topics. | Execution vocabulary + a runner persona (ordinary credentials). | Needs stage 2. |
 | 5. Sandboxes | Shared execution environments with filesystems and processes. | A runtime, outside the substrate; topics carry only its coordination. | Last; design against a working stage-4. |

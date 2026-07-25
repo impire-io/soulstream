@@ -23,7 +23,7 @@ Captures `SOULSTREAM.>` — every subject in the taxonomy.
 | Setting | Value | Why |
 |---|---|---|
 | Subjects | `SOULSTREAM.>` | One stream, whole realm. |
-| Retention | Limits, **no `MaxAge`** | History is compacted by baseline rollup, never aged out. Aging messages out independently of the objects they reference is the root cause of orphaned state; see [rationale](../rationale.md). |
+| Retention | Limits, **no `MaxAge`** | History is compacted by baseline rollup, never aged out. Aging messages out independently of the objects they reference is the root cause of orphaned state; see [rationale](../../00-GENESIS/rationale.md). |
 | `allow_rollup_hdrs` | `true` | `Nats-Rollup: sub` lets a new baseline replace a topic's prior history. |
 | `duplicate_window` | ≥ 2 minutes | `Nats-Msg-Id` dedup must cover realistic reconnect/retry windows. |
 | Storage | File | Durability is the point. |
@@ -114,4 +114,4 @@ NATS messages default to a 1 MB ceiling; healthy systems stay far below it.
 
 ## What the wire does *not* provide
 
-No query layer (projections are built by consumers replaying subjects). No schema registry (vocabularies are documented conventions). No ACL service (subject permissions are the ACL). No coordinator (every coordination problem is solved with deterministic rules, idempotent ops, and optimistic concurrency — see rollup in [03-topics.md](./03-topics.md)). Each absence is deliberate; see [rationale.md](../rationale.md).
+No query layer (projections are built by consumers replaying subjects). No schema registry (vocabularies are documented conventions). No ACL service (subject permissions are the ACL). No coordinator (every coordination problem is solved with deterministic rules, idempotent ops, and optimistic concurrency — see rollup in [03-topics.md](./03-topics.md)). Each absence is deliberate; see [rationale.md](../../00-GENESIS/rationale.md).

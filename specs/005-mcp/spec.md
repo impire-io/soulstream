@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-mcp`
 **Created**: 2026-07-12
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "An MCP (Model Context Protocol) server so an AI persona can participate in Soulstream through tool calls: discover topics, read a topic, start a topic, post turns and comments (mentioning people), attach text, close a topic, and check its mention inbox. One persona's credentials per session, configured at startup; connects via a named NATS context."
 
 ## Overview

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `014-persona-accountability`
 **Created**: 2026-07-23
-**Status**: Draft
+**Status**: Shipped (v0.3.0)
 **Input**: User description: "Persona accountability and stream hygiene. Backwards compatibility is explicitly NOT required — we are the only users; remove things outright rather than deprecating. Part 1 — remove `kind` from persona profiles entirely. Part 2 — reframe identity documentation around principal chains and upgrade `operated_by` from an unverified string claim to a countersigned, verifiable attestation. Part 3 — two stream-hygiene defects: discovery request traffic is accidentally retained forever in the realm's permanent store, and persona mention inboxes grow without bound while inbox reads replay full history."
 
 ## Why now

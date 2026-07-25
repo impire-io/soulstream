@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-participation`
 **Created**: 2026-07-12
-**Status**: Draft
+**Status**: Shipped (v0.1.0)
 **Input**: User description: "The collaborative layer on top of topics: mentions (@name → a notification in the mentioned persona's inbox) and attachments (put a file in the realm's object store and reference it from the topic, then retrieve it). Deferred: attachment removal, encryption, mention digests/presence."
 
 ## Overview
