@@ -41,7 +41,7 @@ soulstream memory fetch vat-q2-2026-x7m2 9f86d081-… -o decision.exhibit.json
 
 ```sh
 soulstream memory verify decision.exhibit.json
-# → verified: author daan, realm soulstream, binding OPS.vat-q2-2026-x7m2,
+# → verified: author daan, realm soulstream, binding vat-q2-2026-x7m2,
 #   type turn.post, ts 2026-05-12T09:00:00Z
 ```
 

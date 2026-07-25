@@ -58,7 +58,7 @@ Verbatim wire capture plus verification inputs. Strict decode (`DisallowUnknownF
 |---|---|---|
 | `version` | int (1) | Exhibit format version. |
 | `realm` | string | Realm name the op was published in — canonicalisation input. |
-| `binding` | string | Canonical binding the signature was computed over (topic ops: subject suffix like `OPS.<path>`; the *verification* input). |
+| `binding` | string | Canonical binding the signature was computed over (topic ops and announces: the topic path; the *verification* input). |
 | `subject` | string | Full original subject — human provenance display only. |
 | `headers` | map[string][]string | The op's headers verbatim (`Nats-Msg-Id`, `Soulstream-*` incl. `Soulstream-Sig`, unknown extras preserved). |
 | `payload_b64` | string (std base64) | The op's payload bytes verbatim. |

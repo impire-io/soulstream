@@ -17,6 +17,8 @@ const (
 	SvcSubjectPrefix = "SOULSTREAM.SVC."
 	// SvcDiscoverSubject is where topic.discover requests are published.
 	SvcDiscoverSubject = SvcSubjectPrefix + "DISCOVER"
+	// SvcMemorySubject is where memory.query and memory.fetch requests are published.
+	SvcMemorySubject = SvcSubjectPrefix + "MEMORY"
 )
 
 // OpsSubject returns the ops subject for a topic-path.

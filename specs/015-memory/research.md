@@ -35,7 +35,7 @@ verbatim plus the two verification inputs:
 {
   "version": 1,
   "realm": "soulstream",
-  "binding": "OPS.vat-q2-2026-x7m2",
+  "binding": "vat-q2-2026-x7m2",
   "subject": "SOULSTREAM.TOPICS.OPS.vat-q2-2026-x7m2",
   "headers": { "Nats-Msg-Id": ["…"], "Soulstream-Author": ["…"], "Soulstream-Sig": ["…"], "…": ["…"] },
   "payload_b64": "…"
