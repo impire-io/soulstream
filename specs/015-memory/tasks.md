@@ -71,7 +71,7 @@ No scaffolding needed — existing module, existing packages, no new dependencie
 
 - [X] T025 Reconcile surfaces with docs: quickstart.md flags/outputs match the shipped CLI; contracts/library.md matches actual signatures; update the docs index (`docs/README.md` if present) and any doc that enumerates SVC conventions or MCP tool counts
 - [X] T026 Full quality gate `make check` (fmt + tidy + build + test + lint) — all green, zero skipped; fix everything it surfaces
-- [ ] T027 Journey episode for 015 in `hq/04-JOURNEY/` via the journey duty (same change as the landed feature), including the separate-archivist-repo decision and its reversal condition
+- [X] T027 Journey episode for 015 in `hq/04-JOURNEY/` via the journey duty (same change as the landed feature), including the separate-archivist-repo decision and its reversal condition
 
 ## Dependencies & Execution Order
 

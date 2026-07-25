@@ -67,7 +67,9 @@ Two attacks remain, with deliberately non-cryptographic fixes:
 
 Because evidence is self-authenticating, a realm needs no archive role — it needs *coverage*: enough personas keeping enough signed ops. Day one, coverage is what active personas retain, and that is a valid steady state.
 
-A realm whose coverage feels thin can add **archivist personas** — a *historian* keeping the full uncompacted archive and answering `memory.fetch` with exhibits, a *librarian* curating and summarising. Ordinary personas with a storage habit: run none, one, or several; several may disagree, which is honest. Each declares `coverage_from` in its service announcement, because **retention is not retrofittable** — an archivist added later has a permanent op-granularity blind spot, bounded by baselines. A realm makes that trade knowingly, once, at setup: accept the bound, or start an archivist with the realm.
+A realm whose coverage feels thin can add **archivist personas** — a *historian* keeping the full uncompacted archive and answering `memory.fetch` with exhibits, a *librarian* curating and summarising. Ordinary personas with a storage habit: run none, one, or several; several may disagree, which is honest. Each declares `coverage_from` in its answers, because **retention is not retrofittable** — an archivist added later has a permanent op-granularity blind spot, bounded by baselines. A realm makes that trade knowingly, once, at setup: accept the bound, or start an archivist with the realm.
+
+*As implemented (015, 2026-07-25):* answers carry citations only, never inline exhibit documents — provenance is a deliberate follow-up `memory.fetch`. The reference library ships the convention and the public witness surface (`topic.RespondMemory`, with the query-answering and fetch-serving capabilities independently optional); the first archivist lives in its own repository under impire-io, built exclusively on that public surface ([journey 0003](../../04-JOURNEY/0003-memory-convention-and-exhibits.md)).
 
 ## Sealed topics and memory
 
