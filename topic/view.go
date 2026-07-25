@@ -15,6 +15,7 @@ import (
 // baselines serialises these exact shapes, so the keys are pinned here, not left to
 // Go's default casing.
 type Announcement struct {
+	OpID          string    `json:"op_id,omitempty"` // the announce op's id ("" pre-015 baked views)
 	TopicID       string    `json:"topic_id"`
 	Name          string    `json:"name"`
 	SubjectMatter string    `json:"subject_matter,omitempty"`
@@ -82,7 +83,9 @@ type MaterializedTopic struct {
 	// BaselineTs is the baseline op's (author-claimed) timestamp: the topic's birth
 	// time, or — after a rollup — the compaction time. Informational, like every
 	// timestamp; useful as "when did this topic's current zero-point happen".
-	BaselineTs    time.Time      `json:"baseline_ts,omitempty"`
+	BaselineTs time.Time `json:"baseline_ts,omitempty"`
+	// BaselineID is the current baseline op's id — the topic's zero-point checkpoint.
+	BaselineID    string         `json:"baseline_id,omitempty"`
 	Lifecycle     Lifecycle      `json:"lifecycle"`
 	Contributions []Contribution `json:"contributions,omitempty"`
 	Attachments   []Attachment   `json:"attachments,omitempty"`
@@ -115,6 +118,7 @@ func apply(path string, recs []SeqRecord) *MaterializedTopic {
 
 	// The baseline: its state, whatever a rollup baked in, and the DAG bookkeeping.
 	mt.BaselineTs = recs[0].Record.Timestamp
+	mt.BaselineID = recs[0].Record.ID
 	var bp BaselinePayload
 	if err := json.Unmarshal(recs[0].Record.Payload, &bp); err == nil {
 		mt.BaselineState = bp.State

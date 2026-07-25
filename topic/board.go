@@ -102,6 +102,7 @@ func fetchAnnouncement(ctx context.Context, c *realm.Client, path string) (*Anno
 		return nil, nil, nil
 	}
 	return &Announcement{
+		OpID:          rec.ID,
 		TopicID:       ap.TopicID,
 		Name:          ap.Name,
 		SubjectMatter: ap.SubjectMatter,

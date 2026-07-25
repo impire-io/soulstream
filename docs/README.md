@@ -35,11 +35,16 @@ before any detail. Start at the top and read down — each page builds on the on
 19. [The persona directory](./persona-directory.md) — the phone book of seals; your pocket notebook remembers them.
 20. [Operators](./operators.md) — who answers for a persona: the co-signed permission slip.
 
+## Remembering
+
+21. [Memory](./memory.md) — asking the whole class what they remember; answers graded, never trusted.
+22. [Exhibits](./exhibits.md) — a sealed note anyone can check, kept by whoever bothered.
+
 ## The two doors
 
-21. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
-22. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
-23. [Configuration](./configuration.md) — the sticker on the folder: who you are, per project.
+23. [The `soulstream` CLI](./cli.md) — the remote control, for humans.
+24. [The MCP adapter](./mcp.md) — the same doors, for AI agents.
+25. [Configuration](./configuration.md) — the sticker on the folder: who you are, per project.
 
 ## Going deeper
 

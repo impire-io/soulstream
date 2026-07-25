@@ -3,6 +3,8 @@ package topic
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/impire-io/soulstream/record"
 )
 
 // Operation types defined this cycle. Types outside this set are ignored with a
@@ -25,6 +27,10 @@ const (
 	TypeCommentResolve   = "comment.resolve"
 	TypeEdit             = "edit"
 	TypeAttachmentRemove = "attachment.remove"
+	TypeMemoryQuery      = "memory.query"
+	TypeMemoryAnswer     = "memory.answer"
+	TypeMemoryFetch      = "memory.fetch"
+	TypeMemoryExhibit    = "memory.exhibit"
 )
 
 // Lifecycle is a topic's derived state.
@@ -157,4 +163,51 @@ type DiscoverEntry struct {
 // responder with nothing to say sends nothing — silence is cheaper than noise.
 type DiscoverReplyPayload struct {
 	Matches []DiscoverEntry `json:"matches"`
+}
+
+// MemoryScope is a memory.query's relevance hint: which topics (name patterns,
+// witness-interpreted) and what time horizon the asker cares about. Witnesses
+// decide relevance; the asker's protection is grading, never filtering.
+type MemoryScope struct {
+	Topics []string  `json:"topics,omitempty"`
+	After  time.Time `json:"after,omitzero"`
+}
+
+// MemoryQueryPayload is the memory.query request: a free-text question shouted at
+// whoever remembers. The deadline is advisory for witnesses (skip stale work);
+// enforcement is the asker's — it simply stops listening.
+type MemoryQueryPayload struct {
+	Query    string       `json:"query"`
+	Scope    *MemoryScope `json:"scope,omitempty"`
+	Deadline time.Time    `json:"deadline,omitzero"`
+}
+
+// MemoryCitation points at one operation offered as evidence for a claim.
+type MemoryCitation struct {
+	Topic string `json:"topic"`
+	OpID  string `json:"op_id"`
+}
+
+// MemoryAnswerPayload is one witness's testimony: prose, citations (never inline
+// exhibits — provenance is a deliberate follow-up fetch), and optionally the
+// moment the witness's op-granularity memory starts (retention is not
+// retrofittable, so the blind spot travels with the testimony).
+type MemoryAnswerPayload struct {
+	Answer       string           `json:"answer"`
+	Citations    []MemoryCitation `json:"citations,omitempty"`
+	CoverageFrom time.Time        `json:"coverage_from,omitzero"`
+}
+
+// MemoryFetchPayload is the memory.fetch request: exactly one operation, wanted
+// back as an exhibit.
+type MemoryFetchPayload struct {
+	Topic    string    `json:"topic"`
+	OpID     string    `json:"op_id"`
+	Deadline time.Time `json:"deadline,omitzero"`
+}
+
+// MemoryExhibitPayload is a memory.exhibit reply: the requested operation as a
+// self-authenticating exhibit from whatever store the witness keeps.
+type MemoryExhibitPayload struct {
+	Exhibit record.Exhibit `json:"exhibit"`
 }

@@ -15,6 +15,7 @@ MVP and most of day-2. Releases, from git tags [measured]:
 | `v0.2.0` | 2026-07-21 | `013-config`: per-project `.soulstream.json` identity resolution and a self-installing plugin wrapper. |
 | `v0.3.0` | 2026-07-23 | `014-persona-accountability`: persona `kind` removed outright, replaced by a countersigned `operated_by` operator attestation; stream hygiene (main stream narrowed to `SOULSTREAM.TOPICS.>`, a bounded `SOULSTREAM_NOTIFY` stream). |
 | `v0.3.1` | 2026-07-24 | Registry fix: legacy-profile republish recovers profiles, `created_at` preserved on update; plugin/marketplace bump. |
+| *(on `main`, unreleased)* | 2026-07-25 | `015-memory`: the memory convention — `memory.query`/`answer`/`fetch`/`exhibit` scatter/gather, portable self-authenticating exhibits, asker-side citation grading, public witness surface. The archivist itself is a **separate impire-io repository** (owner decision; contract proven from an external-package test). |
 
 Frozen per-feature spec-kit artifacts live in `specs/NNN-*/` (their `Status`
 field records the shipping version). **Note:** `012-distribution` shipped in
@@ -70,7 +71,10 @@ The wire format already carries every future hook: `Soulstream-Parents` (merge),
 5. ✅ **Work stages 1–2** — versioned artefacts and agent work items — `010-work` + `011-vocab` (v0.1.0) (below).
 6. **Eg-walker merge** — gated by stage 3 (live co-editing), not before. *Not yet built.*
 7. ✅ **Remaining vocabulary** — `edit`, `comment.reply/resolve`, `attachment.remove`, `dormant` automation — `011-vocab` (v0.1.0).
-8. **Memory convention** + first archivist, if the realm's history matters. *Not yet built.*
+8. ✅ **Memory convention** — `015-memory` (2026-07-25, on `main`): the convention + library
+   surface (query/answer/fetch/exhibit, grading, witness hook, exhibits). The **first
+   archivist** is a separate repository under impire-io, built on the public witness
+   surface ([journey 0003](../04-JOURNEY/0003-memory-convention-and-exhibits.md)) — *its build is the remaining half of this item.*
 9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built.*
 10. **WebSocket/browser client, presence.** *Not yet built.*
 

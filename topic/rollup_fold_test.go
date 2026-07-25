@@ -84,6 +84,7 @@ func stripVolatile(mt *MaterializedTopic) *MaterializedTopic {
 	}
 	mt.Warnings = nil
 	mt.BaselineTs = time.Time{}
+	mt.BaselineID = "" // the checkpoint op changes identity at every rollup
 	return mt
 }
 

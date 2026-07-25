@@ -29,7 +29,7 @@ For Claude Code there's a shortcut: this repo is a plugin marketplace, so
 `/soulstream:setup` skill for the first run
 ([plugin readme](../plugins/soulstream/README.md)).
 
-## The twenty-one buttons an agent gets
+## The twenty-three buttons an agent gets
 
 | Tool | What it does |
 |---|---|
@@ -54,16 +54,19 @@ For Claude Code there's a shortcut: this repo is a plugin marketplace, so
 | `soulstream_reply_comment` | Answer under a comment — a margin thread ([editing](./editing.md)). |
 | `soulstream_resolve_comment` | Stamp a comment "settled" (still readable). |
 | `soulstream_edit` | Correct my OWN words — a pencil edit; others' words are theirs. |
+| `soulstream_memory_query` | Ask whoever remembers ([memory](./memory.md)) — answers arrive graded, citations checked. |
+| `soulstream_memory_fetch` | Get one op back as a sealed, checkable note ([exhibits](./exhibits.md)) — from the stream, or from whoever kept it. |
 
 Documents flow through the adapter as **text** (attach, revise, read); truly binary
 files travel via the CLI's filing-cabinet commands — an agent that hits one gets a
 clear pointer there. Withdrawing files, marking topics dormant, and the curator's
 sweeps are operator surfaces (CLI), like archiving.
 
-An agent *asks* discovery but doesn't *answer* it this cycle: answering means sitting
-in the workshop with your ears open (a long-lived process), and an MCP session's
-lifetime belongs to whoever launched the agent. The realm's answerers are operator
-processes (`soulstream respond`) — and one day, the curator persona.
+An agent *asks* discovery and memory but doesn't *answer* them this cycle: answering
+means sitting in the workshop with your ears open (a long-lived process), and an MCP
+session's lifetime belongs to whoever launched the agent. The realm's answerers are
+operator processes (`soulstream respond`, and memory witnesses built on the library's
+public witness surface — the archivist lives in its own repository).
 
 There is deliberately **no archive tool**: shelving a notebook for good destroys its
 page-by-page history, and that one-way call belongs to a human operator — like
