@@ -17,6 +17,12 @@ MVP and most of day-2. Releases, from git tags [measured]:
 | `v0.3.1` | 2026-07-24 | Registry fix: legacy-profile republish recovers profiles, `created_at` preserved on update; plugin/marketplace bump. |
 | `v0.4.0` | 2026-07-25 | `015-memory`: the memory convention — `memory.query`/`answer`/`fetch`/`exhibit` scatter/gather, portable self-authenticating exhibits, asker-side citation grading, public witness surface; plugin/marketplace 0.4.0. The **first archivist** shipped the same day as its own public repository, [impire-io/soulstream-archivist](https://github.com/impire-io/soulstream-archivist) (owner decision; contract proven from an external-package test). |
 
+Merged to `main` but not yet released: `016-provision-limits` (2026-07-27) —
+per-artefact storage budgets so limit-enforced accounts (NGS R1) provision out
+of the box, retiring the manual pre-creation workaround documented since
+2026-07-21 ([journey 0004](../04-JOURNEY/0004-provisioning-byte-limits.md)).
+The **two-week dogfood run started 2026-07-27** ([DOGFOOD.md](DOGFOOD.md)).
+
 Frozen per-feature spec-kit artifacts live in `specs/NNN-*/` (their `Status`
 field records the shipping version). **Note:** `012-distribution` shipped in
 `v0.1.0` but has **no `specs/012-*` folder** in the tree — the feature is real
@@ -81,11 +87,13 @@ The wire format already carries every future hook: `Soulstream-Parents` (merge),
 9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built.*
 10. **WebSocket/browser client, presence.** *Not yet built.*
 
-Beyond the original day-2 list, three features shipped that the plan did not
+Beyond the original day-2 list, four features shipped that the plan did not
 enumerate: **distribution** (`012`, the Claude plugin marketplace + release
-pipeline, v0.1.0), **config-file identity** (`013`, v0.2.0), and
+pipeline, v0.1.0), **config-file identity** (`013`, v0.2.0),
 **persona accountability** (`014`, v0.3.0 — `kind` removed, operator attestation
-added, stream hygiene). Their reasoning is in the decision log
+added, stream hygiene), and **provisioning byte limits** (`016`, merged
+2026-07-27, unreleased — budgets so limit-enforced accounts provision out of
+the box). Their reasoning is in the decision log
 ([`../../README.md`](../../README.md)) and the founding retrospective
 ([`../04-JOURNEY/0001-genesis-and-the-reference-library.md`](../04-JOURNEY/0001-genesis-and-the-reference-library.md)).
 
