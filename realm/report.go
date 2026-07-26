@@ -29,10 +29,13 @@ const (
 
 // ArtefactResult is the provisioning outcome for one artefact. Nonconformities is
 // populated only when Outcome is [OutcomeNonconformant]; each entry names one drift.
+// MaxBytes is the artefact's byte roof (0 = unlimited): the budget applied when the
+// outcome is [OutcomeCreated], the roof as found on the server otherwise.
 type ArtefactResult struct {
 	Artefact        Artefact
 	Outcome         Outcome
 	Nonconformities []string
+	MaxBytes        int64
 }
 
 // ProvisionReport is the structured result of a provisioning run.

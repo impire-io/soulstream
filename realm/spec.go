@@ -1,6 +1,7 @@
 package realm
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -47,9 +48,58 @@ const (
 	MinDuplicateWindow = 2 * time.Minute
 )
 
+// Budgets are optional per-artefact byte roofs applied when provisioning CREATES
+// an artefact. A zero field means "no budget" — that artefact is created unlimited,
+// exactly as when no Budgets value is given at all — with one exception: the inbox
+// stream is bounded by design, so a zero Notify keeps the mandated [NotifyMaxBytes].
+// Budgets never modify an existing artefact; provisioning stays create-or-report.
+//
+// Limit-enforced account tiers (NGS R1 is the known case) refuse to create any
+// stream without an explicit byte roof; budgets exist so such accounts provision
+// out of the box. See [DefaultBudgets].
+type Budgets struct {
+	OpLog    int64
+	Notify   int64
+	Personas int64
+	Objects  int64
+}
+
+// DefaultBudgets returns the shapes proven on the known limit-enforced free tier:
+// 1 GiB op-log, the mandated 64 MiB inbox, 64 MiB persona directory, 512 MiB
+// attachment store. They exist to make that tier work with no per-artefact tuning,
+// not to model anyone's real capacity needs.
+func DefaultBudgets() Budgets {
+	return Budgets{
+		OpLog:    1 << 30,
+		Notify:   NotifyMaxBytes,
+		Personas: 64 << 20,
+		Objects:  512 << 20,
+	}
+}
+
+// validate rejects impossible budgets before any server contact. Zero fields are
+// legal (no budget); a negative roof can only be a mistake.
+func (b Budgets) validate() error {
+	for _, f := range []struct {
+		artefact string
+		roof     int64
+	}{
+		{"op-log stream", b.OpLog},
+		{"inbox stream", b.Notify},
+		{"persona directory", b.Personas},
+		{"attachment store", b.Objects},
+	} {
+		if f.roof < 0 {
+			return fmt.Errorf("realm: budget for the %s must be positive, got %d", f.artefact, f.roof)
+		}
+	}
+	return nil
+}
+
 // streamConfig is the mandated op-log stream configuration: limits retention with no
 // age-based expiry, subject rollup permitted, a duplicate window, and disk storage.
-func streamConfig() jetstream.StreamConfig {
+// maxBytes is the optional creation-time byte roof (0 = unlimited).
+func streamConfig(maxBytes int64) jetstream.StreamConfig {
 	return jetstream.StreamConfig{
 		Name:        StreamName,
 		Subjects:    []string{StreamSubject},
@@ -58,37 +108,46 @@ func streamConfig() jetstream.StreamConfig {
 		AllowRollup: true,
 		Duplicates:  MinDuplicateWindow,
 		Storage:     jetstream.FileStorage,
+		MaxBytes:    maxBytes,
 	}
 }
 
 // notifyStreamConfig is the mandated inbox stream configuration: the newest
 // InboxWindow notifications per persona (per subject), oldest discarded, under a
-// fixed byte roof. No age expiry — the window is count-based, not time-based.
-func notifyStreamConfig() jetstream.StreamConfig {
+// byte roof. No age expiry — the window is count-based, not time-based. The store
+// is bounded by design, so a zero maxBytes keeps the mandated roof, never unlimited.
+func notifyStreamConfig(maxBytes int64) jetstream.StreamConfig {
+	if maxBytes == 0 {
+		maxBytes = NotifyMaxBytes
+	}
 	return jetstream.StreamConfig{
 		Name:              NotifyStreamName,
 		Subjects:          []string{NotifyStreamSubject},
 		Retention:         jetstream.LimitsPolicy,
 		MaxAge:            0,
 		MaxMsgsPerSubject: InboxWindow,
-		MaxBytes:          NotifyMaxBytes,
+		MaxBytes:          maxBytes,
 		Discard:           jetstream.DiscardOld,
 		Duplicates:        MinDuplicateWindow,
 		Storage:           jetstream.FileStorage,
 	}
 }
 
-// objectStoreConfig is the mandated object-store configuration.
-func objectStoreConfig() jetstream.ObjectStoreConfig {
+// objectStoreConfig is the mandated object-store configuration. maxBytes is the
+// optional creation-time byte roof (0 = unlimited).
+func objectStoreConfig(maxBytes int64) jetstream.ObjectStoreConfig {
 	return jetstream.ObjectStoreConfig{
-		Bucket: ObjectBucket,
+		Bucket:   ObjectBucket,
+		MaxBytes: maxBytes,
 	}
 }
 
-// personasConfig is the mandated persona-directory KV configuration.
-func personasConfig() jetstream.KeyValueConfig {
+// personasConfig is the mandated persona-directory KV configuration. maxBytes is
+// the optional creation-time byte roof (0 = unlimited).
+func personasConfig(maxBytes int64) jetstream.KeyValueConfig {
 	return jetstream.KeyValueConfig{
-		Bucket:  PersonasBucket,
-		History: PersonasHistory,
+		Bucket:   PersonasBucket,
+		History:  PersonasHistory,
+		MaxBytes: maxBytes,
 	}
 }

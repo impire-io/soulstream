@@ -12,9 +12,43 @@ import (
 	"github.com/impire-io/soulstream/topic"
 )
 
-func cmdProvision(ctx context.Context, connect Connector, cfg Config, _ []string, stdout, stderr io.Writer) int {
+func cmdProvision(ctx context.Context, connect Connector, cfg Config, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("provision", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	useDefaults := fs.Bool("budgets", false, "apply the default storage budgets (limit-enforced accounts work out of the box)")
+	var opLog, notify, personas, objects sizeFlag
+	fs.Var(&opLog, "budget-oplog", "op-log stream byte roof (e.g. 1GiB)")
+	fs.Var(&notify, "budget-notify", "inbox stream byte roof (e.g. 64MiB)")
+	fs.Var(&personas, "budget-personas", "persona directory byte roof (e.g. 64MiB)")
+	fs.Var(&objects, "budget-objects", "attachment store byte roof (e.g. 512MiB)")
+	if err := parseInterspersed(fs, args); err != nil {
+		return 2
+	}
+
+	// The switch fills exactly the artefacts no explicit flag names; flags alone
+	// leave the rest unlimited (spec 016, clarification 2026-07-27).
+	var budgets realm.Budgets
+	if *useDefaults {
+		budgets = realm.DefaultBudgets()
+	}
+	for _, f := range []struct {
+		flag  *sizeFlag
+		field *int64
+	}{{&opLog, &budgets.OpLog}, {&notify, &budgets.Notify}, {&personas, &budgets.Personas}, {&objects, &budgets.Objects}} {
+		if f.flag.set {
+			*f.field = f.flag.bytes
+		}
+	}
+	budgeted := *useDefaults || opLog.set || notify.set || personas.set || objects.set
+
 	return withClient(ctx, connect, cfg, false, stderr, func(c *realm.Client) error {
-		report, err := c.Provision(ctx)
+		var report *realm.ProvisionReport
+		var err error
+		if budgeted {
+			report, err = c.Provision(ctx, budgets)
+		} else {
+			report, err = c.Provision(ctx)
+		}
 		if err != nil {
 			return err
 		}

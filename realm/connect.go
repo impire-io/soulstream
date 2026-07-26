@@ -89,8 +89,9 @@ func finishConnect(ctx context.Context, nc *nats.Conn, cfg Config) (*Client, err
 }
 
 // Provision brings this client's realm to the mandated shape (see [ProvisionOn]).
-func (c *Client) Provision(ctx context.Context) (*ProvisionReport, error) {
-	return ProvisionOn(ctx, c.js)
+// An optional [Budgets] value (at most one) sets creation-time byte roofs.
+func (c *Client) Provision(ctx context.Context, budgets ...Budgets) (*ProvisionReport, error) {
+	return ProvisionOn(ctx, c.js, budgets...)
 }
 
 // EnforceAuthor is the write-side attribution guard. When the client is persona-bound

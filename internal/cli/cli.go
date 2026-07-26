@@ -35,7 +35,11 @@ Usage:
   soulstream [--context <name>] [--realm <name>] [--persona <name>] <command> [args...]
 
 Commands:
-  provision                          ensure the realm's stream and object store
+  provision [--budgets] [--budget-oplog s] [--budget-notify s]
+            [--budget-personas s] [--budget-objects s]
+                                     ensure the realm's artefacts; --budgets applies
+                                     default byte roofs (sizes like 1GiB) so
+                                     limit-enforced accounts work out of the box
   board [--json]                     list the topics on the board
   start <name> [--subject s] [--tag t]... [--parent path]
                                      start a topic; prints its path

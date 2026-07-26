@@ -173,7 +173,7 @@ func TestProvisionConvergesLegacyRealm(t *testing.T) {
 
 	// A pre-014 realm: one stream capturing everything, with an operator-tuned
 	// MaxBytes that must survive convergence.
-	legacy := streamConfig()
+	legacy := streamConfig(0)
 	legacy.Subjects = []string{LegacyStreamSubject}
 	legacy.MaxBytes = 1 << 30
 	if _, err := js.CreateStream(ctx, legacy); err != nil {
@@ -316,7 +316,7 @@ func TestProvisionPartialCreatesOnlyMissing(t *testing.T) {
 	defer cleanup()
 
 	// Pre-create only the stream (mandated config); leave the object store missing.
-	if _, err := js.CreateStream(ctx, streamConfig()); err != nil {
+	if _, err := js.CreateStream(ctx, streamConfig(0)); err != nil {
 		t.Fatalf("pre-create stream: %v", err)
 	}
 	s1, err := js.Stream(ctx, StreamName)
@@ -387,7 +387,7 @@ func TestProvisionReportsDriftWithoutMutating(t *testing.T) {
 	defer cleanup()
 
 	// Pre-create a nonconformant stream: age-based expiry present, rollup disabled.
-	drifted := streamConfig()
+	drifted := streamConfig(0)
 	drifted.MaxAge = 720 * time.Hour
 	drifted.AllowRollup = false
 	if _, err := js.CreateStream(ctx, drifted); err != nil {
@@ -431,4 +431,172 @@ func mustStreamConfig(ctx context.Context, t *testing.T, js jetstream.JetStream)
 		t.Fatalf("look up stream: %v", err)
 	}
 	return s.CachedInfo().Config
+}
+
+// newLimitedJS is newJS against a server whose account requires MaxBytes on every
+// stream — the NGS R1 shape (016).
+func newLimitedJS(t *testing.T) (jetstream.JetStream, func()) {
+	t.Helper()
+	url, shutdown := natstest.StartJetStreamMaxBytesRequired(t)
+	nc, err := nats.Connect(url)
+	if err != nil {
+		shutdown()
+		t.Fatalf("connect: %v", err)
+	}
+	js, err := jetstream.New(nc)
+	if err != nil {
+		nc.Close()
+		shutdown()
+		t.Fatalf("jetstream: %v", err)
+	}
+	return js, func() {
+		nc.Close()
+		shutdown()
+	}
+}
+
+// US1 scenario 2 (016): without budgets, a limit-enforced account refuses
+// provisioning with an error naming the refused artefact — today's failure, kept.
+func TestProvisionLimitEnforcedWithoutBudgetsFails(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newLimitedJS(t)
+	defer cleanup()
+
+	_, err := ProvisionOn(ctx, js)
+	if err == nil {
+		t.Fatal("ProvisionOn without budgets on a MaxBytesRequired account succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), StreamName) {
+		t.Errorf("error %q does not name the refused artefact %q", err, StreamName)
+	}
+}
+
+// US1 scenario 1 (016): with the default budgets, the same account provisions
+// everything out of the box, each artefact carrying its documented roof.
+func TestProvisionLimitEnforcedWithDefaultBudgets(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newLimitedJS(t)
+	defer cleanup()
+
+	report, err := ProvisionOn(ctx, js, DefaultBudgets())
+	if err != nil {
+		t.Fatalf("ProvisionOn with DefaultBudgets: %v", err)
+	}
+	byArtefact := outcomeByArtefact(report)
+	want := map[Artefact]int64{
+		ArtefactStream:      1 << 30,
+		ArtefactNotify:      NotifyMaxBytes,
+		ArtefactPersonas:    64 << 20,
+		ArtefactObjectStore: 512 << 20,
+	}
+	for artefact, roof := range want {
+		res, ok := byArtefact[artefact]
+		if !ok {
+			t.Fatalf("no result for %s", artefact)
+		}
+		if res.Outcome != OutcomeCreated {
+			t.Errorf("%s outcome = %s, want created", artefact, res.Outcome)
+		}
+		if res.MaxBytes != roof {
+			t.Errorf("%s reported roof = %d, want %d", artefact, res.MaxBytes, roof)
+		}
+	}
+
+	// The roofs must be real on the server, not just in the report.
+	if got := mustStreamConfig(ctx, t, js).MaxBytes; got != 1<<30 {
+		t.Errorf("op-log MaxBytes on server = %d, want %d", got, int64(1<<30))
+	}
+	for stream, roof := range map[string]int64{
+		NotifyStreamName:       NotifyMaxBytes,
+		"KV_" + PersonasBucket: 64 << 20,
+		"OBJ_" + ObjectBucket:  512 << 20,
+	} {
+		s, err := js.Stream(ctx, stream)
+		if err != nil {
+			t.Fatalf("look up %s: %v", stream, err)
+		}
+		if got := s.CachedInfo().Config.MaxBytes; got != roof {
+			t.Errorf("%s MaxBytes on server = %d, want %d", stream, got, roof)
+		}
+	}
+}
+
+// FR-005 (016): impossible budgets are rejected before any server contact — proven
+// by passing a nil JetStream handle, which would panic if touched.
+func TestProvisionBudgetsValidatedBeforeServerContact(t *testing.T) {
+	ctx := context.Background()
+
+	if _, err := ProvisionOn(ctx, nil, Budgets{Personas: -1}); err == nil {
+		t.Error("negative budget accepted, want error")
+	} else if !strings.Contains(err.Error(), "persona directory") {
+		t.Errorf("error %q does not name the artefact", err)
+	}
+
+	if _, err := ProvisionOn(ctx, nil, Budgets{}, Budgets{}); err == nil {
+		t.Error("two Budgets values accepted, want error")
+	}
+}
+
+// US2 (016): a partial Budgets value budgets only what it names — the inbox keeps
+// its mandated roof (never unlimited), everything else stays unlimited.
+func TestProvisionPartialBudgets(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newJS(t)
+	defer cleanup()
+
+	report, err := ProvisionOn(ctx, js, Budgets{Objects: 512 << 20})
+	if err != nil {
+		t.Fatalf("ProvisionOn with partial budgets: %v", err)
+	}
+	byArtefact := outcomeByArtefact(report)
+	for artefact, roof := range map[Artefact]int64{
+		ArtefactStream:      0,
+		ArtefactNotify:      NotifyMaxBytes,
+		ArtefactPersonas:    0,
+		ArtefactObjectStore: 512 << 20,
+	} {
+		if got := byArtefact[artefact].MaxBytes; got != roof {
+			t.Errorf("%s roof = %d, want %d", artefact, got, roof)
+		}
+	}
+	// The server stores "no roof" as -1; anything positive would be a real roof.
+	if got := mustStreamConfig(ctx, t, js).MaxBytes; got > 0 {
+		t.Errorf("op-log MaxBytes = %d, want unlimited", got)
+	}
+}
+
+// US3 (016): re-provisioning with different budgets mutates nothing and reports
+// the roofs as found on the server.
+func TestProvisionReportsRoofsAsFound(t *testing.T) {
+	ctx := context.Background()
+	js, cleanup := newJS(t)
+	defer cleanup()
+
+	if _, err := ProvisionOn(ctx, js, DefaultBudgets()); err != nil {
+		t.Fatalf("first provision: %v", err)
+	}
+
+	// Different budgets on the second run: applied nowhere, first run's roofs reported.
+	report, err := ProvisionOn(ctx, js, Budgets{OpLog: 2 << 30, Objects: 1 << 30})
+	if err != nil {
+		t.Fatalf("second provision: %v", err)
+	}
+	byArtefact := outcomeByArtefact(report)
+	for artefact, roof := range map[Artefact]int64{
+		ArtefactStream:      1 << 30,
+		ArtefactNotify:      NotifyMaxBytes,
+		ArtefactPersonas:    64 << 20,
+		ArtefactObjectStore: 512 << 20,
+	} {
+		res := byArtefact[artefact]
+		if res.Outcome == OutcomeCreated {
+			t.Errorf("%s outcome = created on a re-run, want existing", artefact)
+		}
+		if res.MaxBytes != roof {
+			t.Errorf("%s reported roof = %d, want as-found %d", artefact, res.MaxBytes, roof)
+		}
+	}
+	if got := mustStreamConfig(ctx, t, js).MaxBytes; got != 1<<30 {
+		t.Errorf("op-log MaxBytes = %d after re-provision, want untouched %d", got, int64(1<<30))
+	}
 }

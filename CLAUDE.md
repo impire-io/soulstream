@@ -1,31 +1,29 @@
 <!-- SPECKIT START -->
-Active feature: **015-memory** — the memory convention (Day-2 #8): the substrate
-forgets by design, so remembering is what personas do for each other. New vocabulary
-on `SOULSTREAM.SVC.MEMORY` (binding `MEMORY`, 008 triad cloned): `memory.query`
-{query, scope{topics,after}, deadline} → `memory.answer` {answer, citations
-[{topic,op_id}], coverage_from?}; `memory.fetch` {topic, op_id, deadline} →
-`memory.exhibit` {exhibit}. EXHIBIT = `record.Exhibit` (pure, strict-decode JSON):
-verbatim wire capture {version 1, realm, binding, subject, headers, payload_b64} —
-same bytes + binding ⇒ sigs keep verifying (014-migration invariant); verdicts ARE
-`SigStatus`. Asker `topic.MemoryQuery` grades citations BY CHECKING (materialise
-memoised per topic + new pure `mt.ContainsOp`): fact | unverifiable; explicit
-`FetchExhibit` (live-first `CaptureExhibit` ordered scan, else scatter/gather,
-first-VERIFYING-wins, unsigned = fallback, failed = discarded) upgrades to
-fact-with-provenance | testimony; citation-less answers = gossip. Witness surface
-`RespondMemory(MemoryWitness{CoverageFrom, Answer?, Fetch?, OnServed?})` — nilable
-capabilities, library owns signing/deadlines. Timeout default 3s clamp [100ms,30s];
-≤100 answers/query; failed answer sigs discarded, unsigned kept + status. NO
-archivist/store/index in this repo — the archivist is a SEPARATE repo under
-impire-io built ONLY on these public surfaces (SC-005 proves sufficiency via test
-witness). CLI `memory query|fetch|exhibit|verify` (verify = OFFLINE, pins-only, no
-connect); MCP +2 tools = 23. No new streams; SVC.> uncaptured ⇒ zero residue.
+Active feature: **016-provision-limits** — provisioning byte limits: optional
+per-artefact storage budgets so limit-enforced accounts (NGS R1, err 10113)
+provision out of the box. `realm.Budgets{OpLog,Notify,Personas,Objects int64}`
+(0 = unlimited; Notify 0 = keep mandated 64MiB) + `DefaultBudgets()` =
+1GiB/64MiB/64MiB/512MiB (the proven manual-workaround shapes).
+`ProvisionOn(ctx, js, budgets ...Budgets)` / `Client.Provision` — variadic,
+source-compatible, >1 value or negative field = error BEFORE server contact.
+Budgets apply ONLY at creation; create-or-report inviolate; `ArtefactResult`
+gains `MaxBytes` (as-applied for created, AS FOUND otherwise, read from
+backing stream configs incl. `KV_`/`OBJ_` streams). CLI: `provision
+[--budgets] [--budget-{oplog,notify,personas,objects} SIZE]` — SIZE takes
+KiB/MiB/GiB (binary only), explicit 0/negative rejected at parse; switch
+composes with flags (flags overwrite fields; flags alone = rest unlimited).
+Tests: natstest variant with account `MaxBytesRequired: true` reproduces the
+R1 refusal locally — both US1 scenarios [measured]. No budgets in
+.soulstream.json (identity only). docs/provisioning.md ELI5 section ships in
+the same change. Legacy-shape convergence path untouched.
 
-For details read: [specs/015-memory/plan.md](specs/015-memory/plan.md)
-(spec: `specs/015-memory/spec.md`, research decisions: `research.md` D1–D9,
-contracts: `contracts/library.md` + `contracts/wire.md`, model: `data-model.md`).
+For details read: [specs/016-provision-limits/plan.md](specs/016-provision-limits/plan.md)
+(spec: `specs/016-provision-limits/spec.md`, decisions: `research.md` D1–D6,
+contract: `contracts/library.md`, model: `data-model.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
 `010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (v0.2.0),
-`014-persona-accountability` (v0.3.0/v0.3.1) merged + pushed.
+`014-persona-accountability` (v0.3.0/v0.3.1), `015-memory` (v0.4.0, archivist
+live on NGS + dogfood running since 2026-07-27) merged + pushed.
 
 Project conventions:
 - Go 1.26; module `github.com/impire-io/soulstream`.

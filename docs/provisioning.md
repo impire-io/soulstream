@@ -52,6 +52,38 @@ recognises exactly that old layout and renovates it, once:
 It reports `updated` for that run, and `conformant` ever after. Any layout it does
 *not* recognise is still only reported, never touched.
 
+## Storage budgets — how big may each shelf be?
+
+Think of the realm's four fixtures as shelves in a rented workshop. In your own
+garage a shelf can grow as tall as it likes. But some landlords (hosted NATS
+accounts like NGS's free tier) have a house rule: **no shelf goes up without a
+size written on the order form.** Ask for a shelf with no size and the landlord
+simply refuses — that's the error provisioning used to hit on such accounts,
+and the operator had to build every shelf by hand first.
+
+Budgets fix that. Tell provisioning how big each shelf may get, or just say
+"use the proven sizes":
+
+```sh
+soulstream provision --budgets            # the proven sizes, all four shelves
+soulstream provision --budgets --budget-objects 2GiB   # same, bigger file shelf
+soulstream provision --budget-oplog 10GiB # only the history shelf gets a size
+```
+
+The proven sizes (they fit the known strict landlord, nothing more): history
+notebook 1 GiB, message tray 64 MiB, phone book 64 MiB, supply cupboard
+512 MiB. Sizes are written the binary way — KiB, MiB, GiB.
+
+Three things budgets never do:
+
+- **They never resize an existing shelf.** Provisioning stays look-don't-touch:
+  a shelf that's already standing keeps its size, and the report simply shows
+  it (`unlimited` when it has none).
+- **They never sneak in.** No flags → no budgets → exactly the old behavior,
+  including the same clear refusal from a strict landlord.
+- **They never make the message tray bottomless.** The tray is bounded by
+  design; leaving its budget out keeps its standard 64 MiB roof.
+
 ## Related
 
 - [The realm](./realm.md) — the workshop that gets provisioned.

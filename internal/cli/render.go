@@ -55,7 +55,7 @@ func printJSON(w io.Writer, v any) error {
 
 func renderReport(w io.Writer, r *realm.ProvisionReport) {
 	for _, res := range r.Results {
-		fmt.Fprintf(w, "%-13s %s", res.Artefact, res.Outcome)
+		fmt.Fprintf(w, "%-13s %-13s %s", res.Artefact, res.Outcome, formatSize(res.MaxBytes))
 		if len(res.Nonconformities) > 0 {
 			fmt.Fprintf(w, " %v", res.Nonconformities)
 		}
