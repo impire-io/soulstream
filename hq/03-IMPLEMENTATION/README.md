@@ -3,6 +3,7 @@
 | File | Role |
 |---|---|
 | [`ROADMAP.md`](ROADMAP.md) | The live plan: the MVP criterion, the one-way doors, day-2 order, and the work stages. What gets built and in what order, behind which gate. |
+| [`DOGFOOD.md`](DOGFOOD.md) | The dogfood run's protocol: the two-week scenario, how each persona launches, and the evidence duty that feeds the eg-walker and sealed-topics gates. |
 
 ## Conventions
 
