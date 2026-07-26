@@ -27,16 +27,32 @@ import (
 //
 // ProvisionOn is the decoupled form used by tests and by [Client.Provision]: any
 // JetStream handle works, so provisioning needs no configured context of its own.
-func ProvisionOn(ctx context.Context, js jetstream.JetStream) (*ProvisionReport, error) {
+//
+// An optional [Budgets] value (at most one) sets creation-time byte roofs so
+// limit-enforced accounts provision out of the box; it is validated before any
+// server contact and never affects an existing artefact.
+func ProvisionOn(ctx context.Context, js jetstream.JetStream, budgets ...Budgets) (*ProvisionReport, error) {
+	var b Budgets
+	switch len(budgets) {
+	case 0:
+	case 1:
+		b = budgets[0]
+		if err := b.validate(); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.New("realm: at most one Budgets value may be given")
+	}
+
 	report := &ProvisionReport{}
 
-	streamResult, converged, err := provisionOpLog(ctx, js)
+	streamResult, converged, err := provisionOpLog(ctx, js, b.OpLog)
 	if err != nil {
 		return nil, err
 	}
 	report.Results = append(report.Results, streamResult)
 
-	notifyResult, err := provisionNotify(ctx, js)
+	notifyResult, err := provisionNotify(ctx, js, b.Notify)
 	if err != nil {
 		return nil, err
 	}
@@ -50,13 +66,13 @@ func ProvisionOn(ctx context.Context, js jetstream.JetStream) (*ProvisionReport,
 		}
 	}
 
-	storeResult, err := provisionObjectStore(ctx, js)
+	storeResult, err := provisionObjectStore(ctx, js, b.Objects)
 	if err != nil {
 		return nil, err
 	}
 	report.Results = append(report.Results, storeResult)
 
-	personasResult, err := provisionPersonas(ctx, js)
+	personasResult, err := provisionPersonas(ctx, js, b.Personas)
 	if err != nil {
 		return nil, err
 	}
@@ -65,11 +81,12 @@ func ProvisionOn(ctx context.Context, js jetstream.JetStream) (*ProvisionReport,
 	return report, nil
 }
 
-// provisionOpLog creates the op-log stream, converges the recognised legacy shape
-// (narrowing ONLY the subjects, preserving every other setting an operator may have
-// tuned, such as MaxBytes), or reports conformance. converged is true only on the
-// legacy path, signalling that inbox migration must follow.
-func provisionOpLog(ctx context.Context, js jetstream.JetStream) (res ArtefactResult, converged bool, err error) {
+// provisionOpLog creates the op-log stream (with the optional creation-time byte
+// roof), converges the recognised legacy shape (narrowing ONLY the subjects,
+// preserving every other setting an operator may have tuned, such as MaxBytes — the
+// budget does not apply to an existing stream), or reports conformance. converged
+// is true only on the legacy path, signalling that inbox migration must follow.
+func provisionOpLog(ctx context.Context, js jetstream.JetStream, budget int64) (res ArtefactResult, converged bool, err error) {
 	stream, err := js.Stream(ctx, StreamName)
 	switch {
 	case err == nil:
@@ -79,31 +96,38 @@ func provisionOpLog(ctx context.Context, js jetstream.JetStream) (res ArtefactRe
 			if _, uerr := js.UpdateStream(ctx, cfg); uerr != nil {
 				return ArtefactResult{}, false, fmt.Errorf("realm: narrow legacy stream %q: %w", StreamName, uerr)
 			}
-			return ArtefactResult{Artefact: ArtefactStream, Outcome: OutcomeUpdated}, true, nil
+			return ArtefactResult{Artefact: ArtefactStream, Outcome: OutcomeUpdated, MaxBytes: reportRoof(cfg.MaxBytes)}, true, nil
 		}
 		// Any other existing shape — report conformance, never mutate.
-		return result(ArtefactStream, streamNonconformities(cfg)), false, nil
+		res = result(ArtefactStream, streamNonconformities(cfg))
+		res.MaxBytes = reportRoof(cfg.MaxBytes)
+		return res, false, nil
 	case errors.Is(err, jetstream.ErrStreamNotFound):
-		if _, cerr := js.CreateStream(ctx, streamConfig()); cerr != nil {
+		if _, cerr := js.CreateStream(ctx, streamConfig(budget)); cerr != nil {
 			return ArtefactResult{}, false, fmt.Errorf("realm: create stream %q: %w", StreamName, cerr)
 		}
-		return ArtefactResult{Artefact: ArtefactStream, Outcome: OutcomeCreated}, false, nil
+		return ArtefactResult{Artefact: ArtefactStream, Outcome: OutcomeCreated, MaxBytes: budget}, false, nil
 	default:
 		return ArtefactResult{}, false, fmt.Errorf("realm: look up stream %q: %w", StreamName, err)
 	}
 }
 
-// provisionNotify creates the persona-inbox stream or reports its conformance.
-func provisionNotify(ctx context.Context, js jetstream.JetStream) (ArtefactResult, error) {
+// provisionNotify creates the persona-inbox stream (a zero budget keeps the
+// mandated roof — the inbox is bounded by design) or reports its conformance.
+func provisionNotify(ctx context.Context, js jetstream.JetStream, budget int64) (ArtefactResult, error) {
 	stream, err := js.Stream(ctx, NotifyStreamName)
 	switch {
 	case err == nil:
-		return result(ArtefactNotify, notifyNonconformities(stream.CachedInfo().Config)), nil
+		cfg := stream.CachedInfo().Config
+		res := result(ArtefactNotify, notifyNonconformities(cfg))
+		res.MaxBytes = reportRoof(cfg.MaxBytes)
+		return res, nil
 	case errors.Is(err, jetstream.ErrStreamNotFound):
-		if _, cerr := js.CreateStream(ctx, notifyStreamConfig()); cerr != nil {
+		cfg := notifyStreamConfig(budget)
+		if _, cerr := js.CreateStream(ctx, cfg); cerr != nil {
 			return ArtefactResult{}, fmt.Errorf("realm: create inbox stream %q: %w", NotifyStreamName, cerr)
 		}
-		return ArtefactResult{Artefact: ArtefactNotify, Outcome: OutcomeCreated}, nil
+		return ArtefactResult{Artefact: ArtefactNotify, Outcome: OutcomeCreated, MaxBytes: cfg.MaxBytes}, nil
 	default:
 		return ArtefactResult{}, fmt.Errorf("realm: look up inbox stream %q: %w", NotifyStreamName, err)
 	}
@@ -194,35 +218,65 @@ func lastMessagesOn(ctx context.Context, stream jetstream.Stream, subject string
 	return window, nil
 }
 
-func provisionPersonas(ctx context.Context, js jetstream.JetStream) (ArtefactResult, error) {
+func provisionPersonas(ctx context.Context, js jetstream.JetStream, budget int64) (ArtefactResult, error) {
 	_, err := js.KeyValue(ctx, PersonasBucket)
 	switch {
 	case err == nil:
 		// Already present. Existence is the mandate; history depth is advisory and
-		// never mutated in place.
-		return ArtefactResult{Artefact: ArtefactPersonas, Outcome: OutcomeConformant}, nil
+		// never mutated in place. The roof is read from the backing stream — the
+		// bucket status interfaces expose usage, not limits.
+		roof, rerr := backingRoof(ctx, js, "KV_"+PersonasBucket)
+		if rerr != nil {
+			return ArtefactResult{}, fmt.Errorf("realm: read persona directory roof: %w", rerr)
+		}
+		return ArtefactResult{Artefact: ArtefactPersonas, Outcome: OutcomeConformant, MaxBytes: roof}, nil
 	case errors.Is(err, jetstream.ErrBucketNotFound):
-		if _, err := js.CreateKeyValue(ctx, personasConfig()); err != nil {
+		if _, err := js.CreateKeyValue(ctx, personasConfig(budget)); err != nil {
 			return ArtefactResult{}, fmt.Errorf("realm: create persona directory %q: %w", PersonasBucket, err)
 		}
-		return ArtefactResult{Artefact: ArtefactPersonas, Outcome: OutcomeCreated}, nil
+		return ArtefactResult{Artefact: ArtefactPersonas, Outcome: OutcomeCreated, MaxBytes: budget}, nil
 	default:
 		return ArtefactResult{}, fmt.Errorf("realm: look up persona directory %q: %w", PersonasBucket, err)
 	}
 }
 
-func provisionObjectStore(ctx context.Context, js jetstream.JetStream) (ArtefactResult, error) {
+func provisionObjectStore(ctx context.Context, js jetstream.JetStream, budget int64) (ArtefactResult, error) {
 	_, err := js.ObjectStore(ctx, ObjectBucket)
 	switch {
 	case err == nil:
-		// Already present. The object store has no mandated settings beyond existence.
-		return ArtefactResult{Artefact: ArtefactObjectStore, Outcome: OutcomeConformant}, nil
+		// Already present. The object store has no mandated settings beyond existence;
+		// the roof is read from the backing stream, as for the persona directory.
+		roof, rerr := backingRoof(ctx, js, "OBJ_"+ObjectBucket)
+		if rerr != nil {
+			return ArtefactResult{}, fmt.Errorf("realm: read object store roof: %w", rerr)
+		}
+		return ArtefactResult{Artefact: ArtefactObjectStore, Outcome: OutcomeConformant, MaxBytes: roof}, nil
 	case errors.Is(err, jetstream.ErrBucketNotFound):
-		if _, err := js.CreateObjectStore(ctx, objectStoreConfig()); err != nil {
+		if _, err := js.CreateObjectStore(ctx, objectStoreConfig(budget)); err != nil {
 			return ArtefactResult{}, fmt.Errorf("realm: create object store %q: %w", ObjectBucket, err)
 		}
-		return ArtefactResult{Artefact: ArtefactObjectStore, Outcome: OutcomeCreated}, nil
+		return ArtefactResult{Artefact: ArtefactObjectStore, Outcome: OutcomeCreated, MaxBytes: budget}, nil
 	default:
 		return ArtefactResult{}, fmt.Errorf("realm: look up object store %q: %w", ObjectBucket, err)
 	}
+}
+
+// backingRoof reads an existing bucket's byte roof from its backing stream's
+// configuration (the "KV_"/"OBJ_" naming is nats.go's documented convention).
+// Read-only: part of create-or-report's reporting half.
+func backingRoof(ctx context.Context, js jetstream.JetStream, streamName string) (int64, error) {
+	stream, err := js.Stream(ctx, streamName)
+	if err != nil {
+		return 0, err
+	}
+	return reportRoof(stream.CachedInfo().Config.MaxBytes), nil
+}
+
+// reportRoof normalises a server-side MaxBytes for the report: the server stores
+// "no roof" as -1, the report's contract is 0 = unlimited.
+func reportRoof(v int64) int64 {
+	if v < 0 {
+		return 0
+	}
+	return v
 }

@@ -1,6 +1,9 @@
 package natstest
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -24,9 +27,49 @@ func StartJetStream(t *testing.T) (url string, cleanup func()) {
 		StoreDir:  t.TempDir(),
 		Host:      "127.0.0.1",
 		Port:      -1, // pick a random free port
-		NoLog:     true,
-		NoSigs:    true, // do not install OS signal handlers in tests
 	}
+	return start(t, opts)
+}
+
+// StartJetStreamMaxBytesRequired starts an in-process server whose account refuses
+// to create any stream without an explicit MaxBytes — the server switch behind NGS
+// R1's "Stream Requires Max Bytes Set: true" — so tests can exercise a
+// limit-enforced account with no external dependency. Unauthenticated connections
+// land in the limited account.
+func StartJetStreamMaxBytesRequired(t *testing.T) (url string, cleanup func()) {
+	t.Helper()
+
+	dir := t.TempDir()
+	conf := filepath.Join(dir, "server.conf")
+	config := fmt.Sprintf(`
+listen: 127.0.0.1:-1
+jetstream { store_dir: %q }
+no_auth_user: limited
+accounts {
+	LIMITED {
+		jetstream { max_bytes_required: true }
+		users [ { user: limited, password: limited } ]
+	}
+}
+`, filepath.Join(dir, "store"))
+	if err := os.WriteFile(conf, []byte(config), 0o600); err != nil {
+		t.Fatalf("natstest: write server config: %v", err)
+	}
+
+	opts, err := server.ProcessConfigFile(conf)
+	if err != nil {
+		t.Fatalf("natstest: parse server config: %v", err)
+	}
+	return start(t, opts)
+}
+
+// start runs a server from the given options with test-appropriate logging and
+// signal handling, waiting until it accepts connections.
+func start(t *testing.T, opts *server.Options) (url string, cleanup func()) {
+	t.Helper()
+
+	opts.NoLog = true
+	opts.NoSigs = true // do not install OS signal handlers in tests
 
 	ns, err := server.NewServer(opts)
 	if err != nil {
