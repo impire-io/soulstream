@@ -5,6 +5,16 @@
 **Status**: Draft
 **Input**: User description: "Provisioning byte limits: realm.ProvisionOn (and the CLI provision command) must be able to set byte limits (MaxBytes) on the artefacts it creates — the op-log stream, the notify stream (already has a mandated 64MiB), the registry KV, and the object store — so that provisioning succeeds on limit-enforced NATS accounts (NGS R1 tier requires MaxBytes on every stream; today provision fails with err 10113 and the operator must pre-create everything by hand). Create-or-report semantics must hold: existing artefacts are never mutated, limits on existing artefacts are reported, absent limits on a limit-requiring account produce the same clear failure as today. Defaults should make an NGS R1 account work out of the box while unlimited self-hosted realms stay exactly as they are."
 
+## Clarifications
+
+### Session 2026-07-27
+
+- Q: When an explicit per-artefact budget is given without the defaults
+  switch, do the unnamed artefacts get default budgets or stay unlimited? →
+  A: They stay unlimited. Budgets apply exactly where named; only the
+  defaults switch opts into defaults, and the two compose — the switch
+  fills whatever explicit flags don't name.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Provision a realm on a limit-enforced account (Priority: P1)
@@ -117,7 +127,9 @@ second run changes nothing and reports the budgets from the first.
 - **FR-003**: With no budget options, provisioning MUST behave exactly as
   today: no budgets are applied, unlimited accounts provision unchanged,
   and limit-enforcing accounts fail with the same clear per-artefact error
-  as today.
+  as today. An explicit budget without the defaults switch applies only to
+  the artefact it names — the others remain unlimited; the defaults switch
+  fills exactly the artefacts no explicit budget names.
 - **FR-004**: Provisioning MUST never modify an existing artefact,
   regardless of budget options; existing artefacts' budgets MUST be
   reported as found.
