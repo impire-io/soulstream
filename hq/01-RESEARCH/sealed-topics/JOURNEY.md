@@ -178,4 +178,50 @@ Findings feeding graduation:
   leak plaintext; excluding sealed types from search is an archivist-side
   refinement, not substrate [judgment].
 
-Bar 4 not yet run.
+## 2026-07-27 — Bar 4 run: the MLS deferral holds at dogfood scale
+
+Row-by-row verdict table (this entry is the protocol artifact) over the
+design doc's threat model — every protected item, every stated exclusion,
+both standing caveats, and the epoch-key scheme's own limitations — at the
+bar's stated scale: ≤ ~10 members, member devices trusted, metadata
+visibility accepted. Verdict per the pre-registered wording: **Bar 4
+PASSES — zero requires-MLS rows at that scale; MLS stays an upgrade path,
+not a prerequisite.**
+
+| # | Threat-model row (from sealed-topics.md) | Verdict | Why |
+|---|---|---|---|
+| 1 | Content read by other realm personas | covered-by-epoch-keys | No key, no plaintext; AEAD. |
+| 2 | Content read by curators | covered-by-epoch-keys | Curators are blind by design; lifecycle stays visible from metadata. |
+| 3 | Content read by the operator / server-disk access | covered-by-epoch-keys | Payloads, baselines, attachments encrypted client-side; bounded by rows 10–11. |
+| 4 | Ciphertext spliced to another topic / author / DAG position by the operator | covered-by-epoch-keys | AAD binds (realm, path, id, author, parents, epoch); Bar 1's amendment (epoch+nonce inside the signed record) additionally makes tampering publicly checkable. |
+| 5 | Reading content published after leave/eject | covered-by-epoch-keys | Epoch bump excludes the leaver; nothing after the bump decrypts. |
+| 6 | Leaver retains what they already saw | out-of-scope-by-design | "There is no retroactive revocation in cryptography" — stated in the design; MLS does not change this either. |
+| 7 | Topic existence, `topic_id`, taxonomy position, headers, traffic analysis | out-of-scope-by-design | "Sealed is not hidden" — explicitly excluded; metadata privacy named a different, harder design. |
+| 8 | Membership visibility (key distribution names holders; epochs mark joins/leaves) | out-of-scope-by-design | Explicitly excluded; MLS would not hide it (welcome/commit traffic is equally visible). |
+| 9 | Mention-notification existence leaks | out-of-scope-by-design | Explicitly excluded; body is sealed (Bar 2 row 6), existence is not. |
+| 10 | Key substitution by the adversarial operator (registry is operator-controlled) | out-of-scope-by-design | Standing caveat 1: out-of-band verification is the floor. TOFU pinning + Bar 2's signing-chain endorsement raise the bar; MLS does not close it — authenticating identities is orthogonal to group key agreement. |
+| 11 | Member key material on operator-controlled infrastructure | out-of-scope-by-design | Standing caveat 2, stated plainly in the design ("theater for that persona"); no group protocol fixes host compromise. |
+| 12 | Member device compromise exposes epoch keys → history readable (no forward secrecy) | out-of-scope at this scale | Excluded by the bar's own premise — member devices trusted. This is the first row that flips beyond dogfood scale; see below. |
+| 13 | Compromised member keeps reading within the epoch (no post-compromise security) | out-of-scope at this scale | Same premise as row 12; a membership change already forces a new epoch, which is the scheme's (coarse) recovery lever. |
+| 14 | Malicious *member* — leaks plaintext, bogus epoch bumps, wrong-key wraps, ejections | out-of-scope-by-design | Membership trust, stated in the design and in memory.md ("membership trust has to"); epoch ops are signed and attributable. MLS authenticates group operations; it does not prevent an authorized member's abuse. |
+| 15 | Non-member destroys the tail with a garbage rollup (availability) | out-of-scope-by-design | Not a confidentiality threat and not sealing's job: identical exposure to open topics since 007, mitigated by signature attribution + keeper recovery (Bar 3), and AEAD makes the vandalism unambiguous. |
+
+Zero rows read requires-MLS [judgment over the table; the table itself is
+read off the design doc's own threat-model text]. The honest boundary of
+the verdict: rows 12–13 pass *because of* the trusted-member-device
+premise, not because epoch keys provide those properties — the design
+already says so plainly. The deferral's flip conditions, recorded for the
+build gate: membership scale or churn meaningfully beyond ~10, or member
+devices no longer assumed trusted (e.g. personas on third-party hosts
+joining sealed topics) — either moves MLS from upgrade path to
+prerequisite. Every op shape surviving that swap (`sealed.epoch` as
+carrier for MLS commit/welcome) is already the design's stated plan, and
+nothing found in Bars 1–3 narrows it.
+
+All four pre-registered bars have run: Bar 1 FAIL-with-amendment
+(the `{"ct"}` wrapper), Bars 2–4 PASS. The topic is ready for graduation —
+the design survives the shipped substrate with recorded amendments — but
+graduation waits on the reversal condition's first reading: the dogfood
+chafe log runs to 2026-08-10, and a zero-entry "this felt wrong in
+plaintext" outcome would reverse sealing's *priority* even with these bars
+green.
