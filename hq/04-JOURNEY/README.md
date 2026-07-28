@@ -15,7 +15,7 @@ reversals, because a refuted assumption is as load-bearing as the shipped code.
 > [`../00-GENESIS/how-we-work.md`](../00-GENESIS/how-we-work.md); the numbering
 > and index are enforced by `internal/hqlint`.
 
-## Where things stand (2026-07-27)
+## Where things stand (2026-07-28)
 
 The reference library has shipped the MVP and most of day-2 — **`v0.4.0`** is
 current: foundation + op-log engine, CLI + MCP clients, signing, rollup,
@@ -44,10 +44,16 @@ constitution (v1.1.0, wired into every spec-kit plan via the
 `.specify/memory/constitution.md` symlink, now carrying the anti-drift Working
 Agreement), and how-we-work; research runs a `/research-start` →
 `/research-graduate` lifecycle; this journal is numbered episodes with the
-structure enforced by `internal/hqlint` on the standard gate. One research
-topic is active: [`sealed-topics`](../01-RESEARCH/sealed-topics/README.md) —
-does the sealed design survive the substrate as shipped? What is *not* yet
-built is the forward plan in
+structure enforced by `internal/hqlint` on the standard gate. The first
+research topic has concluded: **sealed-topics**
+([episode 0005](0005-sealed-topics.md)) ran its four pre-registered bars in
+a day and graduated to design — the sealed design survives the shipped
+substrate, with amendments now folded into
+[`../02-DESIGN/extensions/sealed-topics.md`](../02-DESIGN/extensions/sealed-topics.md)
+(the `{"ct"}` payload wrapper, signature-covered epoch/nonce, signing-chain
+endorsement of sealing keys, key-carrying sealed baselines); the build's
+priority stays gated on the dogfood chafe log (to 2026-08-10). What is
+*not* yet built is the forward plan in
 [`../03-IMPLEMENTATION/ROADMAP.md`](../03-IMPLEMENTATION/ROADMAP.md):
 eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 
@@ -59,3 +65,4 @@ eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 | 0002 | [Adopting the hq way: the process gets a constitution](0002-adopting-the-hq-way.md) |
 | 0003 | [The memory convention: the realm learns to be asked](0003-memory-convention-and-exhibits.md) |
 | 0004 | [Provisioning byte limits: the strict landlord gets a one-command realm](0004-provisioning-byte-limits.md) |
+| 0005 | [Sealed topics survive the substrate: four bars, one encoding amendment](0005-sealed-topics.md) |

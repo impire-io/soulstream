@@ -45,33 +45,37 @@ Soulstream-Author: daan
 - **Join:** any current member publishes a new epoch including the newcomer, and separately hands them prior epoch keys covering as much history as the group intends — an explicit choice per invite.
 - **Leave / eject:** a member publishes a new epoch excluding the leaver. The leaver keeps what they already saw — there is no retroactive revocation in cryptography — but reads nothing after the bump.
 
-This is the sender-key/age-recipients pattern: simple, auditable, adequate for collaboration. It deliberately does **not** provide forward secrecy or post-compromise security within an epoch. The named upgrade path is an MLS (RFC 9420) group per topic; every op shape here survives that swap (`sealed.epoch` becomes a carrier for MLS commit/welcome messages).
+Wrap targets come from the registry: each member publishes a **`sealing_key`** (X25519) in their profile beside the Ed25519 signing key ([registry.md](./registry.md)). X25519 keys cannot sign, so a sealing key — the initial one and every rotation — is **endorsed by the persona's Ed25519 signing chain** over a domain-separated statement; it thereby inherits the signing chain's first-use-pinned trust and needs no pin lineage of its own. Publishing a sealing key therefore requires a published signing key — coherent, since sealed topics presuppose signing. Deployment order matters once: profiles decode strictly, so the `sealing_key` field must ship in the library before any persona publishes one (episode 0005, Bar 2 [measured]).
+
+This is the sender-key/age-recipients pattern: simple, auditable, adequate for collaboration. It deliberately does **not** provide forward secrecy or post-compromise security within an epoch. The named upgrade path is an MLS (RFC 9420) group per topic; every op shape here survives that swap (`sealed.epoch` becomes a carrier for MLS commit/welcome messages). The deferral's flip conditions are on record (episode 0005, Bar 4): membership scale or churn meaningfully beyond ~10, or member devices no longer assumed trusted, moves MLS from upgrade path to prerequisite.
 
 ## Sealed operations
 
-All content ops on a sealed topic share one cleartext type, so operation kinds don't leak; the payload is raw ciphertext:
+All content ops on a sealed topic share one cleartext type, so operation kinds don't leak. The payload is a small JSON document — **not** raw binary: the canonical record form accepts only JSON payloads, so a raw-binary payload has no signing input and could never carry a verifying author signature (research episode 0005, Bar 1 [measured]):
 
 ```
 Nats-Msg-Id:        <op-id>
 Soulstream-Author:  architect
 Soulstream-Parents: <op-id>
 Soulstream-Type:    sealed.op
-Soulstream-Epoch:   4
-Soulstream-Nonce:   <nonce>
 
-<XChaCha20-Poly1305 ciphertext, binary>
+{ "ct":    "<XChaCha20-Poly1305 ciphertext, base64>",
+  "epoch": 4,
+  "nonce": "<base64>" }
 ```
+
+**Epoch and nonce ride inside the signed payload, not in headers.** A header outside the canonical record is not covered by the author signature — a header-borne epoch could be rewritten on the wire and only members would notice, at decryption (Bar 1 measured exactly this). As payload fields beside `ct` they are signature-covered, so non-members — graders, archivists, curators — verify epoch integrity without holding any key.
 
 The ciphertext decrypts to the **canonical op record** of a normal inner operation ([../core/01-protocol.md](../core/01-protocol.md)) — the entire open-topic vocabulary, unchanged, one layer down. Projection, threading, and supersession run client-side after decryption.
 
-**AAD binds ciphertext to context.** The AEAD's associated data is `(realm, topic-path, Nats-Msg-Id, Soulstream-Author, Soulstream-Parents, Soulstream-Epoch)`. An operator cannot splice a ciphertext into another topic, under another author, or at another DAG position without decryption failing — this is what keeps cleartext headers and encrypted payloads from being a re-attribution hazard.
+**AAD binds ciphertext to context.** The AEAD's associated data is `(realm, topic-path, Nats-Msg-Id, Soulstream-Author, Soulstream-Parents, epoch)`. An operator cannot splice a ciphertext into another topic, under another author, or at another DAG position without decryption failing — this is what keeps cleartext headers and encrypted payloads from being a re-attribution hazard.
 
 **Merge is unchanged.** Ordering uses `id`/`parents`/`author` — all cleartext. Sealed and open topics use the identical merge path; decryption happens after ordering.
 
 ## Announcements, baselines, attachments, mentions
 
 - **Announcement:** `topic.announce` carries `"sealed": true`, cleartext `topic_id`, the epoch-1 material, and *encrypted* `name` and `subject_matter`. The realm sees that a sealed topic exists and who is expected — not what it is about.
-- **Baselines:** the writer materialises client-side and encrypts the baseline state with the current epoch key — inline ciphertext or encrypted chunks plus manifest. `frontier` stays cleartext (op-IDs are opaque). The leaderless rollup rules apply unchanged ([../core/03-topics.md](../core/03-topics.md)); only key-holders can produce a valid sealed baseline. New members without full history keys materialise from the first baseline of an epoch they hold.
+- **Baselines:** the writer materialises client-side and encrypts the baseline state with the current epoch key — inline ciphertext (the `{"ct": …}` wrapper) or encrypted chunks plus manifest. The op keeps the cleartext `topic.baseline` type (the fold and the rollup checkpoint rule key on it; it leaks only that a compaction happened, which the purge reveals anyway) and `frontier` stays cleartext (op-IDs are opaque). **Nothing baked rides in cleartext**: the shipped baked shape carries contribution bodies, attachment names, and work items, all of which is content — a sealed baseline carries it inside the ciphertext state, keeping at most the lifecycle visible. **The baseline re-carries the current epoch's wrapped-key table** (and whatever prior-epoch wraps the group means to keep offering): the rollup purge is per-subject and destroys interior `sealed.epoch` ops — epoch-1 material survives only in the announcement on the INFO subject — so without re-carrying, any rollup would orphan a member who lost local key state (episode 0005, Bar 3 [measured]). Every member holds the full wrapped table from the epoch op it read, so any member can re-carry it — the leaderless rollup rules apply unchanged ([../core/03-topics.md](../core/03-topics.md)); only key-holders can produce a valid sealed baseline. New members without full history keys materialise from the first baseline of an epoch they hold.
 - **Attachments:** encrypted client-side before `put`; `digest` covers the ciphertext; content type and size live inside the sealed inner op.
 - **Mentions:** the library still fires `mention.notify` so sealed topics don't silently fail to reach people, but the notification body is sealed to the mentioned persona's key. The notification's *existence* leaks (threat model).
 

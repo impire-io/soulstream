@@ -84,7 +84,7 @@ The wire format already carries every future hook: `Soulstream-Parents` (merge),
    (public, same day), built exclusively on the public witness surface as decided
    ([journey 0003](../04-JOURNEY/0003-memory-convention-and-exhibits.md)); its own
    end-to-end test replays the keep → rollup → verified-recovery story for real.
-9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built.*
+9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built* — but **design-validated 2026-07-28** ([journey 0005](../04-JOURNEY/0005-sealed-topics.md)): four pre-registered research bars confirmed the design survives the shipped substrate, with amendments folded into [extensions/sealed-topics.md](../02-DESIGN/extensions/sealed-topics.md); speckit-ready. Build priority gated on the dogfood chafe log (to 2026-08-10).
 10. **WebSocket/browser client, presence.** *Not yet built.*
 
 Beyond the original day-2 list, four features shipped that the plan did not

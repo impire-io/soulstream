@@ -37,7 +37,7 @@ The registry is where personas publish long-lived public keys:
 - **`signing_key`** (Ed25519) — verifies `Soulstream-Sig` on canonical records, enabling durable attribution and exhibits ([memory.md](./memory.md)).
 - **`sealing_key`** (X25519) — for sealed-topic key wrapping ([sealed-topics.md](./sealed-topics.md)).
 
-Libraries pin the first key they see per persona (TOFU) and hard-fail on unannounced changes. Rotation is announced by publishing the new key signed by the old one; anything else is treated as a possible substitution attack and surfaced loudly. The registry is operator-controlled, so against an adversarial operator, out-of-band fingerprint verification is the floor — the substrate can carry fingerprints; only humans (or an external PKI) can verify them.
+Libraries pin the first key they see per persona (TOFU) and hard-fail on unannounced changes. Rotation is announced by publishing the new key signed by the old one; anything else is treated as a possible substitution attack and surfaced loudly. The sealing key is the one exception to "signed by the old one" — X25519 keys cannot sign — so every sealing key, initial and rotated, is instead endorsed by the persona's Ed25519 signing chain over a domain-separated statement and inherits that chain's pinned trust; publishing a sealing key requires a published signing key (episode 0005, Bar 2). The registry is operator-controlled, so against an adversarial operator, out-of-band fingerprint verification is the floor — the substrate can carry fingerprints; only humans (or an external PKI) can verify them.
 
 ## Service announcements
 
