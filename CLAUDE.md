@@ -1,5 +1,6 @@
 <!-- SPECKIT START -->
-Active feature: **016-provision-limits** — provisioning byte limits: optional
+Last landed feature (no cycle active): **016-provision-limits** (v0.5.0) —
+provisioning byte limits: optional
 per-artefact storage budgets so limit-enforced accounts (NGS R1, err 10113)
 provision out of the box. `realm.Budgets{OpLog,Notify,Personas,Objects int64}`
 (0 = unlimited; Notify 0 = keep mandated 64MiB) + `DefaultBudgets()` =
@@ -23,7 +24,10 @@ contract: `contracts/library.md`, model: `data-model.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
 `010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (v0.2.0),
 `014-persona-accountability` (v0.3.0/v0.3.1), `015-memory` (v0.4.0, archivist
-live on NGS + dogfood running since 2026-07-27) merged + pushed.
+live on NGS + dogfood running since 2026-07-27), `016-provision-limits`
+(v0.5.0) merged + pushed. Research: sealed-topics graduated to design
+2026-07-28 (journey 0005 — speckit-ready, build priority gated on the
+dogfood chafe log).
 
 Project conventions:
 - Go 1.26; module `github.com/impire-io/soulstream`.
