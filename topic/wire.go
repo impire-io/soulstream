@@ -69,15 +69,25 @@ func buildOpMsg(c *realm.Client, subject, binding, opType string, payload any, p
 		Payload:   data,
 	}
 
-	// Sign when the client holds a key: the signature covers the canonical record —
-	// the same bytes any reader can recompute from the wire form and the binding —
-	// with the Signature field still empty (the canonical form omits an empty sig).
+	// Sign when the client is configured to: the signature covers the canonical
+	// record — the same bytes any reader can recompute from the wire form and the
+	// binding — with the Signature field still empty (the canonical form omits an
+	// empty sig). A configured signer that cannot produce a signature fails the
+	// operation outright: publishing never falls back to unsigned, and an EMPTY
+	// signature counts as a failure because it would silently travel as "unsigned".
 	if signer := c.Signer(); signer != nil {
 		canonical, cerr := rec.Canonical(c.Realm(), binding)
 		if cerr != nil {
 			return nil, "", fmt.Errorf("topic: canonicalise %s for signing: %w", opType, cerr)
 		}
-		rec.Signature = signer.Sign(canonical)
+		sig, serr := signer.Sign(canonical)
+		if serr != nil {
+			return nil, "", fmt.Errorf("topic: sign %s: %w", opType, serr)
+		}
+		if sig == "" {
+			return nil, "", fmt.Errorf("topic: sign %s: signer returned an empty signature", opType)
+		}
+		rec.Signature = sig
 	}
 
 	headers, body, err := rec.Build()

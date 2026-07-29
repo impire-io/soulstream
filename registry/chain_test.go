@@ -23,7 +23,7 @@ func rotatedProfile(t *testing.T, persona string, keys ...*identity.SigningKey) 
 		p.Rotations = append(p.Rotations, Rotation{
 			From:  keys[i-1].PublicKey(),
 			To:    keys[i].PublicKey(),
-			Proof: keys[i-1].Sign(identity.RotationProofBytes(persona, keys[i].PublicKey())),
+			Proof: mustSign(t, keys[i-1], identity.RotationProofBytes(persona, keys[i].PublicKey())),
 		})
 	}
 	return p
@@ -66,7 +66,7 @@ func TestChainRejectsInvalid(t *testing.T) {
 	brokenLink.Rotations[1].From = c.PublicKey() // no longer contiguous
 
 	badProof := rotatedProfile(t, "architect", a, b)
-	badProof.Rotations[0].Proof = b.Sign(identity.RotationProofBytes("architect", b.PublicKey())) // signed by the wrong (new) key
+	badProof.Rotations[0].Proof = mustSign(t, b, identity.RotationProofBytes("architect", b.PublicKey())) // signed by the wrong (new) key
 
 	replayedPersona := rotatedProfile(t, "architect", a, b)
 	replayedPersona.Name = "historian" // proof was bound to "architect"

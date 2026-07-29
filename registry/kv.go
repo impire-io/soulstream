@@ -124,7 +124,11 @@ func Publish(ctx context.Context, c *realm.Client, p Profile) error {
 // Rotation requires an existing published profile whose current key matches oldKey:
 // there is nothing to rotate *from* otherwise, and endorsing a key the directory
 // does not hold would be indistinguishable from substitution.
-func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey *identity.SigningKey) (Profile, error) {
+//
+// Both keys are Signers, not concrete key material: the old key needs only to
+// sign the proof and name itself, the new key only to name itself — so either
+// may live with a custodian. A signing failure aborts before any directory write.
+func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey identity.Signer) (Profile, error) {
 	persona := c.Persona()
 	if persona == "" {
 		return Profile{}, errors.New("registry: rotation requires a persona-bound client")
@@ -152,10 +156,14 @@ func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey *identity.Signi
 	}
 
 	newPub := newKey.PublicKey()
+	proof, err := oldKey.Sign(identity.RotationProofBytes(persona, newPub))
+	if err != nil {
+		return Profile{}, fmt.Errorf("registry: sign rotation proof: %w", err)
+	}
 	p.Rotations = append(p.Rotations, Rotation{
 		From:  oldKey.PublicKey(),
 		To:    newPub,
-		Proof: oldKey.Sign(identity.RotationProofBytes(persona, newPub)),
+		Proof: proof,
 	})
 	p.SigningKey = &SigningKeyInfo{Ed25519: newPub, Since: time.Now().UTC()}
 

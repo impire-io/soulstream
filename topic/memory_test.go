@@ -53,7 +53,11 @@ func publishAnswer(t *testing.T, nc *nats.Conn, reply, realmName, persona string
 		if err != nil {
 			t.Fatalf("canonical: %v", err)
 		}
-		rec.Signature = key.Sign(canonical)
+		sig, err := key.Sign(canonical)
+		if err != nil {
+			t.Fatalf("sign: %v", err)
+		}
+		rec.Signature = sig
 	}
 	h, b, err := rec.Build()
 	if err != nil {
@@ -717,5 +721,103 @@ func TestMemoryTrafficLeavesNoResidue(t *testing.T) {
 	}
 	if after := count(); after != before {
 		t.Errorf("permanent stores grew from %d to %d messages — memory traffic must be transient", before, after)
+	}
+}
+
+// TestRespondMemoryFailingSignerStaysSilent (US2/FR-012, SC-005): a witness whose
+// signer cannot sign serves nothing — no answer, no exhibit, never an unsigned
+// reply — while the host observes served(-1) for each request it heard.
+func TestRespondMemoryFailingSignerStaysSilent(t *testing.T) {
+	ctx := context.Background()
+	url := testServer(t)
+	owner := connectClientSignedProvisioned(t, url, "owner")
+	h, err := StartTopic(ctx, owner, StartTopicInput{Name: "kept-quiet", SubjectMatter: "s"})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	turnID, err := h.PostTurn(ctx, "keep this")
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	kept, err := CaptureExhibit(ctx, owner, h.Path(), turnID)
+	if err != nil {
+		t.Fatalf("capture: %v", err)
+	}
+
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	wc := connectClientSigned(t, url, "keeper", &delegateSigner{key: key, err: errors.New("vault unreachable")})
+	served := make(chan int, 32)
+	wctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		_ = RespondMemory(wctx, wc, MemoryWitness{
+			Answer: func(_ MemoryQueryRequest) []MemoryAnswerDraft {
+				return []MemoryAnswerDraft{{Answer: "it would answer"}}
+			},
+			Fetch: func(_, _ string) (record.Exhibit, bool) {
+				return kept, true
+			},
+			OnServed: func(_ string, n int) { served <- n },
+		})
+	}()
+
+	nc, err := nats.Connect(url)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer nc.Close()
+	ask := func(opType string, payload any) *nats.Msg {
+		t.Helper()
+		inbox := nc.NewRespInbox()
+		sub, serr := nc.SubscribeSync(inbox)
+		if serr != nil {
+			t.Fatalf("inbox: %v", serr)
+		}
+		defer func() { _ = sub.Unsubscribe() }()
+		raw, _ := json.Marshal(payload)
+		rec := record.Record{ID: record.NewID(), Author: "prober", Type: opType, Timestamp: time.Now().UTC(), Payload: raw}
+		hd, b, _ := rec.Build()
+		if perr := nc.PublishMsg(&nats.Msg{Subject: SvcMemorySubject, Header: nats.Header(hd), Data: b, Reply: inbox}); perr != nil {
+			t.Fatalf("publish: %v", perr)
+		}
+		reply, rerr := sub.NextMsg(300 * time.Millisecond)
+		if rerr != nil {
+			return nil
+		}
+		return reply
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for kind, payload := range map[string]any{
+		"query": MemoryQueryPayload{Query: "anything", Deadline: deadline},
+		"fetch": MemoryFetchPayload{Topic: h.Path(), OpID: turnID, Deadline: deadline},
+	} {
+		opType := TypeMemoryQuery
+		if kind == "fetch" {
+			opType = TypeMemoryFetch
+		}
+		heard := false
+		for range 20 {
+			if reply := ask(opType, payload); reply != nil {
+				t.Fatalf("%s: got a reply from a witness that cannot sign", kind)
+			}
+			select {
+			case n := <-served:
+				if n != -1 {
+					t.Fatalf("%s: served reported %d, want -1", kind, n)
+				}
+				heard = true
+			default:
+			}
+			if heard {
+				break
+			}
+		}
+		if !heard {
+			t.Fatalf("%s: witness never processed a request", kind)
+		}
 	}
 }

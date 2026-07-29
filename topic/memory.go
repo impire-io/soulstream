@@ -330,7 +330,9 @@ type MemoryAnswerDraft struct {
 //
 // OnServed, if non-nil, is called after each handled request with the kind
 // ("query" or "fetch") and the number of replies sent (0 for a silent no-match,
-// -1 for a skipped malformed or stale request) — observability, nothing more.
+// -1 for a skipped malformed or stale request, or one the witness had material
+// for but could not build a reply to — a failing signer, with nothing sent) —
+// observability, nothing more.
 type MemoryWitness struct {
 	CoverageFrom time.Time
 	Answer       func(q MemoryQueryRequest) []MemoryAnswerDraft
@@ -385,7 +387,7 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 				req.Topics = qp.Scope.Topics
 				req.After = qp.Scope.After
 			}
-			sent := 0
+			sent, buildFailed := 0, false
 			for _, d := range w.Answer(req) {
 				if strings.TrimSpace(d.Answer) == "" {
 					continue
@@ -393,11 +395,19 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 				reply, _, berr := buildOpMsg(c, msg.Reply, ServiceMemory, TypeMemoryAnswer,
 					MemoryAnswerPayload{Answer: d.Answer, Citations: d.Citations, CoverageFrom: w.CoverageFrom}, nil, "")
 				if berr != nil {
+					buildFailed = true
 					continue
 				}
 				if nc.PublishMsg(reply) == nil {
 					sent++
 				}
+			}
+			// A witness that HAD answers but could not build (sign) any of them
+			// must be distinguishable from one with nothing to say: the asker
+			// sees silence either way, the host must not (FR-012).
+			if buildFailed && sent == 0 {
+				served("query", -1)
+				return
 			}
 			served("query", sent)
 		case TypeMemoryFetch:

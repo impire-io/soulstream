@@ -15,24 +15,27 @@ reversals, because a refuted assumption is as load-bearing as the shipped code.
 > [`../00-GENESIS/how-we-work.md`](../00-GENESIS/how-we-work.md); the numbering
 > and index are enforced by `internal/hqlint`.
 
-## Where things stand (2026-07-28)
+## Where things stand (2026-07-29)
 
-The reference library has shipped the MVP and most of day-2 — **`v0.4.0`** is
-current: foundation + op-log engine, CLI + MCP clients, signing, rollup,
-scatter-gather discovery, the curator, work stages 1–2, distribution,
-config-file identity, persona accountability
+The reference library has shipped the MVP and most of day-2 — **`v0.5.0`**
+(2026-07-28) is current: foundation + op-log engine, CLI + MCP clients,
+signing, rollup, scatter-gather discovery, the curator, work stages 1–2,
+distribution, config-file identity, persona accountability
 ([episode 0001](0001-genesis-and-the-reference-library.md), the founding
-retrospective), and the **memory convention**
+retrospective), the **memory convention**
 ([episode 0003](0003-memory-convention-and-exhibits.md)): collective search as
 graded testimony, portable self-authenticating exhibits, a public witness
 surface — with the first archivist a separate repository,
 [impire-io/soulstream-archivist](https://github.com/impire-io/soulstream-archivist),
-now **verified live against the NGS realm** (keep → rollup → verified-recovery
-replayed on real history, 2026-07-26). **Provisioning byte limits**
-([episode 0004](0004-provisioning-byte-limits.md)) just landed on `main`
-(unreleased): limit-enforced accounts provision out of the box, retiring the
-last manual-setup workaround. The **two-week dogfood run started 2026-07-27**
-(protocol: [`../03-IMPLEMENTATION/DOGFOOD.md`](../03-IMPLEMENTATION/DOGFOOD.md))
+**verified live against the NGS realm** (2026-07-26) — and **provisioning
+byte limits** ([episode 0004](0004-provisioning-byte-limits.md)): limit-
+enforced accounts provision out of the box. Merged after `v0.5.0`,
+unreleased: the **signer seam** ([episode 0006](0006-the-signer-seam.md)) —
+signing delegated through `identity.Signer` to an external custodian
+(SoulIdentity's M2 wiring point), local keys the first implementation, a
+failing signer failing the publish loudly. The **two-week dogfood run
+started 2026-07-27** (protocol:
+[`../03-IMPLEMENTATION/DOGFOOD.md`](../03-IMPLEMENTATION/DOGFOOD.md))
 — daan, smith, and scribe on the NGS realm, the archivist keeping; its chafe
 log feeds the eg-walker and sealed-topics gates. The central architectural
 bet — leaderless coordination, no coordinator and no consensus — stands,
@@ -66,3 +69,4 @@ eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 | 0003 | [The memory convention: the realm learns to be asked](0003-memory-convention-and-exhibits.md) |
 | 0004 | [Provisioning byte limits: the strict landlord gets a one-command realm](0004-provisioning-byte-limits.md) |
 | 0005 | [Sealed topics survive the substrate: four bars, one encoding amendment](0005-sealed-topics.md) |
+| 0006 | [The signer seam: signing learns to be delegated](0006-the-signer-seam.md) |

@@ -53,9 +53,12 @@ func (k *SigningKey) PublicKey() string {
 }
 
 // Sign signs the given canonical record bytes, returning the signature as standard
-// base64 of the 64 raw signature bytes — the Soulstream-Sig header value.
-func (k *SigningKey) Sign(canonical []byte) string {
-	return base64.StdEncoding.EncodeToString(ed25519.Sign(k.priv, canonical))
+// base64 of the 64 raw signature bytes — the Soulstream-Sig header value. The error
+// is always nil for a locally held key; it exists because Sign satisfies [Signer],
+// where producing a signature may genuinely fail (a custodian down, a request
+// refused).
+func (k *SigningKey) Sign(canonical []byte) (string, error) {
+	return base64.StdEncoding.EncodeToString(ed25519.Sign(k.priv, canonical)), nil
 }
 
 // VerifySignature reports whether sigB64 is publicKeyB64's valid Ed25519 signature

@@ -1,33 +1,35 @@
 <!-- SPECKIT START -->
-Last landed feature (no cycle active): **016-provision-limits** (v0.5.0) —
-provisioning byte limits: optional
-per-artefact storage budgets so limit-enforced accounts (NGS R1, err 10113)
-provision out of the box. `realm.Budgets{OpLog,Notify,Personas,Objects int64}`
-(0 = unlimited; Notify 0 = keep mandated 64MiB) + `DefaultBudgets()` =
-1GiB/64MiB/64MiB/512MiB (the proven manual-workaround shapes).
-`ProvisionOn(ctx, js, budgets ...Budgets)` / `Client.Provision` — variadic,
-source-compatible, >1 value or negative field = error BEFORE server contact.
-Budgets apply ONLY at creation; create-or-report inviolate; `ArtefactResult`
-gains `MaxBytes` (as-applied for created, AS FOUND otherwise, read from
-backing stream configs incl. `KV_`/`OBJ_` streams). CLI: `provision
-[--budgets] [--budget-{oplog,notify,personas,objects} SIZE]` — SIZE takes
-KiB/MiB/GiB (binary only), explicit 0/negative rejected at parse; switch
-composes with flags (flags overwrite fields; flags alone = rest unlimited).
-Tests: natstest variant with account `MaxBytesRequired: true` reproduces the
-R1 refusal locally — both US1 scenarios [measured]. No budgets in
-.soulstream.json (identity only). docs/provisioning.md ELI5 section ships in
-the same change. Legacy-shape convergence path untouched.
+Last landed feature (no cycle active): **017-signer-seam** (merged
+2026-07-29, unreleased) — the Signer seam: `identity.Signer { PublicKey()
+string; Sign(canonical []byte) (string, error) }` so signing can be
+delegated to an external custodian (SoulIdentity's `sign.record` over NATS
+— its M2 "consumers wire in") without soulstream depending on it.
+`(*SigningKey).Sign` is fallible now (error always nil locally);
+`realm.Config.Signer`/`Client.Signer()` take the interface — assign
+concrete keys ONLY when non-nil (typed-nil panic [measured]: fired in six
+of our own test helpers). Chokepoint `topic/wire.go:buildOpMsg`: signer
+error or EMPTY signature = publish fails, no unsigned fallback (empty would
+travel as "unsigned"); responders go silent + `served(-1)` — memory QUERY
+path fixed (reported 0, conflating could-not-sign with nothing-to-say).
+`registry.NewAttestationToken` + `Rotate` take the interface (capability,
+not custody); keystore/keygen stay concrete `*SigningKey` (FR-008 via type
+system). Delegation transparent [measured]: byte-identical sigs, verified
+on every read surface. No new deps; no config surface for delegation
+(arrives with the remote node, 018-ish). 361 tests, 0 skipped, lint 0.
 
-For details read: [specs/016-provision-limits/plan.md](specs/016-provision-limits/plan.md)
-(spec: `specs/016-provision-limits/spec.md`, decisions: `research.md` D1–D6,
-contract: `contracts/library.md`, model: `data-model.md`).
+For details read: [specs/017-signer-seam/plan.md](specs/017-signer-seam/plan.md)
+(spec: `specs/017-signer-seam/spec.md` incl. Clarifications 2026-07-29,
+decisions: `research.md` R1–R7, contract: `contracts/library.md`, model:
+`data-model.md`, consumer view: `quickstart.md`, episode:
+`hq/04-JOURNEY/0006-the-signer-seam.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
 `010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (v0.2.0),
 `014-persona-accountability` (v0.3.0/v0.3.1), `015-memory` (v0.4.0, archivist
 live on NGS + dogfood running since 2026-07-27), `016-provision-limits`
-(v0.5.0) merged + pushed. Research: sealed-topics graduated to design
-2026-07-28 (journey 0005 — speckit-ready, build priority gated on the
-dogfood chafe log).
+(v0.5.0), `017-signer-seam` (merged 2026-07-29, unreleased — SoulIdentity M2
+wiring point). Research: sealed-topics graduated to design 2026-07-28
+(journey 0005 — speckit-ready, build priority gated on the dogfood chafe
+log to 2026-08-10).
 
 Project conventions:
 - Go 1.26; module `github.com/impire-io/soulstream`.

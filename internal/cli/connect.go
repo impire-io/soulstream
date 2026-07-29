@@ -23,12 +23,17 @@ func realmConnect(ctx context.Context, cfg Config) (*realm.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return realm.Connect(ctx, realm.Config{
+	rcfg := realm.Config{
 		ContextName: cfg.Context,
 		Realm:       cfg.Realm,
 		Persona:     cfg.Persona,
-		Signer:      signer,
-	})
+	}
+	// Assign only a real key: a typed-nil *SigningKey inside the interface
+	// would read as "configured to sign" and panic at first use.
+	if signer != nil {
+		rcfg.Signer = signer
+	}
+	return realm.Connect(ctx, rcfg)
 }
 
 // withClient connects, enforces a persona for write commands, runs fn, and maps the

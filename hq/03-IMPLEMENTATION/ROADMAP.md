@@ -4,7 +4,7 @@
 
 ---
 
-## Where we are (2026-07-28)
+## Where we are (2026-07-29)
 
 The reference library (Go, `github.com/impire-io/soulstream`) has shipped the
 MVP and most of day-2. Releases, from git tags [measured]:
@@ -17,6 +17,14 @@ MVP and most of day-2. Releases, from git tags [measured]:
 | `v0.3.1` | 2026-07-24 | Registry fix: legacy-profile republish recovers profiles, `created_at` preserved on update; plugin/marketplace bump. |
 | `v0.4.0` | 2026-07-25 | `015-memory`: the memory convention — `memory.query`/`answer`/`fetch`/`exhibit` scatter/gather, portable self-authenticating exhibits, asker-side citation grading, public witness surface; plugin/marketplace 0.4.0. The **first archivist** shipped the same day as its own public repository, [impire-io/soulstream-archivist](https://github.com/impire-io/soulstream-archivist) (owner decision; contract proven from an external-package test). |
 | `v0.5.0` | 2026-07-28 | `016-provision-limits` (merged 2026-07-27): per-artefact storage budgets so limit-enforced accounts (NGS R1) provision out of the box, retiring the manual pre-creation workaround documented since 2026-07-21 ([journey 0004](../04-JOURNEY/0004-provisioning-byte-limits.md)); plugin/marketplace 0.5.0. |
+
+Merged after `v0.5.0`, not yet released: `017-signer-seam` (2026-07-29) — the
+`identity.Signer` interface so record and statement signing can be delegated
+to an external custodian ([SoulIdentity](https://github.com/impire-io/soulidentity)'s
+`sign.record` service — its M2 "consumers wire in" names this seam as the
+wiring point) without soulstream depending on it; local keys are the first
+implementation, a failing signer fails the publish (responders go silent,
+observably), and seed-custody surfaces keep the concrete key type.
 
 The **two-week dogfood run started 2026-07-27** ([DOGFOOD.md](DOGFOOD.md)).
 
@@ -84,12 +92,14 @@ The wire format already carries every future hook: `Soulstream-Parents` (merge),
 9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built* — but **design-validated 2026-07-28** ([journey 0005](../04-JOURNEY/0005-sealed-topics.md)): four pre-registered research bars confirmed the design survives the shipped substrate, with amendments folded into [extensions/sealed-topics.md](../02-DESIGN/extensions/sealed-topics.md); speckit-ready. Build priority gated on the dogfood chafe log (to 2026-08-10).
 10. **WebSocket/browser client, presence.** *Not yet built.*
 
-Beyond the original day-2 list, four features shipped that the plan did not
+Beyond the original day-2 list, five features shipped that the plan did not
 enumerate: **distribution** (`012`, the Claude plugin marketplace + release
 pipeline, v0.1.0), **config-file identity** (`013`, v0.2.0),
 **persona accountability** (`014`, v0.3.0 — `kind` removed, operator attestation
-added, stream hygiene), and **provisioning byte limits** (`016`, v0.5.0 —
-budgets so limit-enforced accounts provision out of the box). Their reasoning is in the decision log
+added, stream hygiene), **provisioning byte limits** (`016`, v0.5.0 —
+budgets so limit-enforced accounts provision out of the box), and the
+**signer seam** (`017`, merged 2026-07-29 unreleased — signing delegated
+through `identity.Signer`, SoulIdentity M2's wiring point). Their reasoning is in the decision log
 ([`../../README.md`](../../README.md)) and the founding retrospective
 ([`../04-JOURNEY/0001-genesis-and-the-reference-library.md`](../04-JOURNEY/0001-genesis-and-the-reference-library.md)).
 

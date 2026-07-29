@@ -3,6 +3,7 @@ package topic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -112,7 +113,11 @@ func scriptedAnswerer(t *testing.T, url, persona string, key *identity.SigningKe
 			if cerr != nil {
 				return
 			}
-			rec.Signature = key.Sign(canonical)
+			sig, serr := key.Sign(canonical)
+			if serr != nil {
+				return
+			}
+			rec.Signature = sig
 		}
 		headers, body, berr := rec.Build()
 		if berr != nil {
@@ -424,6 +429,56 @@ func TestRespondDiscoveryWithCustomAnswerer(t *testing.T) {
 	if len(results) != 1 || results[0].Path != "custom-topic" || results[0].Answers[0].Persona != "oracle" {
 		t.Errorf("custom answerer results = %+v", results)
 	}
+}
+
+// TestRespondDiscoveryFailingSignerStaysSilent (US2/FR-012, SC-005): a responder
+// whose signer cannot sign answers nothing — the asker sees the protocol's
+// ordinary silence — while the host observes served(-1). No unsigned reply ever.
+func TestRespondDiscoveryFailingSignerStaysSilent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	url := testServer(t)
+	asker := connectClient(t, url, "asker")
+	if _, err := asker.Provision(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	responder := connectClientSigned(t, url, "oracle", &delegateSigner{key: key, err: errors.New("vault unreachable")})
+	served := make(chan int, 16)
+	go func() {
+		_ = RespondDiscoveryWith(ctx, responder, func(_ string, _ int) []DiscoverEntry {
+			return []DiscoverEntry{{Path: "would-match", Name: "It Would Match"}}
+		}, func(_ string, sent int) { served <- sent })
+	}()
+
+	// Retry until the responder demonstrably processed a request; every round
+	// must come back silent to the asker.
+	heard := false
+	for range 20 {
+		results, derr := Discover(ctx, asker, DiscoverInput{Query: "anything", Timeout: 300 * time.Millisecond}, nil)
+		if derr != nil {
+			t.Fatalf("discover: %v", derr)
+		}
+		if len(results) != 0 {
+			t.Fatalf("got %d replies from a responder that cannot sign", len(results))
+		}
+		select {
+		case n := <-served:
+			if n != -1 {
+				t.Fatalf("served reported %d, want -1 (heard but could not serve)", n)
+			}
+			heard = true
+		default:
+		}
+		if heard {
+			return
+		}
+	}
+	t.Fatal("responder never processed a request")
 }
 
 // TestDiscoverWrongKeyAnswerIsFailed (SC-004): a reply signed with a key that is not

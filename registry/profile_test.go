@@ -18,6 +18,32 @@ func testKey(t *testing.T) *identity.SigningKey {
 	return k
 }
 
+func mustSign(t *testing.T, k identity.Signer, msg []byte) string {
+	t.Helper()
+	sig, err := k.Sign(msg)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+	return sig
+}
+
+// delegated wraps a key behind the Signer seam — a stand-in for a custodian
+// that signs on request and never releases the key. fail, when set, makes
+// every Sign fail (the custodian is unreachable).
+type delegated struct {
+	key  *identity.SigningKey
+	fail error
+}
+
+func (d delegated) PublicKey() string { return d.key.PublicKey() }
+
+func (d delegated) Sign(b []byte) (string, error) {
+	if d.fail != nil {
+		return "", d.fail
+	}
+	return d.key.Sign(b)
+}
+
 func TestProfileValidate(t *testing.T) {
 	key := testKey(t)
 	good := Profile{

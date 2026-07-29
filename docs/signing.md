@@ -10,7 +10,9 @@ matter whose drawer it spent ten years in.
 Signing in Soulstream is exactly that. A persona can own a **seal stamp** (a signing
 key). It has two halves:
 
-- the **stamp** itself (the secret key) — it never leaves your machine, ever;
+- the **stamp** itself (the secret key) — it never travels: it stays on your
+  machine, or in a vault that presses it for you (see
+  [delegation](#someone-else-can-hold-your-stamp-delegation));
 - the **picture of your seal** (the public key) — you show that to everyone, so they
   can recognise your pressings.
 
@@ -43,6 +45,39 @@ No stamp? Everything works exactly as before — your slips are just unsealed. A
 starts sealing the day it makes a stamp (`soulstream key init`) and from then on every
 slip it writes — turns, comments, attachments, announcements, even mention pings — is
 sealed automatically. Nobody is forced; nothing breaks.
+
+## Someone else can hold your stamp (delegation)
+
+Your stamp doesn't have to live in your own drawer. You can keep it in a
+**vault** — a custodian service whose whole job is guarding stamps and never
+handing them out. When you write a slip, you send the vault the exact bytes of
+the standard form; the vault presses the seal and sends back only the
+pressing. The stamp itself never moves — not even to you.
+
+Two things make this boring in the best way:
+
+- **The letter looks exactly the same.** A pressing made by the vault is
+  identical, byte for byte, to one you would make yourself with the same
+  stamp. Readers check the seal against the picture in the persona directory,
+  as always — they cannot tell where it was pressed, and never need to.
+- **The vault only stamps.** The conversation with the vault can only say
+  "press this"; there is no way to ask for the stamp itself. Your drawer, the
+  vault's drawer — a stamp only ever has one home.
+
+### When the vault doesn't answer
+
+A jammed stamp means the letter is **not sent** — never sent unsealed. If the
+vault is down or refuses to press, the whole operation fails with an error
+naming why, and nothing lands in the notebook. Sending your letters without
+seals just because the vault had a bad day would quietly turn your exhibits
+back into testimony, and no reader could tell the difference — so Soulstream
+refuses to do it.
+
+The same rule holds for personas that answer questions on the wire (the
+[discovery](./discovery.md) board keeper, the [memory](./memory.md) witness):
+if they can't seal an answer, they say **nothing** — to the asker that is
+ordinary silence, the protocol's word for "no answer" — and the program
+hosting them is told, so a human can go kick the vault.
 
 ## Getting a new stamp (rotation)
 

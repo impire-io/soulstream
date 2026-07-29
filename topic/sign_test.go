@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -172,7 +174,10 @@ func TestTamperingBreaksTheSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical: %v", err)
 	}
-	rec.Signature = key.Sign(canonical)
+	rec.Signature, err = key.Sign(canonical)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
 
 	verify := func(r record.Record, realmName, binding string) bool {
 		unsigned := r
@@ -233,6 +238,265 @@ func TestNoSignerPublishesUnsigned(t *testing.T) {
 				t.Errorf("%s %s: signed op from a key-less persona", m.Subject, m.Rec.Type)
 			}
 		}
+	}
+}
+
+// --- 017: the Signer seam ---
+
+// delegateSigner stands in for a remote custodian behind the identity.Signer
+// seam: capability in, signature or error out. The wrapped key plays the vaulted
+// seed; the injectable failure modes play the custodian being unreachable (err)
+// or broken (empty). Call counting is mutex-guarded because clients sign from
+// many goroutines (FR-011).
+type delegateSigner struct {
+	key *identity.SigningKey
+
+	mu    sync.Mutex
+	calls int
+
+	err   error // when set, every Sign fails: the custodian is unreachable
+	empty bool  // when set, Sign returns ("", nil): a broken custodian
+}
+
+func (d *delegateSigner) PublicKey() string { return d.key.PublicKey() }
+
+func (d *delegateSigner) Sign(canonical []byte) (string, error) {
+	d.mu.Lock()
+	d.calls++
+	d.mu.Unlock()
+	if d.err != nil {
+		return "", d.err
+	}
+	if d.empty {
+		return "", nil
+	}
+	return d.key.Sign(canonical)
+}
+
+func (d *delegateSigner) signCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.calls
+}
+
+var _ identity.Signer = (*delegateSigner)(nil)
+
+// TestDelegatedSigningIsTransparent (US1, SC-001): a record signed through the
+// seam is byte-identical to local-key signing over the same canonical bytes, and
+// the read surfaces (wire verify, materialise, follow, inbox) report it verified
+// — readers cannot tell, and never need to know, where the signature was made.
+func TestDelegatedSigningIsTransparent(t *testing.T) {
+	ctx := context.Background()
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	del := &delegateSigner{key: key}
+
+	url := testServer(t)
+	c := connectClientSigned(t, url, "envoy", del)
+	if _, err := c.Provision(ctx); err != nil {
+		t.Fatalf("provision: %v", err)
+	}
+
+	h, err := StartTopic(ctx, c, StartTopicInput{Name: "delegated", SubjectMatter: "signed by proxy"})
+	if err != nil {
+		t.Fatalf("start topic: %v", err)
+	}
+	if _, err := h.PostTurn(ctx, "hello @reader"); err != nil {
+		t.Fatalf("post turn: %v", err)
+	}
+	if del.signCount() == 0 {
+		t.Fatal("the delegate was never asked to sign")
+	}
+
+	// Wire form: every op verifies against the key, and signing the same
+	// canonical bytes locally yields the very same signature (Ed25519 is
+	// deterministic) — delegation added nothing and lost nothing.
+	for _, subject := range []string{OpsSubject(h.Path()), InfoSubject(h.Path()), NotifySubject("reader")} {
+		msgs := rawMessages(t, c, subject)
+		if len(msgs) == 0 {
+			t.Fatalf("no messages on %s", subject)
+		}
+		for _, m := range msgs {
+			if !verifyWire(m.Rec, m.Subject, key.PublicKey()) {
+				t.Errorf("%s %s: delegated signature does not verify", m.Subject, m.Rec.Type)
+			}
+			unsigned := m.Rec
+			unsigned.Signature = ""
+			canonical, cerr := unsigned.Canonical("test-realm", canonicalBinding(m.Subject))
+			if cerr != nil {
+				t.Fatalf("recompute canonical: %v", cerr)
+			}
+			local, serr := key.Sign(canonical)
+			if serr != nil {
+				t.Fatalf("local sign: %v", serr)
+			}
+			if local != m.Rec.Signature {
+				t.Errorf("%s %s: delegated signature differs from local signing over the same bytes", m.Subject, m.Rec.Type)
+			}
+		}
+	}
+
+	// Read surfaces. Materialise:
+	kr := keyringFor("envoy", key)
+	h.UseKeyring(kr)
+	mt, err := h.Materialise(ctx)
+	if err != nil {
+		t.Fatalf("materialise: %v", err)
+	}
+	if mt.Announcement.Sig != SigVerified {
+		t.Errorf("announcement sig = %s, want verified", mt.Announcement.Sig)
+	}
+	if len(mt.Contributions) != 1 || mt.Contributions[0].Sig != SigVerified {
+		t.Errorf("contribution sig not verified: %+v", mt.Contributions)
+	}
+
+	// Follow (a second, keyring-equipped follower replaying history):
+	follower := Open(c, h.Path())
+	follower.UseKeyring(kr)
+	fctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	views := make(chan *MaterializedTopic, 32)
+	go func() { _ = follower.Follow(fctx, func(v *MaterializedTopic) { views <- v }) }()
+	fv := waitForView(t, views, func(v *MaterializedTopic) bool { return len(v.Contributions) == 1 })
+	if fv.Contributions[0].Sig != SigVerified {
+		t.Errorf("followed contribution sig = %s, want verified", fv.Contributions[0].Sig)
+	}
+	cancel()
+
+	// Inbox (the @reader mention fired a notify op, signed through the delegate):
+	notes, err := FetchInbox(ctx, c, "reader", 10, kr)
+	if err != nil {
+		t.Fatalf("fetch inbox: %v", err)
+	}
+	if len(notes) != 1 || notes[0].Sig != SigVerified {
+		t.Errorf("inbox notification not verified: %+v", notes)
+	}
+}
+
+// TestDelegatedSignerConcurrentPublish exercises the FR-011 contract: one client,
+// one delegate, many goroutines publishing at once. Meaningful under -race (the
+// full gate runs it there once per feature); the guarded call counter is the
+// double honouring the same contract it tests.
+func TestDelegatedSignerConcurrentPublish(t *testing.T) {
+	ctx := context.Background()
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	del := &delegateSigner{key: key}
+
+	url := testServer(t)
+	c := connectClientSigned(t, url, "envoy", del)
+	if _, err := c.Provision(ctx); err != nil {
+		t.Fatalf("provision: %v", err)
+	}
+	h, err := StartTopic(ctx, c, StartTopicInput{Name: "crowded", SubjectMatter: "concurrent signing"})
+	if err != nil {
+		t.Fatalf("start topic: %v", err)
+	}
+	before := del.signCount()
+
+	const writers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, writers)
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			// Each goroutine holds its own Handle; the shared surfaces are the
+			// client and the signer — exactly what FR-011 is about.
+			if _, err := Open(c, h.Path()).PostTurn(ctx, fmt.Sprintf("turn %d", n)); err != nil {
+				errs <- err
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent post: %v", err)
+	}
+	if got := del.signCount() - before; got != writers {
+		t.Errorf("delegate signed %d ops, want %d", got, writers)
+	}
+}
+
+// TestFailingSignerFailsThePublish (US2, SC-002): a configured signer that
+// cannot sign fails the operation loudly — the error names the cause, nothing
+// lands on the log, and there is no unsigned fallback. The empty-signature
+// custodian (T018/FR-005) fails identically, because an empty pressing would
+// silently travel as "unsigned".
+func TestFailingSignerFailsThePublish(t *testing.T) {
+	ctx := context.Background()
+	url := testServer(t)
+
+	// A working persona sets the stage: a real topic with real history.
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	good := connectClientSigned(t, url, "envoy", key)
+	if _, err := good.Provision(ctx); err != nil {
+		t.Fatalf("provision: %v", err)
+	}
+	h, err := StartTopic(ctx, good, StartTopicInput{Name: "fragile", SubjectMatter: "custodian outages"})
+	if err != nil {
+		t.Fatalf("start topic: %v", err)
+	}
+	turnID, err := h.PostTurn(ctx, "anchor")
+	if err != nil {
+		t.Fatalf("post turn: %v", err)
+	}
+
+	opLogMsgs := func() uint64 {
+		t.Helper()
+		stream, serr := good.JetStream().Stream(ctx, realm.StreamName)
+		if serr != nil {
+			t.Fatalf("stream: %v", serr)
+		}
+		info, ierr := stream.Info(ctx)
+		if ierr != nil {
+			t.Fatalf("stream info: %v", ierr)
+		}
+		return info.State.Msgs
+	}
+
+	vaultDown := errors.New("vault unreachable")
+	cases := []struct {
+		name   string
+		del    *delegateSigner
+		wantIn string
+	}{
+		{"signer error", &delegateSigner{key: key, err: vaultDown}, "vault unreachable"},
+		{"empty signature", &delegateSigner{key: key, empty: true}, "empty signature"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			broken := connectClientSigned(t, url, "envoy", tc.del)
+			before := opLogMsgs()
+			bh := Open(broken, h.Path())
+
+			if _, err := bh.PostTurn(ctx, "will not land"); err == nil || !strings.Contains(err.Error(), tc.wantIn) {
+				t.Errorf("PostTurn error = %v, want mention of %q", err, tc.wantIn)
+			}
+			if _, err := bh.AddComment(ctx, "nor this", turnID); err == nil || !strings.Contains(err.Error(), tc.wantIn) {
+				t.Errorf("AddComment error = %v, want mention of %q", err, tc.wantIn)
+			}
+			if _, err := StartTopic(ctx, broken, StartTopicInput{Name: "never-born", SubjectMatter: "x"}); err == nil || !strings.Contains(err.Error(), tc.wantIn) {
+				t.Errorf("StartTopic error = %v, want mention of %q", err, tc.wantIn)
+			}
+			// The injected cause survives the wrapping chain (callers can errors.Is).
+			if tc.del.err != nil {
+				if _, err := bh.PostTurn(ctx, "check the chain"); !errors.Is(err, vaultDown) {
+					t.Errorf("cause not in error chain: %v", err)
+				}
+			}
+
+			if got := opLogMsgs(); got != before {
+				t.Errorf("op log grew from %d to %d records under a failing signer", before, got)
+			}
+		})
 	}
 }
 

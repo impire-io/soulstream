@@ -14,6 +14,47 @@ func keyringFor(persona string, key *identity.SigningKey) *identity.Keyring {
 	return &identity.Keyring{Keys: map[string][]string{persona: {key.PublicKey()}}}
 }
 
+// TestCaptureExhibitDelegatedSignerVerifies (US1/T010, SC-001): an op signed
+// through the Signer seam captures into an exhibit whose offline verdict
+// (GradeForVerdict over VerifyExhibit — the offline-verify machinery) is
+// exactly what a locally signed op yields. Evidence does not care who held
+// the pen.
+func TestCaptureExhibitDelegatedSignerVerifies(t *testing.T) {
+	ctx := context.Background()
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	url := testServer(t)
+	c := connectClientSigned(t, url, "envoy", &delegateSigner{key: key})
+	if _, err := c.Provision(ctx); err != nil {
+		t.Fatalf("provision: %v", err)
+	}
+	h, err := StartTopic(ctx, c, StartTopicInput{Name: "proxy-evidence", SubjectMatter: "delegated exhibits"})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	turnID, err := h.PostTurn(ctx, "the delegated decision")
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+
+	ex, err := CaptureExhibit(ctx, c, h.Path(), turnID)
+	if err != nil {
+		t.Fatalf("capture: %v", err)
+	}
+	verdict, err := VerifyExhibit(ex, keyringFor("envoy", key))
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if verdict != SigVerified {
+		t.Errorf("verdict = %s, want verified", verdict)
+	}
+	if grade := GradeForVerdict(verdict); grade != GradeProvenance {
+		t.Errorf("offline grade = %s, want fact-with-provenance", grade)
+	}
+}
+
 func TestCaptureExhibitLiveOpVerifies(t *testing.T) {
 	ctx := context.Background()
 	key, err := identity.GenerateSigningKey()
