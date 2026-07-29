@@ -147,6 +147,28 @@ constraint on the P1 work, not a follow-up.
 - A client with a persona but no signer, or a signer but no persona:
   unchanged from today — unsigned publishing remains legal, and a persona
   is still required to post at all.
+- A responder (discovery, memory) whose signer fails mid-service: that
+  request goes unanswered — indistinguishable to the asker from no-match,
+  which is the protocol's existing meaning of silence — while the hosting
+  process can observe the failure and act (restart, alert, fall back to a
+  local key).
+
+## Clarifications
+
+### Session 2026-07-29
+
+- Q: Must every Signer implementation be safe for concurrent use by a single
+  client (which today serves curators, responders, and MCP sessions
+  concurrently)? → A: Yes — concurrency safety is part of the contract, not
+  an implementation courtesy; the seam replaces a value that is already safe
+  today, and weakening that silently would move a new burden onto every call
+  site. (Folded into FR-011.)
+- Q: What does a *responder* (discovery, memory) do when its configured
+  signer fails — reply unsigned, reply with an error, or stay silent? → A:
+  Stay silent for that request. Unsigned replies are the integrity downgrade
+  FR-004 forbids, and silence is already the protocol's word for "no answer";
+  the failure must still be observable to the hosting process, never
+  swallowed. (Folded into FR-012 and Edge Cases.)
 
 ## Requirements *(mandatory)*
 
@@ -183,6 +205,14 @@ constraint on the P1 work, not a follow-up.
 - **FR-010**: Existing user-facing workflows (CLI commands, MCP tools,
   configuration files, key file formats) MUST be unchanged in behavior and
   interface by this feature.
+- **FR-011**: The signing contract MUST require implementations to be safe
+  for concurrent use; every existing concurrent consumer of a client
+  (responders, curators, multi-session hosts) MUST remain correct with any
+  conforming implementation.
+- **FR-012**: A responder that signs its replies (discovery, memory) and
+  cannot obtain a signature MUST stay silent for that request — it MUST NOT
+  reply unsigned — and the failure MUST be observable to the hosting
+  process rather than silently swallowed.
 
 ### Key Entities
 
@@ -219,6 +249,9 @@ constraint on the P1 work, not a follow-up.
   suite passes with local keys and unsigned clients behaving exactly as
   before, and the library's dependency set is unchanged (no new external
   dependencies to provide the seam).
+- **SC-005**: Under injected signing failure at a responder, 0 replies are
+  sent (askers observe protocol silence) and 100% of the failures are
+  observable to the hosting process.
 
 ## Assumptions
 
