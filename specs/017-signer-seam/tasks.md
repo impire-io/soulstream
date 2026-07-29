@@ -18,7 +18,7 @@ after the others because they certify the whole.
 
 **Purpose**: Confirm the starting point so every later diff is attributable.
 
-- [ ] T001 Run `make check` on the branch base and record it green (baseline;
+- [x] T001 Run `make check` on the branch base and record it green (baseline;
       no code changes)
 
 ---
@@ -32,30 +32,30 @@ behavior-preserving. No story work can begin before this compiles green.
 
 **⚠️ CRITICAL**: One coherent change; commit only when `make check` is green.
 
-- [ ] T002 Create `identity/signer.go`: the `Signer` interface
+- [x] T002 Create `identity/signer.go`: the `Signer` interface
       (`PublicKey() string`; `Sign(canonical []byte) (string, error)`) with
       contract docs — concurrency-safe required (FR-011), never `("", nil)`,
       no seed access implied (FR-008), implementations own their deadlines
       (R3)
-- [ ] T003 Change `(*SigningKey).Sign` to `(string, error)` (error always
+- [x] T003 Change `(*SigningKey).Sign` to `(string, error)` (error always
       nil) in `identity/sign.go`; assert `*SigningKey` satisfies `Signer`
       with a compile-time `var _ identity.Signer` check in
       `identity/sign_test.go`; update in-package callers/tests
-- [ ] T004 Change `realm.Config.Signer` and `Client.Signer()` to
+- [x] T004 Change `realm.Config.Signer` and `Client.Signer()` to
       `identity.Signer` in `realm/connect.go`; document the typed-nil
       assignment rule on the field (R6)
-- [ ] T005 Update the chokepoint `buildOpMsg` in `topic/wire.go`: handle the
+- [x] T005 Update the chokepoint `buildOpMsg` in `topic/wire.go`: handle the
       fallible `Sign`, wrap a signer error naming the op type (FR-004), and
       convert an empty signature to an error (FR-005) — no unsigned fallback
-- [ ] T006 [P] Mechanically update `registry/attest.go`
+- [x] T006 [P] Mechanically update `registry/attest.go`
       (`NewAttestationToken`) and `registry/kv.go` (`Rotate`) for the
       fallible `Sign` — parameter types stay `*identity.SigningKey` here;
       widening to the interface is US3's task
-- [ ] T007 [P] Update `internal/cli` and `internal/mcpserver` for the new
+- [x] T007 [P] Update `internal/cli` and `internal/mcpserver` for the new
       shapes; enforce the assignment discipline (assign a loaded
       `*identity.SigningKey` to `Config.Signer` only when non-nil — audit
       `internal/cli/key.go` loadSigner consumers and the MCP server setup)
-- [ ] T008 Update remaining test files broken by the shape change
+- [x] T008 Update remaining test files broken by the shape change
       (mechanical `Sign` error handling) until `make check` is fully green —
       behavior-preserving: no test expectation about *behavior* may move
 
@@ -75,7 +75,7 @@ local signing.
 
 ### Tests for User Story 1
 
-- [ ] T009 [US1] Add a delegate-double signer (wraps a real `SigningKey`
+- [x] T009 [US1] Add a delegate-double signer (wraps a real `SigningKey`
       behind `identity.Signer`, counts calls) in `topic/sign_test.go`;
       prove: published turn carries a signature byte-identical to
       local-key signing over the same canonical bytes (SC-001, US1-AS2),
@@ -83,21 +83,21 @@ local signing.
       include a concurrent-publish subtest (several goroutines through one
       delegated client) exercising the FR-011 contract — run at least once
       under `go test -race ./topic` (recorded in T028)
-- [ ] T010 [P] [US1] Extend exhibit coverage: an op signed through the
+- [x] T010 [P] [US1] Extend exhibit coverage: an op signed through the
       delegate double captures into an exhibit that verifies
       (`CaptureExhibit`/`GradeForVerdict`) in `topic/exhibit_test.go` —
       `GradeForVerdict` IS the offline-verify machinery, closing SC-001's
       exhibit and offline surfaces together
-- [ ] T011 [P] [US1] Assert the nil-signer path is untouched: unsigned
+- [x] T011 [P] [US1] Assert the nil-signer path is untouched: unsigned
       publish byte-identical semantics (`sig` absent, `SigStatus` unsigned)
       in `topic/sign_test.go` (FR-006, US1-AS3)
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implementation is Phase 2 (the seam); this task is the
+- [x] T012 [US1] Implementation is Phase 2 (the seam); this task is the
       story's verification sweep: run `make check`, confirm T009–T011 green
       with zero changes to non-test code beyond Phase 2
-- [ ] T013 [US1] Document delegated signing in `docs/signing.md` (ELI5:
+- [x] T013 [US1] Document delegated signing in `docs/signing.md` (ELI5:
       "someone else can hold your pen" — the pen stays in a vault, you
       describe the letter, the letter looks exactly the same to every
       reader)
@@ -114,18 +114,18 @@ clients (FR-010, SC-004).
 **Independent Test**: Full suite green with unchanged behavioral
 expectations; dependency set unchanged.
 
-- [ ] T014 [US4] Sweep the diff for behavioral drift: existing tests may
+- [x] T014 [US4] Sweep the diff for behavioral drift: existing tests may
       only have gained mechanical error-handling on `Sign` calls — no
       changed expectations, no removed assertions; record the sweep result
       in the PR/commit message
-- [ ] T015 [P] [US4] Confirm `go.mod`/`go.sums` untouched (SC-004: no new
+- [x] T015 [P] [US4] Confirm `go.mod`/`go.sums` untouched (SC-004: no new
       dependencies) and `identity` still imports no NATS (FR-009) — assert
       via `go list -deps ./identity` in a test or a task-level check
-- [ ] T016 [P] [US4] CLI/MCP behavior freeze check: `soulstream key init`,
+- [x] T016 [P] [US4] CLI/MCP behavior freeze check: `soulstream key init`,
       signed post, `profile publish`, MCP `publish_profile` paths exercised
       by existing suites — verify none needed expectation changes (FR-010);
       note in commit message
-- [ ] T016b [US4] Docs-accuracy check (US4's docs duty): re-read
+- [x] T016b [US4] Docs-accuracy check (US4's docs duty): re-read
       `docs/signing.md`'s local-key description against the shipped seam and
       confirm it needed no change — the freeze story's claim, in docs form;
       fix any drift found (stale docs = bug, Constitution III)
@@ -145,13 +145,13 @@ record; responders answer nothing and report `-1`.
 
 ### Tests for User Story 2
 
-- [ ] T017 [US2] Failure-injection tests in `topic/sign_test.go`: a signer
+- [x] T017 [US2] Failure-injection tests in `topic/sign_test.go`: a signer
       returning an error fails `StartTopic`/`PostTurn`/`AddComment` (the
       representative publish surfaces), the returned error names the signing
       cause, and the op log gained nothing (US2-AS1, SC-002)
-- [ ] T018 [P] [US2] Empty-signature test in `topic/sign_test.go`: a signer
+- [x] T018 [P] [US2] Empty-signature test in `topic/sign_test.go`: a signer
       returning `("", nil)` is treated exactly as an error (FR-005, US2-AS2)
-- [ ] T019 [P] [US2] Responder-silence tests: discovery responder with a
+- [x] T019 [P] [US2] Responder-silence tests: discovery responder with a
       failing signer sends no reply and reports `served(query, -1)` in
       `topic/discover_test.go`; memory witness likewise for answer and
       exhibit paths (`served(…, -1)`) in `topic/memory_test.go` (FR-012,
@@ -159,11 +159,11 @@ record; responders answer nothing and report `-1`.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Implementation already lives at the chokepoint (T005) and
+- [x] T020 [US2] Implementation already lives at the chokepoint (T005) and
       the existing responder error paths (R5) — this task verifies no
       further code was needed; if a gap surfaces (e.g. an error path that
       swallows the cause), fix it minimally at the chokepoint
-- [ ] T021 [US2] Extend `docs/signing.md`: the fail-loudly rule and
+- [x] T021 [US2] Extend `docs/signing.md`: the fail-loudly rule and
       responder silence, in plain words (a jammed pen means the letter is
       not sent — never sent unsigned; a helper who cannot sign says
       nothing)
@@ -182,23 +182,23 @@ existing verification.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Widen `registry.NewAttestationToken` signer parameter to
+- [x] T022 [US3] Widen `registry.NewAttestationToken` signer parameter to
       `identity.Signer` in `registry/attest.go` (nil refusal kept; signer
       error propagates wrapped)
-- [ ] T023 [US3] Widen `registry.Rotate` old/new parameters to
+- [x] T023 [US3] Widen `registry.Rotate` old/new parameters to
       `identity.Signer` in `registry/kv.go` (old: Sign + PublicKey; new:
       PublicKey only; signing failure aborts before any KV write)
 
 ### Tests for User Story 3
 
-- [ ] T024 [P] [US3] Attestation-via-delegate test in
+- [x] T024 [P] [US3] Attestation-via-delegate test in
       `registry/attest_test.go`: token from a delegate double passes
       `AttestationStatus` verification (US3-AS1, SC-003)
-- [ ] T025 [P] [US3] Rotation-via-delegate test in `registry/kv_test.go`
+- [x] T025 [P] [US3] Rotation-via-delegate test in `registry/kv_test.go`
       (Rotate lives in kv.go): rotation whose proof came from a delegate
       double validates through the existing chain rules, and a
       failing delegate aborts with no KV write (US3-AS2, SC-003)
-- [ ] T026 [US3] Note in `docs/operators.md` that attesting and rotating
+- [x] T026 [US3] Note in `docs/operators.md` that attesting and rotating
       work when the key is held by a custodian (one plain-words paragraph;
       cross-reference docs/signing.md)
 
@@ -208,12 +208,12 @@ existing verification.
 
 ## Phase 7: Polish & Landing Duties
 
-- [ ] T027 Validate `quickstart.md` against the shipped reality (the three
+- [x] T027 Validate `quickstart.md` against the shipped reality (the three
       verification steps map to T009/T017/T024-T025; the wiring snippet
       compiles conceptually against the final API)
-- [ ] T028 Full gate: `make check` (fmt+tidy+build+test+lint) — all green,
+- [x] T028 Full gate: `make check` (fmt+tidy+build+test+lint) — all green,
       none skipped
-- [ ] T029 Landing bookkeeping in the merge change: CLAUDE.md SPECKIT block
+- [x] T029 Landing bookkeeping in the merge change: CLAUDE.md SPECKIT block
       → landed 017; `hq/03-IMPLEMENTATION/ROADMAP.md` reflects the seam
       (SoulIdentity M2 wiring point available); journey episode via
       `/journey-log` (the journey duty — same change as the merge)
