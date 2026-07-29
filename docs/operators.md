@@ -66,6 +66,12 @@ Wherever a card is shown, the claim carries exactly one of three verdicts:
 A persona without a seal can still be attested — the stamp then binds to its name
 alone, and it's worth re-stamping once the persona gets a seal.
 
+An operator whose stamp lives in a vault (see
+[delegation](./signing.md#someone-else-can-hold-your-stamp-delegation)) attests
+and rotates the same way as everyone else: the vault presses the stamp on the
+permission slip or the hand-over note, and the pressing checks out identically.
+Only the pressing is ever needed — never the stamp.
+
 ## What this deliberately does not do
 
 - **No permissions.** "Operated by" never changes what a persona may do. It is an

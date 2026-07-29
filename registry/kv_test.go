@@ -229,6 +229,48 @@ func TestRotateEndToEnd(t *testing.T) {
 	}
 }
 
+// TestRotateDelegatedSigner (US3/T025, SC-003): a rotation whose proof was
+// signed through the Signer seam validates through the existing chain rules,
+// and a failing delegate aborts the rotation before any directory write.
+func TestRotateDelegatedSigner(t *testing.T) {
+	ctx := context.Background()
+	c, _ := provisioned(t, "architect")
+	oldKey, newKey := testKey(t), testKey(t)
+
+	if err := Publish(ctx, c, profileFor("architect", oldKey)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Old key behind a failing custodian: no rotation, no write.
+	_, err := Rotate(ctx, c, delegated{key: oldKey, fail: errors.New("vault unreachable")}, delegated{key: newKey})
+	if err == nil || !strings.Contains(err.Error(), "vault unreachable") {
+		t.Fatalf("failing delegate: err = %v, want the custodian's cause", err)
+	}
+	stored, _, err := Lookup(ctx, c, "architect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.Rotations) != 0 || stored.SigningKey.Ed25519 != oldKey.PublicKey() {
+		t.Fatalf("aborted rotation left a directory write: %+v", stored)
+	}
+
+	// Both keys behind (working) delegates: the chain validates as with local keys.
+	updated, err := Rotate(ctx, c, delegated{key: oldKey}, delegated{key: newKey})
+	if err != nil {
+		t.Fatalf("Rotate via delegates: %v", err)
+	}
+	if updated.SigningKey.Ed25519 != newKey.PublicKey() || len(updated.Rotations) != 1 {
+		t.Fatalf("rotated profile = %+v", updated)
+	}
+	chain, err := Chain(updated)
+	if err != nil {
+		t.Fatalf("chain: %v", err)
+	}
+	if len(chain) != 2 || chain[0] != oldKey.PublicKey() || chain[1] != newKey.PublicKey() {
+		t.Fatalf("chain = %v", chain)
+	}
+}
+
 func TestAllListsEveryProfile(t *testing.T) {
 	ctx := context.Background()
 	c, url := provisioned(t, "architect")

@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -87,6 +88,33 @@ func TestAttestationTokenRoundTrip(t *testing.T) {
 	}
 	if _, err := ParseAttestationToken("aGVsbG8="); err == nil { // base64("hello")
 		t.Error("non-JSON token accepted")
+	}
+}
+
+// TestAttestationTokenDelegatedSigner (US3/T024, SC-003): a token whose
+// signature came through the Signer seam vouches exactly like a locally
+// signed one, and a failing delegate propagates its cause instead of
+// producing a token.
+func TestAttestationTokenDelegatedSigner(t *testing.T) {
+	opKey, myKey := testKey(t), testKey(t)
+
+	s, err := NewAttestationToken(delegated{key: opKey}, "daan", "scribe", myKey.PublicKey())
+	if err != nil {
+		t.Fatalf("NewAttestationToken via delegate: %v", err)
+	}
+	tok, err := ParseAttestationToken(s)
+	if err != nil {
+		t.Fatalf("ParseAttestationToken: %v", err)
+	}
+	p := Profile{Name: "scribe", OperatedBy: "daan",
+		OperatorAttestation: &OperatorAttestation{OperatedKey: tok.OperatedKey, Sig: tok.Sig}}
+	if got := AttestationStatus(p, []string{opKey.PublicKey()}, false, []string{myKey.PublicKey()}); got != ClaimAttested {
+		t.Fatalf("delegated attestation status = %q, want attested", got)
+	}
+
+	_, err = NewAttestationToken(delegated{key: opKey, fail: errors.New("vault unreachable")}, "daan", "scribe", "")
+	if err == nil || !strings.Contains(err.Error(), "vault unreachable") {
+		t.Errorf("failing delegate: err = %v, want the custodian's cause", err)
 	}
 }
 

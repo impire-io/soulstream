@@ -65,9 +65,11 @@ type AttestationToken struct {
 	Sig         string `json:"sig"`
 }
 
-// NewAttestationToken signs the attestation statement with the operator's key and
-// returns the token as base64 JSON — safe to paste through chat or a topic.
-func NewAttestationToken(signer *identity.SigningKey, operator, operated, operatedKeyB64 string) (string, error) {
+// NewAttestationToken signs the attestation statement with the operator's signer —
+// a local key or a delegate whose key lives with a custodian; only the capability
+// to sign is needed — and returns the token as base64 JSON, safe to paste through
+// chat or a topic.
+func NewAttestationToken(signer identity.Signer, operator, operated, operatedKeyB64 string) (string, error) {
 	if signer == nil {
 		return "", fmt.Errorf("registry: attesting requires the operator's signing key")
 	}
