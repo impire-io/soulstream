@@ -79,11 +79,15 @@ local signing.
       behind `identity.Signer`, counts calls) in `topic/sign_test.go`;
       prove: published turn carries a signature byte-identical to
       local-key signing over the same canonical bytes (SC-001, US1-AS2),
-      and materialise/follow/inbox report `SigStatus` verified (US1-AS1)
+      and materialise/follow/inbox report `SigStatus` verified (US1-AS1);
+      include a concurrent-publish subtest (several goroutines through one
+      delegated client) exercising the FR-011 contract — run at least once
+      under `go test -race ./topic` (recorded in T028)
 - [ ] T010 [P] [US1] Extend exhibit coverage: an op signed through the
       delegate double captures into an exhibit that verifies
-      (`CaptureExhibit`/`GradeForVerdict`) in `topic/exhibit_test.go`
-      (SC-001's exhibit surface)
+      (`CaptureExhibit`/`GradeForVerdict`) in `topic/exhibit_test.go` —
+      `GradeForVerdict` IS the offline-verify machinery, closing SC-001's
+      exhibit and offline surfaces together
 - [ ] T011 [P] [US1] Assert the nil-signer path is untouched: unsigned
       publish byte-identical semantics (`sig` absent, `SigStatus` unsigned)
       in `topic/sign_test.go` (FR-006, US1-AS3)
@@ -121,6 +125,10 @@ expectations; dependency set unchanged.
       signed post, `profile publish`, MCP `publish_profile` paths exercised
       by existing suites — verify none needed expectation changes (FR-010);
       note in commit message
+- [ ] T016b [US4] Docs-accuracy check (US4's docs duty): re-read
+      `docs/signing.md`'s local-key description against the shipped seam and
+      confirm it needed no change — the freeze story's claim, in docs form;
+      fix any drift found (stale docs = bug, Constitution III)
 
 **Checkpoint**: Both P1 stories done — the seam exists and nobody fell
 through it.
@@ -186,8 +194,8 @@ existing verification.
 - [ ] T024 [P] [US3] Attestation-via-delegate test in
       `registry/attest_test.go`: token from a delegate double passes
       `AttestationStatus` verification (US3-AS1, SC-003)
-- [ ] T025 [P] [US3] Rotation-via-delegate test in `registry/kv_test.go` or
-      `registry/chain_test.go`: rotation whose proof came from a delegate
+- [ ] T025 [P] [US3] Rotation-via-delegate test in `registry/kv_test.go`
+      (Rotate lives in kv.go): rotation whose proof came from a delegate
       double validates through the existing chain rules, and a
       failing delegate aborts with no KV write (US3-AS2, SC-003)
 - [ ] T026 [US3] Note in `docs/operators.md` that attesting and rotating
@@ -217,13 +225,14 @@ existing verification.
 - **Phase 2 blocks everything** — the seam is one coherent compile-green
   change (T002→T005 sequential on shared understanding; T006/T007 parallel
   after T003; T008 last).
-- **US1 (Phase 3)** first after foundational: it is the MVP and its double
-  (T009) is reused by US2/US3 tests.
+- **US1 (Phase 3)** first after foundational: it is the MVP; its double
+  (T009) is shared with US2 (same file, `topic/sign_test.go`).
 - **US4 (Phase 4)** may run any time after Phase 2 but certifies the final
   state — its sweep (T014) repeats cheaply at the end.
 - **US2 (Phase 5)** independent of US1 except reusing the double's file.
 - **US3 (Phase 6)** independent; T022/T023 touch files already mechanically
-  updated in T006.
+  updated in T006. Its tests define their own minimal double in the
+  `registry` test files — test helpers do not cross package boundaries.
 - **Phase 7** last.
 
 ### Parallel Opportunities
