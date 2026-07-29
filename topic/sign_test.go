@@ -422,6 +422,84 @@ func TestDelegatedSignerConcurrentPublish(t *testing.T) {
 	}
 }
 
+// TestFailingSignerFailsThePublish (US2, SC-002): a configured signer that
+// cannot sign fails the operation loudly — the error names the cause, nothing
+// lands on the log, and there is no unsigned fallback. The empty-signature
+// custodian (T018/FR-005) fails identically, because an empty pressing would
+// silently travel as "unsigned".
+func TestFailingSignerFailsThePublish(t *testing.T) {
+	ctx := context.Background()
+	url := testServer(t)
+
+	// A working persona sets the stage: a real topic with real history.
+	key, err := identity.GenerateSigningKey()
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	good := connectClientSigned(t, url, "envoy", key)
+	if _, err := good.Provision(ctx); err != nil {
+		t.Fatalf("provision: %v", err)
+	}
+	h, err := StartTopic(ctx, good, StartTopicInput{Name: "fragile", SubjectMatter: "custodian outages"})
+	if err != nil {
+		t.Fatalf("start topic: %v", err)
+	}
+	turnID, err := h.PostTurn(ctx, "anchor")
+	if err != nil {
+		t.Fatalf("post turn: %v", err)
+	}
+
+	opLogMsgs := func() uint64 {
+		t.Helper()
+		stream, serr := good.JetStream().Stream(ctx, realm.StreamName)
+		if serr != nil {
+			t.Fatalf("stream: %v", serr)
+		}
+		info, ierr := stream.Info(ctx)
+		if ierr != nil {
+			t.Fatalf("stream info: %v", ierr)
+		}
+		return info.State.Msgs
+	}
+
+	vaultDown := errors.New("vault unreachable")
+	cases := []struct {
+		name   string
+		del    *delegateSigner
+		wantIn string
+	}{
+		{"signer error", &delegateSigner{key: key, err: vaultDown}, "vault unreachable"},
+		{"empty signature", &delegateSigner{key: key, empty: true}, "empty signature"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			broken := connectClientSigned(t, url, "envoy", tc.del)
+			before := opLogMsgs()
+			bh := Open(broken, h.Path())
+
+			if _, err := bh.PostTurn(ctx, "will not land"); err == nil || !strings.Contains(err.Error(), tc.wantIn) {
+				t.Errorf("PostTurn error = %v, want mention of %q", err, tc.wantIn)
+			}
+			if _, err := bh.AddComment(ctx, "nor this", turnID); err == nil || !strings.Contains(err.Error(), tc.wantIn) {
+				t.Errorf("AddComment error = %v, want mention of %q", err, tc.wantIn)
+			}
+			if _, err := StartTopic(ctx, broken, StartTopicInput{Name: "never-born", SubjectMatter: "x"}); err == nil || !strings.Contains(err.Error(), tc.wantIn) {
+				t.Errorf("StartTopic error = %v, want mention of %q", err, tc.wantIn)
+			}
+			// The injected cause survives the wrapping chain (callers can errors.Is).
+			if tc.del.err != nil {
+				if _, err := bh.PostTurn(ctx, "check the chain"); !errors.Is(err, vaultDown) {
+					t.Errorf("cause not in error chain: %v", err)
+				}
+			}
+
+			if got := opLogMsgs(); got != before {
+				t.Errorf("op log grew from %d to %d records under a failing signer", before, got)
+			}
+		})
+	}
+}
+
 // TestCanonicalBinding pins the binding rule readers rely on to recompute signing
 // input from the subject alone.
 func TestCanonicalBinding(t *testing.T) {

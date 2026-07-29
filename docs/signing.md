@@ -64,6 +64,21 @@ Two things make this boring in the best way:
   "press this"; there is no way to ask for the stamp itself. Your drawer, the
   vault's drawer — a stamp only ever has one home.
 
+### When the vault doesn't answer
+
+A jammed stamp means the letter is **not sent** — never sent unsealed. If the
+vault is down or refuses to press, the whole operation fails with an error
+naming why, and nothing lands in the notebook. Sending your letters without
+seals just because the vault had a bad day would quietly turn your exhibits
+back into testimony, and no reader could tell the difference — so Soulstream
+refuses to do it.
+
+The same rule holds for personas that answer questions on the wire (the
+[discovery](./discovery.md) board keeper, the [memory](./memory.md) witness):
+if they can't seal an answer, they say **nothing** — to the asker that is
+ordinary silence, the protocol's word for "no answer" — and the program
+hosting them is told, so a human can go kick the vault.
+
 ## Getting a new stamp (rotation)
 
 Stamps wear out, or you worry someone photographed yours. You can switch
