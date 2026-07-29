@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,7 +280,7 @@ func TestMemoryQueryCapAndLateness(t *testing.T) {
 
 // TestRespondMemoryCapabilities: the two capabilities are independently optional —
 // a fetch-only keeper never answers queries (silence, not an error), stale
-// requests are skipped with OnServed(-1), and a witness needs at least one
+// requests are skipped with the reason in OnServed's error, and a witness needs at least one
 // capability (US3 scenarios 1, 2).
 func TestRespondMemoryCapabilities(t *testing.T) {
 	ctx := context.Background()
@@ -302,7 +303,7 @@ func TestRespondMemoryCapabilities(t *testing.T) {
 		t.Error("a witness with no capability must be refused")
 	}
 
-	served := make(chan int, 16)
+	served := make(chan servedEvent, 16)
 	wc := connectClient(t, url, "keeper")
 	wctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -314,9 +315,9 @@ func TestRespondMemoryCapabilities(t *testing.T) {
 				}
 				return record.Exhibit{}, false
 			},
-			OnServed: func(kind string, n int) {
+			OnServed: func(kind string, n int, err error) {
 				if kind == "fetch" {
-					served <- n
+					served <- servedEvent{n, err}
 				}
 			},
 		})
@@ -365,20 +366,20 @@ func TestRespondMemoryCapabilities(t *testing.T) {
 	}
 	<-served // the successful fetch
 
-	// Unknown op: silence with OnServed(0).
+	// Unknown op: silence with OnServed(0, nil) — a no-match, not a failure.
 	if got := askFetch(h.Path(), record.NewID(), time.Now().Add(time.Second)); got != nil {
 		t.Error("a keeper with nothing must stay silent")
 	}
-	if n := <-served; n != 0 {
-		t.Errorf("OnServed = %d, want 0 for a silent no-match", n)
+	if ev := <-served; ev.sent != 0 || ev.err != nil {
+		t.Errorf("OnServed = %+v, want 0 sent, no error for a silent no-match", ev)
 	}
 
-	// Stale deadline: skipped with OnServed(-1).
+	// Stale deadline: skipped, with the reason in the error.
 	if got := askFetch(h.Path(), turnID, time.Now().Add(-time.Second)); got != nil {
 		t.Error("a stale fetch must be skipped")
 	}
-	if n := <-served; n != -1 {
-		t.Errorf("OnServed = %d, want -1 for a stale skip", n)
+	if ev := <-served; ev.sent != 0 || ev.err == nil || !strings.Contains(ev.err.Error(), "stale") {
+		t.Errorf("OnServed = %+v, want 0 sent with a stale-request error", ev)
 	}
 
 	// Queries: not this witness's capability — pure silence, no OnServed event.
@@ -395,8 +396,8 @@ func TestRespondMemoryCapabilities(t *testing.T) {
 		t.Error("fetch-only witness must not answer queries")
 	}
 	select {
-	case n := <-served:
-		t.Errorf("unexpected OnServed(%d) for an unserved capability", n)
+	case ev := <-served:
+		t.Errorf("unexpected OnServed(%+v) for an unserved capability", ev)
 	default:
 	}
 }
@@ -726,7 +727,7 @@ func TestMemoryTrafficLeavesNoResidue(t *testing.T) {
 
 // TestRespondMemoryFailingSignerStaysSilent (US2/FR-012, SC-005): a witness whose
 // signer cannot sign serves nothing — no answer, no exhibit, never an unsigned
-// reply — while the host observes served(-1) for each request it heard.
+// reply — while the host observes each failure as an error naming the cause.
 func TestRespondMemoryFailingSignerStaysSilent(t *testing.T) {
 	ctx := context.Background()
 	url := testServer(t)
@@ -749,7 +750,7 @@ func TestRespondMemoryFailingSignerStaysSilent(t *testing.T) {
 		t.Fatalf("generate key: %v", err)
 	}
 	wc := connectClientSigned(t, url, "keeper", &delegateSigner{key: key, err: errors.New("vault unreachable")})
-	served := make(chan int, 32)
+	served := make(chan servedEvent, 32)
 	wctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() {
@@ -760,7 +761,7 @@ func TestRespondMemoryFailingSignerStaysSilent(t *testing.T) {
 			Fetch: func(_, _ string) (record.Exhibit, bool) {
 				return kept, true
 			},
-			OnServed: func(_ string, n int) { served <- n },
+			OnServed: func(_ string, n int, err error) { served <- servedEvent{n, err} },
 		})
 	}()
 
@@ -805,9 +806,12 @@ func TestRespondMemoryFailingSignerStaysSilent(t *testing.T) {
 				t.Fatalf("%s: got a reply from a witness that cannot sign", kind)
 			}
 			select {
-			case n := <-served:
-				if n != -1 {
-					t.Fatalf("%s: served reported %d, want -1", kind, n)
+			case ev := <-served:
+				if ev.sent != 0 {
+					t.Fatalf("%s: witness sent %d replies with a failing signer", kind, ev.sent)
+				}
+				if ev.err == nil || !strings.Contains(ev.err.Error(), "vault unreachable") {
+					t.Fatalf("%s: served err = %v, want the custodian's cause", kind, ev.err)
 				}
 				heard = true
 			default:

@@ -329,15 +329,18 @@ type MemoryAnswerDraft struct {
 // and a nil capability simply stays silent for its kind of request.
 //
 // OnServed, if non-nil, is called after each handled request with the kind
-// ("query" or "fetch") and the number of replies sent (0 for a silent no-match,
-// -1 for a skipped malformed or stale request, or one the witness had material
-// for but could not build a reply to — a failing signer, with nothing sent) —
-// observability, nothing more.
+// ("query" or "fetch"; "" when the request was unreadable), the number of
+// replies sent (0 = silence), and — when the request was heard but could not be
+// (fully) served — an error saying why: unreadable or reply-less, malformed,
+// stale, or replies that could not be built (a failing signer) or published.
+// To the asker every unserved request is ordinary silence; the error exists so
+// the hosting process can tell a broken custodian from ambient noise.
+// Observability, nothing more.
 type MemoryWitness struct {
 	CoverageFrom time.Time
 	Answer       func(q MemoryQueryRequest) []MemoryAnswerDraft
 	Fetch        func(topic, opID string) (record.Exhibit, bool)
-	OnServed     func(kind string, n int)
+	OnServed     func(kind string, n int, err error)
 }
 
 // RespondMemory serves memory as c's persona until ctx is cancelled. Serving is a
@@ -354,9 +357,9 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 	}
 	nc := c.Conn()
 
-	served := func(kind string, n int) {
+	served := func(kind string, n int, err error) {
 		if w.OnServed != nil {
-			w.OnServed(kind, n)
+			w.OnServed(kind, n, err)
 		}
 	}
 
@@ -365,7 +368,7 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 	sub, err := nc.Subscribe(SvcMemorySubject, func(msg *nats.Msg) {
 		rec, perr := record.Parse(msg.Header, msg.Data)
 		if perr != nil || msg.Reply == "" {
-			served("", -1)
+			served("", 0, fmt.Errorf("topic: unreadable or reply-less memory request"))
 			return
 		}
 		switch rec.Type {
@@ -375,11 +378,12 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 			}
 			var qp MemoryQueryPayload
 			if json.Unmarshal(rec.Payload, &qp) != nil || strings.TrimSpace(qp.Query) == "" {
-				served("query", -1)
+				served("query", 0, fmt.Errorf("topic: malformed memory query"))
 				return
 			}
 			if !qp.Deadline.IsZero() && time.Now().After(qp.Deadline) {
-				served("query", -1) // stale: the answer would be ignored anyway
+				// Stale: the answer would be ignored anyway.
+				served("query", 0, fmt.Errorf("topic: stale memory query (asker's deadline passed)"))
 				return
 			}
 			req := MemoryQueryRequest{Query: qp.Query}
@@ -387,7 +391,8 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 				req.Topics = qp.Scope.Topics
 				req.After = qp.Scope.After
 			}
-			sent, buildFailed := 0, false
+			sent := 0
+			var replyErr error
 			for _, d := range w.Answer(req) {
 				if strings.TrimSpace(d.Answer) == "" {
 					continue
@@ -395,48 +400,52 @@ func RespondMemory(ctx context.Context, c *realm.Client, w MemoryWitness) error 
 				reply, _, berr := buildOpMsg(c, msg.Reply, ServiceMemory, TypeMemoryAnswer,
 					MemoryAnswerPayload{Answer: d.Answer, Citations: d.Citations, CoverageFrom: w.CoverageFrom}, nil, "")
 				if berr != nil {
-					buildFailed = true
+					if replyErr == nil {
+						replyErr = fmt.Errorf("topic: memory answer not sent: %w", berr)
+					}
 					continue
 				}
-				if nc.PublishMsg(reply) == nil {
-					sent++
+				if perr := nc.PublishMsg(reply); perr != nil {
+					if replyErr == nil {
+						replyErr = fmt.Errorf("topic: publish memory answer: %w", perr)
+					}
+					continue
 				}
+				sent++
 			}
-			// A witness that HAD answers but could not build (sign) any of them
-			// must be distinguishable from one with nothing to say: the asker
-			// sees silence either way, the host must not (FR-012).
-			if buildFailed && sent == 0 {
-				served("query", -1)
-				return
-			}
-			served("query", sent)
+			// A witness that HAD answers but could not send them all must be
+			// distinguishable from one with nothing to say: the asker sees
+			// silence either way, the host must not (FR-012).
+			served("query", sent, replyErr)
 		case TypeMemoryFetch:
 			if w.Fetch == nil {
 				return
 			}
 			var fp MemoryFetchPayload
 			if json.Unmarshal(rec.Payload, &fp) != nil || fp.Topic == "" || fp.OpID == "" {
-				served("fetch", -1)
+				served("fetch", 0, fmt.Errorf("topic: malformed memory fetch"))
 				return
 			}
 			if !fp.Deadline.IsZero() && time.Now().After(fp.Deadline) {
-				served("fetch", -1)
+				served("fetch", 0, fmt.Errorf("topic: stale memory fetch (asker's deadline passed)"))
 				return
 			}
 			ex, ok := w.Fetch(fp.Topic, fp.OpID)
 			if !ok {
-				served("fetch", 0) // silence is cheaper than noise
+				served("fetch", 0, nil) // silence is cheaper than noise
 				return
 			}
 			reply, _, berr := buildOpMsg(c, msg.Reply, ServiceMemory, TypeMemoryExhibit,
 				MemoryExhibitPayload{Exhibit: ex}, nil, "")
 			if berr != nil {
-				served("fetch", -1)
+				served("fetch", 0, fmt.Errorf("topic: memory exhibit not sent: %w", berr))
 				return
 			}
-			if nc.PublishMsg(reply) == nil {
-				served("fetch", 1)
+			if perr := nc.PublishMsg(reply); perr != nil {
+				served("fetch", 0, fmt.Errorf("topic: publish memory exhibit: %w", perr))
+				return
 			}
+			served("fetch", 1, nil)
 		}
 	})
 	if err != nil {

@@ -17,8 +17,8 @@ reversals, because a refuted assumption is as load-bearing as the shipped code.
 
 ## Where things stand (2026-07-29)
 
-The reference library has shipped the MVP and most of day-2 — **`v0.5.0`**
-(2026-07-28) is current: foundation + op-log engine, CLI + MCP clients,
+The reference library has shipped the MVP and most of day-2 — **`v0.6.0`**
+(2026-07-29) is current: foundation + op-log engine, CLI + MCP clients,
 signing, rollup, scatter-gather discovery, the curator, work stages 1–2,
 distribution, config-file identity, persona accountability
 ([episode 0001](0001-genesis-and-the-reference-library.md), the founding
@@ -29,11 +29,16 @@ surface — with the first archivist a separate repository,
 [impire-io/soulstream-archivist](https://github.com/impire-io/soulstream-archivist),
 **verified live against the NGS realm** (2026-07-26) — and **provisioning
 byte limits** ([episode 0004](0004-provisioning-byte-limits.md)): limit-
-enforced accounts provision out of the box. Merged after `v0.5.0`,
-unreleased: the **signer seam** ([episode 0006](0006-the-signer-seam.md)) —
-signing delegated through `identity.Signer` to an external custodian
-(SoulIdentity's M2 wiring point), local keys the first implementation, a
-failing signer failing the publish loudly. The **two-week dogfood run
+enforced accounts provision out of the box. Just landed: the **signer seam**
+([episode 0006](0006-the-signer-seam.md)) — signing delegated through
+`identity.Signer` to an external custodian (SoulIdentity's M2 wiring
+point), local keys the first implementation, a failing signer failing the
+publish loudly — hardened for release the same day
+([episode 0007](0007-dx-hardening-and-the-cycle-guard.md)): typed-nil
+signers refused at `Connect`, responder callbacks carrying the error
+instead of a `-1` sentinel, and the cycle-guard dependency rule (neither
+core repo imports the other; consumers wire the structural interface)
+recorded on both sides — shipped together as **`v0.6.0`**. The **two-week dogfood run
 started 2026-07-27** (protocol:
 [`../03-IMPLEMENTATION/DOGFOOD.md`](../03-IMPLEMENTATION/DOGFOOD.md))
 — daan, smith, and scribe on the NGS realm, the archivist keeping; its chafe
@@ -70,3 +75,4 @@ eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 | 0004 | [Provisioning byte limits: the strict landlord gets a one-command realm](0004-provisioning-byte-limits.md) |
 | 0005 | [Sealed topics survive the substrate: four bars, one encoding amendment](0005-sealed-topics.md) |
 | 0006 | [The signer seam: signing learns to be delegated](0006-the-signer-seam.md) |
+| 0007 | [DX hardening: the seam's two sharp edges, and the cycle guard](0007-dx-hardening-and-the-cycle-guard.md) |

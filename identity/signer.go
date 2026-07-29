@@ -21,6 +21,14 @@ package identity
 // Deliberately, nothing in the contract can express access to secret key
 // material: surfaces that custody seeds (key generation, the keystore) keep
 // taking the concrete [SigningKey], never this interface.
+//
+// Go interfaces are satisfied structurally, and that is load-bearing here: a
+// custodian's client library does NOT need to import this package — or this
+// module — to plug in. Any type with these two methods satisfies Signer at
+// the point where a consumer wires the two together. The dependency rule
+// that keeps the ecosystem cycle-free: soulstream never imports a custodian,
+// a custodian never imports soulstream; consumers (a node, a CLI, a daemon)
+// sit above both and do the wiring.
 type Signer interface {
 	// PublicKey returns the public half of the identity this signer signs
 	// as, encoded as standard base64 of the 32 raw Ed25519 public-key

@@ -3,6 +3,7 @@ package realm
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -23,10 +24,10 @@ type Config struct {
 	// Signer is optional; when set, every op this client publishes carries an
 	// Ed25519 signature over its canonical record, and a signing failure fails
 	// the operation — there is no unsigned fallback. Nil publishes unsigned,
-	// exactly as before signing existed. Assign a *identity.SigningKey (or any
-	// other concrete implementation) only when it is non-nil: a typed-nil
-	// pointer inside a non-nil interface passes the nil check and panics at
-	// first use.
+	// exactly as before signing existed. A typed-nil signer (a nil
+	// *identity.SigningKey assigned into the field) is refused by Connect and
+	// NewClient with an error naming the fix — a missing key must leave the
+	// field unset.
 	Signer identity.Signer
 }
 
@@ -73,7 +74,24 @@ func validateConfig(cfg Config) error {
 			return fmt.Errorf("realm: invalid persona name: %w", err)
 		}
 	}
+	if cfg.Signer != nil && signerIsTypedNil(cfg.Signer) {
+		return fmt.Errorf("realm: Config.Signer holds a typed-nil %T — a missing key must leave the field unset (assign a signer only when it is non-nil)", cfg.Signer)
+	}
 	return nil
+}
+
+// signerIsTypedNil reports whether a non-nil Signer interface wraps a nil
+// concrete value — Go's typed-nil trap, which would pass every `!= nil` check
+// and panic at the first Sign. Caught here, at construction, it is a clear
+// configuration error instead of a crash mid-publish.
+func signerIsTypedNil(s identity.Signer) bool {
+	v := reflect.ValueOf(s)
+	switch v.Kind() {
+	case reflect.Pointer, reflect.Map, reflect.Func, reflect.Chan, reflect.Slice, reflect.UnsafePointer:
+		return v.IsNil()
+	default:
+		return false
+	}
 }
 
 func finishConnect(ctx context.Context, nc *nats.Conn, cfg Config) (*Client, error) {

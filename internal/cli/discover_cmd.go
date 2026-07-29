@@ -77,9 +77,10 @@ func renderAnswers(answers []topic.DiscoverAnswer) string {
 func cmdRespond(ctx context.Context, connect Connector, cfg Config, _ []string, stdout, stderr io.Writer) int {
 	return withClient(ctx, connect, cfg, true, stderr, func(c *realm.Client) error {
 		fmt.Fprintf(stdout, "responding to discovery as %q (Ctrl-C to stop)\n", cfg.Persona)
-		return topic.RespondDiscovery(ctx, c, func(query string, sent int) {
-			if sent < 0 {
-				return // malformed or reply-less request, skipped silently
+		return topic.RespondDiscovery(ctx, c, func(query string, sent int, err error) {
+			if err != nil {
+				fmt.Fprintf(stderr, "soulstream: could not serve %q: %v\n", query, err)
+				return
 			}
 			if sent == 0 {
 				fmt.Fprintf(stdout, "served %q: nothing to say\n", query)
