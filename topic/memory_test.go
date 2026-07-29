@@ -754,13 +754,13 @@ func TestRespondMemoryFailingSignerStaysSilent(t *testing.T) {
 	defer cancel()
 	go func() {
 		_ = RespondMemory(wctx, wc, MemoryWitness{
-			Answer: func(req MemoryQueryRequest) []MemoryAnswerDraft {
+			Answer: func(_ MemoryQueryRequest) []MemoryAnswerDraft {
 				return []MemoryAnswerDraft{{Answer: "it would answer"}}
 			},
-			Fetch: func(topicPath, opID string) (record.Exhibit, bool) {
+			Fetch: func(_, _ string) (record.Exhibit, bool) {
 				return kept, true
 			},
-			OnServed: func(kind string, n int) { served <- n },
+			OnServed: func(_ string, n int) { served <- n },
 		})
 	}()
 

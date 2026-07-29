@@ -450,9 +450,9 @@ func TestRespondDiscoveryFailingSignerStaysSilent(t *testing.T) {
 	responder := connectClientSigned(t, url, "oracle", &delegateSigner{key: key, err: errors.New("vault unreachable")})
 	served := make(chan int, 16)
 	go func() {
-		_ = RespondDiscoveryWith(ctx, responder, func(query string, limit int) []DiscoverEntry {
+		_ = RespondDiscoveryWith(ctx, responder, func(_ string, _ int) []DiscoverEntry {
 			return []DiscoverEntry{{Path: "would-match", Name: "It Would Match"}}
-		}, func(query string, sent int) { served <- sent })
+		}, func(_ string, sent int) { served <- sent })
 	}()
 
 	// Retry until the responder demonstrably processed a request; every round
