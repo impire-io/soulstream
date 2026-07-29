@@ -167,10 +167,13 @@ func mergeReply(results map[string]*DiscoverResult, order *[]string, persona str
 // role — any number of responders may run, none coordinates with another, and
 // stopping one changes nothing for the rest.
 //
-// onServed, if non-nil, is called after each request with the query and the number
-// of matches sent (0 for a silent no-match, -1 for a skipped malformed or
-// reply-less request) — observability for a serving process, nothing more.
-func RespondDiscovery(ctx context.Context, c *realm.Client, onServed func(query string, sent int)) error {
+// onServed, if non-nil, is called after each request with the query, the number of
+// matches sent (0 = silence), and — when the request was heard but could not be
+// served — an error saying why: unreadable or reply-less request (query ""), a
+// stale deadline, or a reply that could not be built or signed. To the asker every
+// unserved request is ordinary silence; the error exists so the hosting process
+// can tell a broken custodian from ambient noise. Observability, nothing more.
+func RespondDiscovery(ctx context.Context, c *realm.Client, onServed func(query string, sent int, err error)) error {
 	return RespondDiscoveryWith(ctx, c, func(query string, limit int) []DiscoverEntry {
 		entries, err := Board(ctx, c)
 		if err != nil {
@@ -184,15 +187,15 @@ func RespondDiscovery(ctx context.Context, c *realm.Client, onServed func(query 
 // receives each request's query and limit and returns the entries to send — nil or
 // empty means silence. This is how a persona with a better projection (a curator)
 // plugs into the same mechanism: same request, same reply shape, same merge.
-func RespondDiscoveryWith(ctx context.Context, c *realm.Client, answer func(query string, limit int) []DiscoverEntry, onServed func(query string, sent int)) error {
+func RespondDiscoveryWith(ctx context.Context, c *realm.Client, answer func(query string, limit int) []DiscoverEntry, onServed func(query string, sent int, err error)) error {
 	if c.Persona() == "" {
 		return fmt.Errorf("topic: responding to discovery requires a persona")
 	}
 	nc := c.Conn()
 
-	served := func(query string, sent int) {
+	served := func(query string, sent int, err error) {
 		if onServed != nil {
-			onServed(query, sent)
+			onServed(query, sent, err)
 		}
 	}
 
@@ -200,35 +203,45 @@ func RespondDiscoveryWith(ctx context.Context, c *realm.Client, answer func(quer
 	// every request; the asker's merge is the only aggregation point.
 	sub, err := nc.Subscribe(SvcDiscoverSubject, func(msg *nats.Msg) {
 		rec, perr := record.Parse(msg.Header, msg.Data)
-		if perr != nil || rec.Type != TypeDiscover || msg.Reply == "" {
-			served("", -1)
+		switch {
+		case perr != nil:
+			served("", 0, fmt.Errorf("topic: unreadable discovery request: %w", perr))
+			return
+		case rec.Type != TypeDiscover:
+			served("", 0, fmt.Errorf("topic: unexpected op type %q on the discovery subject", rec.Type))
+			return
+		case msg.Reply == "":
+			served("", 0, fmt.Errorf("topic: discovery request carries no reply inbox"))
 			return
 		}
 		var req DiscoverPayload
-		if json.Unmarshal(rec.Payload, &req) != nil {
-			served("", -1)
+		if uerr := json.Unmarshal(rec.Payload, &req); uerr != nil {
+			served("", 0, fmt.Errorf("topic: malformed discovery payload: %w", uerr))
 			return
 		}
 		if !req.Deadline.IsZero() && time.Now().After(req.Deadline) {
-			served(req.Query, -1) // stale: the reply would be ignored anyway
+			// Stale: the reply would be ignored anyway.
+			served(req.Query, 0, fmt.Errorf("topic: stale discovery request (asker's deadline passed)"))
 			return
 		}
 
 		matches := answer(req.Query, req.Limit)
 		if len(matches) == 0 {
-			served(req.Query, 0) // silence is cheaper than noise
+			served(req.Query, 0, nil) // silence is cheaper than noise
 			return
 		}
 
 		reply, _, berr := buildOpMsg(c, msg.Reply, ServiceDiscover, TypeDiscoverReply,
 			DiscoverReplyPayload{Matches: matches}, nil, "")
 		if berr != nil {
-			served(req.Query, -1)
+			served(req.Query, 0, fmt.Errorf("topic: discovery reply not sent: %w", berr))
 			return
 		}
-		if nc.PublishMsg(reply) == nil {
-			served(req.Query, len(matches))
+		if perr := nc.PublishMsg(reply); perr != nil {
+			served(req.Query, 0, fmt.Errorf("topic: publish discovery reply: %w", perr))
+			return
 		}
+		served(req.Query, len(matches), nil)
 	})
 	if err != nil {
 		return fmt.Errorf("topic: subscribe discovery: %w", err)

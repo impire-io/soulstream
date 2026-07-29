@@ -17,14 +17,7 @@ MVP and most of day-2. Releases, from git tags [measured]:
 | `v0.3.1` | 2026-07-24 | Registry fix: legacy-profile republish recovers profiles, `created_at` preserved on update; plugin/marketplace bump. |
 | `v0.4.0` | 2026-07-25 | `015-memory`: the memory convention — `memory.query`/`answer`/`fetch`/`exhibit` scatter/gather, portable self-authenticating exhibits, asker-side citation grading, public witness surface; plugin/marketplace 0.4.0. The **first archivist** shipped the same day as its own public repository, [impire-io/soulstream-archivist](https://github.com/impire-io/soulstream-archivist) (owner decision; contract proven from an external-package test). |
 | `v0.5.0` | 2026-07-28 | `016-provision-limits` (merged 2026-07-27): per-artefact storage budgets so limit-enforced accounts (NGS R1) provision out of the box, retiring the manual pre-creation workaround documented since 2026-07-21 ([journey 0004](../04-JOURNEY/0004-provisioning-byte-limits.md)); plugin/marketplace 0.5.0. |
-
-Merged after `v0.5.0`, not yet released: `017-signer-seam` (2026-07-29) — the
-`identity.Signer` interface so record and statement signing can be delegated
-to an external custodian ([SoulIdentity](https://github.com/impire-io/soulidentity)'s
-`sign.record` service — its M2 "consumers wire in" names this seam as the
-wiring point) without soulstream depending on it; local keys are the first
-implementation, a failing signer fails the publish (responders go silent,
-observably), and seed-custody surfaces keep the concrete key type.
+| `v0.6.0` | 2026-07-29 | `017-signer-seam` ([journey 0006](../04-JOURNEY/0006-the-signer-seam.md)) + its DX hardening ([journey 0007](../04-JOURNEY/0007-dx-hardening-and-the-cycle-guard.md)): the `identity.Signer` interface so record and statement signing can be delegated to an external custodian ([SoulIdentity](https://github.com/impire-io/soulidentity)'s `sign.record` service — its M2 wiring point) without soulstream depending on it; local keys the first implementation, a failing signer fails the publish, responders go silent with the error in their callbacks (the `-1` sentinel retired), typed-nil signers refused at `Connect`, seed-custody surfaces keep the concrete key type, and the cycle-guard dependency rule (neither core repo imports the other — structural satisfaction, consumers wire) recorded on both sides; plugin/marketplace 0.6.0. |
 
 The **two-week dogfood run started 2026-07-27** ([DOGFOOD.md](DOGFOOD.md)).
 

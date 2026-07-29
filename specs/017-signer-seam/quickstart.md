@@ -11,6 +11,10 @@ if key != nil {
 c, err := realm.Connect(ctx, cfg)
 ```
 
+If you do assign a typed-nil key, `Connect`/`NewClient` refuse it with an
+error naming the fix — before any server contact, instead of a panic at
+your first publish.
+
 Same commands, same key files, same signatures. The only visible library
 difference: `key.Sign(bytes)` now returns `(string, error)` (error always
 nil for a local key).
@@ -48,8 +52,9 @@ exactly as a locally signed record — same wire bytes, same verdicts.
   an error, because an empty signature would silently travel as "unsigned".
 - **Responders go silent.** A discovery responder or memory witness whose
   signer fails answers nothing for that request (silence is the protocol's
-  "no answer") and reports `-1` through its `onServed` callback so the host
-  process can alert.
+  "no answer") and reports the failure through its observability callback as
+  an error naming the cause — so the host can tell a broken custodian from
+  ambient noise and alert accordingly.
 - **Your implementation owns its deadline.** `Sign` takes no context; bound
   your custodian round trip inside the implementation.
 - **Concurrency is on you.** Clients sign from multiple goroutines
@@ -66,6 +71,6 @@ exactly as a locally signed record — same wire bytes, same verdicts.
    verified on materialise/follow/inbox/exhibit/offline-verify.
 2. Swap in a failing double; assert the publish errors, the log gained
    nothing, and a responder under the same double answers nothing while
-   reporting `-1`.
+   reporting the custodian's error through its callback.
 3. Produce an attestation token and a rotation through delegate doubles;
    assert the existing verification paths accept both.

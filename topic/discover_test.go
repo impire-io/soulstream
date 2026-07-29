@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -258,17 +259,24 @@ func TestDiscoverLateAndMalformedRepliesIgnored(t *testing.T) {
 	}
 }
 
+// servedEvent is one onServed notification: what was sent, and why nothing was
+// when the request could not be served.
+type servedEvent struct {
+	sent int
+	err  error
+}
+
 // startResponder runs RespondDiscovery for persona and returns a stop func plus a
 // channel of served notifications.
-func startResponder(t *testing.T, url, persona string) (func(), <-chan int) {
+func startResponder(t *testing.T, url, persona string) (func(), <-chan servedEvent) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	c := connectClient(t, url, persona)
-	servedCh := make(chan int, 16)
+	servedCh := make(chan servedEvent, 16)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_ = RespondDiscovery(ctx, c, func(_ string, sent int) { servedCh <- sent })
+		_ = RespondDiscovery(ctx, c, func(_ string, sent int, err error) { servedCh <- servedEvent{sent, err} })
 	}()
 	// Give the subscription a moment to establish.
 	time.Sleep(50 * time.Millisecond)
@@ -361,9 +369,9 @@ func TestRespondDiscoverySilentOnNoMatch(t *testing.T) {
 	}
 
 	select {
-	case sent := <-served:
-		if sent != 0 {
-			t.Errorf("served = %d, want 0 (silent no-match)", sent)
+	case ev := <-served:
+		if ev.sent != 0 || ev.err != nil {
+			t.Errorf("served = %+v, want 0 sent, no error (silent no-match)", ev)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("responder never saw the request")
@@ -385,9 +393,9 @@ func TestRespondDiscoverySilentOnNoMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	select {
-	case sent := <-served:
-		if sent != -1 {
-			t.Errorf("malformed request served = %d, want -1 (skipped)", sent)
+	case ev := <-served:
+		if ev.sent != 0 || ev.err == nil {
+			t.Errorf("malformed request served = %+v, want 0 sent with an error (skipped)", ev)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("responder died on the malformed request")
@@ -433,7 +441,8 @@ func TestRespondDiscoveryWithCustomAnswerer(t *testing.T) {
 
 // TestRespondDiscoveryFailingSignerStaysSilent (US2/FR-012, SC-005): a responder
 // whose signer cannot sign answers nothing — the asker sees the protocol's
-// ordinary silence — while the host observes served(-1). No unsigned reply ever.
+// ordinary silence — while the host observes the failure as an error naming the
+// custodian's cause. No unsigned reply ever.
 func TestRespondDiscoveryFailingSignerStaysSilent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -448,11 +457,11 @@ func TestRespondDiscoveryFailingSignerStaysSilent(t *testing.T) {
 		t.Fatal(err)
 	}
 	responder := connectClientSigned(t, url, "oracle", &delegateSigner{key: key, err: errors.New("vault unreachable")})
-	served := make(chan int, 16)
+	served := make(chan servedEvent, 16)
 	go func() {
 		_ = RespondDiscoveryWith(ctx, responder, func(_ string, _ int) []DiscoverEntry {
 			return []DiscoverEntry{{Path: "would-match", Name: "It Would Match"}}
-		}, func(_ string, sent int) { served <- sent })
+		}, func(_ string, sent int, err error) { served <- servedEvent{sent, err} })
 	}()
 
 	// Retry until the responder demonstrably processed a request; every round
@@ -467,9 +476,12 @@ func TestRespondDiscoveryFailingSignerStaysSilent(t *testing.T) {
 			t.Fatalf("got %d replies from a responder that cannot sign", len(results))
 		}
 		select {
-		case n := <-served:
-			if n != -1 {
-				t.Fatalf("served reported %d, want -1 (heard but could not serve)", n)
+		case ev := <-served:
+			if ev.sent != 0 {
+				t.Fatalf("responder sent %d replies with a failing signer", ev.sent)
+			}
+			if ev.err == nil || !strings.Contains(ev.err.Error(), "vault unreachable") {
+				t.Fatalf("served err = %v, want the custodian's cause", ev.err)
 			}
 			heard = true
 		default:

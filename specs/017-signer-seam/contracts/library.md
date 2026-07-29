@@ -41,9 +41,9 @@ type Config struct {
         // Signer is optional; when set, every op this client publishes carries
         // an Ed25519 signature over its canonical record and a signing failure
         // fails the operation — there is no unsigned fallback. Nil publishes
-        // unsigned. Assign a *identity.SigningKey only when it is non-nil: a
-        // typed-nil pointer inside a non-nil interface is a caller bug that
-        // panics at first use.
+        // unsigned. A typed-nil signer (a nil *identity.SigningKey assigned
+        // into the field) is refused by Connect/NewClient with an error naming
+        // the fix, before any server contact.
         Signer identity.Signer // was *identity.SigningKey
 }
 
@@ -65,9 +65,12 @@ and responder surface):
 
 Responder surfaces (`RespondDiscovery`, `RespondDiscoveryWith`,
 `RespondMemory`): a signing failure while building a reply produces no reply
-and reports through the existing observability callback with sent = `-1`
-(FR-012, SC-005). No signature: silence is indistinguishable from no-match
-to the asker — by design.
+and reports through the observability callback — `onServed(query, sent, err)`
+/ `MemoryWitness.OnServed(kind, n, err)` — as an error naming the cause,
+with sent/n = what was actually sent (FR-012, SC-005). Unreadable, stale,
+and unservable requests report the same way (0 sent + an error); a plain
+no-match is (0, nil). No sentinel values. To the asker, silence stays
+indistinguishable from no-match — by design.
 
 ## `registry`
 
@@ -99,20 +102,28 @@ func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey identity.Signer
 
 ## Consumer contract (the seam's whole point)
 
-An external custodian client satisfies the seam by importing only
-`identity`:
+An external custodian client satisfies the seam **without importing
+soulstream at all** — Go interfaces are structural, so the adapter lives in
+the consumer binary and neither core module ever depends on the other:
 
 ```go
-// e.g. in the consumer's codebase, NOT in soulstream:
+// In the CONSUMER's codebase (a node, a daemon) — not in soulstream, not in
+// the custodian:
 type custodianSigner struct{ cl *soulidentity.Client; persona string }
 
 func (s custodianSigner) PublicKey() string { /* from the persona directory or custodian */ }
 func (s custodianSigner) Sign(canonical []byte) (string, error) {
         return s.cl.SignRecord(s.persona, canonical) // deadline owned by cl
 }
+
+// custodianSigner satisfies soulstream's identity.Signer structurally;
+// realm.Config{Signer: custodianSigner{…}} just works.
 ```
 
-soulstream never imports the custodian; the custodian imports
-`soulstream/identity` (or neither imports the other and the consumer binary
-adapts). Cross-service verification of a live custodian-signed record is
-SoulIdentity M2's gate, exercised there.
+**The dependency rule (cycle guard)**: soulstream never imports the
+custodian; the custodian never imports soulstream; consumers sit above both
+and wire them. A module cycle (soulstream → soulidentity → soulstream) is
+technically legal in Go but a versioning trap — the structural interface
+makes it unnecessary, permanently. Cross-service verification of a live
+custodian-signed record is SoulIdentity M2's gate, exercised in a consumer
+context, not by either core repo importing the other.

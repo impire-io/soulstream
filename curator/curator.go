@@ -77,7 +77,11 @@ func Run(ctx context.Context, c *realm.Client, opts Options) error {
 		_ = topic.RespondDiscoveryWith(answerCtx, c, func(query string, limit int) []topic.DiscoverEntry {
 			_ = p.refresh(answerCtx)
 			return p.search(query, limit)
-		}, func(query string, sent int) {
+		}, func(query string, sent int, err error) {
+			if err != nil {
+				event("could not serve %q: %v", query, err)
+				return
+			}
 			if sent > 0 {
 				event("answered %q: %d matches", query, sent)
 			}
