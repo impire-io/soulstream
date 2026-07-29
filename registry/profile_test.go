@@ -18,6 +18,15 @@ func testKey(t *testing.T) *identity.SigningKey {
 	return k
 }
 
+func mustSign(t *testing.T, k identity.Signer, msg []byte) string {
+	t.Helper()
+	sig, err := k.Sign(msg)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+	return sig
+}
+
 func TestProfileValidate(t *testing.T) {
 	key := testKey(t)
 	good := Profile{

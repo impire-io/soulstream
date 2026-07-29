@@ -46,7 +46,11 @@ func testConnectorWithURL(t *testing.T) (Connector, string) {
 		if err != nil {
 			return nil, err
 		}
-		c, err := realm.NewClient(ctx, nc, realm.Config{Realm: cfg.Realm, Persona: cfg.Persona, Signer: signer})
+		rcfg := realm.Config{Realm: cfg.Realm, Persona: cfg.Persona}
+		if signer != nil { // never put a typed-nil key into the interface field
+			rcfg.Signer = signer
+		}
+		c, err := realm.NewClient(ctx, nc, rcfg)
 		if err != nil {
 			nc.Close()
 			return nil, err

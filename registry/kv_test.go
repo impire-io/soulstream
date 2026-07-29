@@ -206,8 +206,8 @@ func TestRotateEndToEnd(t *testing.T) {
 
 	// Both key eras verify (any-chain-key rule); a third key does not.
 	canonical := []byte("era test bytes")
-	if !identity.VerifySignature(chain[0], canonical, oldKey.Sign(canonical)) ||
-		!identity.VerifySignature(chain[1], canonical, newKey.Sign(canonical)) {
+	if !identity.VerifySignature(chain[0], canonical, mustSign(t, oldKey, canonical)) ||
+		!identity.VerifySignature(chain[1], canonical, mustSign(t, newKey, canonical)) {
 		t.Error("chain keys do not verify their own eras")
 	}
 

@@ -112,7 +112,11 @@ func scriptedAnswerer(t *testing.T, url, persona string, key *identity.SigningKe
 			if cerr != nil {
 				return
 			}
-			rec.Signature = key.Sign(canonical)
+			sig, serr := key.Sign(canonical)
+			if serr != nil {
+				return
+			}
+			rec.Signature = sig
 		}
 		headers, body, berr := rec.Build()
 		if berr != nil {

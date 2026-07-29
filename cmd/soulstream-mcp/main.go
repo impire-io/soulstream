@@ -83,7 +83,13 @@ func run(args []string, stderr io.Writer) int {
 	}
 
 	ctx := context.Background()
-	c, err := realm.Connect(ctx, realm.Config{ContextName: resolved.Context.V, Realm: resolved.Realm.V, Persona: resolved.Persona.V, Signer: signer})
+	rcfg := realm.Config{ContextName: resolved.Context.V, Realm: resolved.Realm.V, Persona: resolved.Persona.V}
+	// Assign only a real key: a typed-nil *SigningKey inside the interface
+	// would read as "configured to sign" and panic at first use.
+	if signer != nil {
+		rcfg.Signer = signer
+	}
+	c, err := realm.Connect(ctx, rcfg)
 	if err != nil {
 		fmt.Fprintf(stderr, "soulstream-mcp: %v\n", err)
 		return 1

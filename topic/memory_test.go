@@ -53,7 +53,11 @@ func publishAnswer(t *testing.T, nc *nats.Conn, reply, realmName, persona string
 		if err != nil {
 			t.Fatalf("canonical: %v", err)
 		}
-		rec.Signature = key.Sign(canonical)
+		sig, err := key.Sign(canonical)
+		if err != nil {
+			t.Fatalf("sign: %v", err)
+		}
+		rec.Signature = sig
 	}
 	h, b, err := rec.Build()
 	if err != nil {

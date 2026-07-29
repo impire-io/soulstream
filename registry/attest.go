@@ -80,11 +80,15 @@ func NewAttestationToken(signer *identity.SigningKey, operator, operated, operat
 	if operator == operated {
 		return "", fmt.Errorf("registry: a persona cannot attest to operating itself")
 	}
+	sig, err := signer.Sign(identity.AttestationBytes(operator, operated, operatedKeyB64))
+	if err != nil {
+		return "", fmt.Errorf("registry: sign attestation: %w", err)
+	}
 	tok := AttestationToken{
 		Operator:    operator,
 		Operated:    operated,
 		OperatedKey: operatedKeyB64,
-		Sig:         signer.Sign(identity.AttestationBytes(operator, operated, operatedKeyB64)),
+		Sig:         sig,
 	}
 	raw, err := json.Marshal(tok)
 	if err != nil {

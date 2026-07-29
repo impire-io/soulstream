@@ -26,11 +26,17 @@ func TestSigningKeyRoundTrip(t *testing.T) {
 	}
 
 	msg := []byte(`{"v":1,"data":"canonical bytes"}`)
-	sig := k.Sign(msg)
+	sig, err := k.Sign(msg)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
 	if !VerifySignature(k.PublicKey(), msg, sig) {
 		t.Error("signature did not verify against its own public key")
 	}
 }
+
+// The local key is the first implementation of the Signer seam.
+var _ Signer = (*SigningKey)(nil)
 
 func TestSigningKeySeedIsACopy(t *testing.T) {
 	k, err := GenerateSigningKey()
@@ -65,7 +71,10 @@ func TestVerifySignatureRejects(t *testing.T) {
 		t.Fatalf("GenerateSigningKey: %v", err)
 	}
 	msg := []byte("the canonical bytes")
-	sig := k.Sign(msg)
+	sig, err := k.Sign(msg)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
 
 	cases := []struct {
 		name string
@@ -110,7 +119,10 @@ func TestRotationProofSignsAndVerifies(t *testing.T) {
 		t.Fatalf("GenerateSigningKey: %v", err)
 	}
 
-	proof := oldKey.Sign(RotationProofBytes("daan", newKey.PublicKey()))
+	proof, err := oldKey.Sign(RotationProofBytes("daan", newKey.PublicKey()))
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
 	if !VerifySignature(oldKey.PublicKey(), RotationProofBytes("daan", newKey.PublicKey()), proof) {
 		t.Error("rotation proof did not verify against the old key")
 	}

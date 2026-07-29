@@ -48,7 +48,11 @@ func externalClient(t *testing.T, url, persona string, key *identity.SigningKey)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	c, err := realm.NewClient(context.Background(), nc, realm.Config{Realm: "test-realm", Persona: persona, Signer: key})
+	rcfg := realm.Config{Realm: "test-realm", Persona: persona}
+	if key != nil { // never put a typed-nil key into the interface field
+		rcfg.Signer = key
+	}
+	c, err := realm.NewClient(context.Background(), nc, rcfg)
 	if err != nil {
 		nc.Close()
 		t.Fatalf("client: %v", err)

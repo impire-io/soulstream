@@ -9,13 +9,14 @@ import (
 
 // attestedProfile builds an operated persona's profile whose claim on operator is
 // countersigned by operatorKey, bound to boundKey ("" = persona had no key).
-func attestedProfile(name, operator string, operatorKey *identity.SigningKey, boundKey string) Profile {
+func attestedProfile(t *testing.T, name, operator string, operatorKey *identity.SigningKey, boundKey string) Profile {
+	t.Helper()
 	return Profile{
 		Name:       name,
 		OperatedBy: operator,
 		OperatorAttestation: &OperatorAttestation{
 			OperatedKey: boundKey,
-			Sig:         operatorKey.Sign(identity.AttestationBytes(operator, name, boundKey)),
+			Sig:         mustSign(t, operatorKey, identity.AttestationBytes(operator, name, boundKey)),
 		},
 	}
 }
@@ -36,14 +37,14 @@ func TestAttestationStatus(t *testing.T) {
 	}{
 		{"no claim", Profile{Name: "solo"}, opChain, false, myChain, ""},
 		{"claim without attestation", Profile{Name: "drafter", OperatedBy: "daan"}, opChain, false, nil, ClaimUnverified},
-		{"attested", attestedProfile("scribe", "daan", opKey, myKey.PublicKey()), opChain, false, myChain, ClaimAttested},
-		{"attested via older chain key after operator rotation", attestedProfile("scribe", "daan", opKey, myKey.PublicKey()), rotatedOpChain, false, myChain, ClaimAttested},
-		{"unkeyed operated binds to name alone", attestedProfile("scribe", "daan", opKey, ""), opChain, false, nil, ClaimAttested},
-		{"empty binding stays good after the persona gains a key", attestedProfile("scribe", "daan", opKey, ""), opChain, false, myChain, ClaimAttested},
-		{"wrong signer", attestedProfile("scribe", "daan", otherKey, myKey.PublicKey()), opChain, false, myChain, ClaimFailed},
-		{"bound key outside the operated chain", attestedProfile("scribe", "daan", opKey, otherKey.PublicKey()), opChain, false, myChain, ClaimFailed},
-		{"operator has no published chain", attestedProfile("scribe", "daan", opKey, myKey.PublicKey()), nil, false, myChain, ClaimUnverified},
-		{"operator distrusted", attestedProfile("scribe", "daan", opKey, myKey.PublicKey()), opChain, true, myChain, ClaimFailed},
+		{"attested", attestedProfile(t, "scribe", "daan", opKey, myKey.PublicKey()), opChain, false, myChain, ClaimAttested},
+		{"attested via older chain key after operator rotation", attestedProfile(t, "scribe", "daan", opKey, myKey.PublicKey()), rotatedOpChain, false, myChain, ClaimAttested},
+		{"unkeyed operated binds to name alone", attestedProfile(t, "scribe", "daan", opKey, ""), opChain, false, nil, ClaimAttested},
+		{"empty binding stays good after the persona gains a key", attestedProfile(t, "scribe", "daan", opKey, ""), opChain, false, myChain, ClaimAttested},
+		{"wrong signer", attestedProfile(t, "scribe", "daan", otherKey, myKey.PublicKey()), opChain, false, myChain, ClaimFailed},
+		{"bound key outside the operated chain", attestedProfile(t, "scribe", "daan", opKey, otherKey.PublicKey()), opChain, false, myChain, ClaimFailed},
+		{"operator has no published chain", attestedProfile(t, "scribe", "daan", opKey, myKey.PublicKey()), nil, false, myChain, ClaimUnverified},
+		{"operator distrusted", attestedProfile(t, "scribe", "daan", opKey, myKey.PublicKey()), opChain, true, myChain, ClaimFailed},
 	}
 	for _, c := range cases {
 		if got := AttestationStatus(c.p, c.operatorChain, c.operatorDistrusted, c.operatedChain); got != c.want {

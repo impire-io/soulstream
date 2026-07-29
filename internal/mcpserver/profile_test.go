@@ -118,7 +118,11 @@ func signedClientOn(t *testing.T, url, persona string, key *identity.SigningKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := realm.NewClient(context.Background(), nc, realm.Config{Realm: "acme", Persona: persona, Signer: key})
+	rcfg := realm.Config{Realm: "acme", Persona: persona}
+	if key != nil { // never put a typed-nil key into the interface field
+		rcfg.Signer = key
+	}
+	c, err := realm.NewClient(context.Background(), nc, rcfg)
 	if err != nil {
 		nc.Close()
 		t.Fatal(err)

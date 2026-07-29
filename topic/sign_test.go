@@ -172,7 +172,10 @@ func TestTamperingBreaksTheSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("canonical: %v", err)
 	}
-	rec.Signature = key.Sign(canonical)
+	rec.Signature, err = key.Sign(canonical)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
 
 	verify := func(r record.Record, realmName, binding string) bool {
 		unsigned := r

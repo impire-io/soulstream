@@ -124,6 +124,14 @@ reflection at validate time (rejected — hides the caller's bug behind
 runtime magic and still can't distinguish a deliberately nil-receiver-safe
 implementation) [judgment].
 
+*Upgrade during the build [measured]*: the hazard is not theoretical — the
+first full test run after the type change panicked in six of our own test
+helpers, every one passing a possibly-nil `*SigningKey` straight into the
+interface field. All six now use the conditional-assignment pattern, and
+the panic's shape (SIGSEGV inside `(*SigningKey).Sign` via `buildOpMsg`) is
+what an external consumer would see — the `Config.Signer` doc comment warns
+with exactly this in mind.
+
 ## R7 — Which surfaces take the interface, and which stay concrete
 
 **Decision**:

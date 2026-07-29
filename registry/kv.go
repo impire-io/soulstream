@@ -152,10 +152,14 @@ func Rotate(ctx context.Context, c *realm.Client, oldKey, newKey *identity.Signi
 	}
 
 	newPub := newKey.PublicKey()
+	proof, err := oldKey.Sign(identity.RotationProofBytes(persona, newPub))
+	if err != nil {
+		return Profile{}, fmt.Errorf("registry: sign rotation proof: %w", err)
+	}
 	p.Rotations = append(p.Rotations, Rotation{
 		From:  oldKey.PublicKey(),
 		To:    newPub,
-		Proof: oldKey.Sign(identity.RotationProofBytes(persona, newPub)),
+		Proof: proof,
 	})
 	p.SigningKey = &SigningKeyInfo{Ed25519: newPub, Since: time.Now().UTC()}
 
