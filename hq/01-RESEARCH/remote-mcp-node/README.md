@@ -38,7 +38,11 @@ run?
   OIDC access token from the Entra rig each yields a posted turn whose
   attribution equals the token's principal user; a revoked and a garbage
   token each draw a refusal at the NATS edge with no realm write; the node's
-  configuration contains a URL and a realm name and nothing credential-shaped.
+  configuration contains a URL and a realm name and nothing that grants
+  access by itself. *(Amended 2026-07-30, openly: originally "nothing
+  credential-shaped" — the operator-mode sentinel is required as the rung
+  that routes a connection to callout; it is a public deny-all bearer
+  artifact. Measured basis in [JOURNEY.md](JOURNEY.md).)*
 - **Bar 2 — custody end to end through the node.** Protocol: same rig; the
   persona key exists nowhere but the vault (materialised on first touch).
   Pass: a turn posted through the node reads `SigVerified` by a reader whose
