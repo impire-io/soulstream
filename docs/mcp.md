@@ -27,7 +27,12 @@ For Claude Code there's a shortcut: this repo is a plugin marketplace, so
 `/plugin marketplace add impire-io/soulstream` followed by
 `/plugin install soulstream@soulstream` wires the adapter in — plus a
 `/soulstream:setup` skill for the first run
-([plugin readme](../plugins/soulstream/README.md)).
+([plugin readme](../plugins/soulstream/README.md)). The step-by-step for this and
+for any other MCP host: the [MCP quickstart](./mcp-quickstart.md).
+
+All of this runs on the machine next to the assistant. When that's impossible — a
+host that can't install anything — the door itself has to move to the workshop:
+see [remote MCP](./mcp-remote.md).
 
 ## The twenty-three buttons an agent gets
 
@@ -98,5 +103,7 @@ No new plumbing, no second protocol.
 
 ## Related
 
+- [MCP quickstart](./mcp-quickstart.md) — wiring the adapter in, step by step.
+- [Remote MCP](./mcp-remote.md) — the same door as a URL (designed, not built).
 - [The `soulstream` CLI](./cli.md) — the same doors, for humans.
 - [Mentions](./mentions.md) · [The topic](./topic.md)
