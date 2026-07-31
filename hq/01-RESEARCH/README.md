@@ -42,7 +42,6 @@ the work produces.
 
 ## Active topics
 
-*None open yet.* The roadmap's Phase 0 names `single-binary-composition` as
-the first topic to open (via `/research-start`, bars drafted with the
-maintainer at open) — see
-[`../03-IMPLEMENTATION/roadmap.md`](../03-IMPLEMENTATION/roadmap.md).
+| Topic | Question | Started |
+|---|---|---|
+| [`single-binary-composition/`](single-binary-composition/README.md) | Can the full ecosystem shape run correctly composed in one process, and what must each component expose for SoulNode to wire it without `internal/` reaches? | 2026-07-31 |
