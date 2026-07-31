@@ -83,3 +83,42 @@ HTTPS and a claude.ai / Claude Desktop connector pointed at it, which is an
 operator act. The reversal-condition question (does the deployment class the
 realms actually live on — NGS/Synadia Cloud — host auth callout?) also
 remains open; nothing measured today touches it.
+
+## 2026-07-31 — Bar 4 prepared: the operator's constraints turn out benign
+
+Operator input reshaped Bar 4's plan: tailscale is available for HTTPS,
+there is **no Entra tenant** (Auth0 proposed instead), and — on the
+reversal condition — **auth callout is available for BYON environments on
+Synadia Cloud/NGS**, with that setup in progress [operator report; the
+measurement stays open until admission runs there].
+
+**Finding: no IdP is required for a no-install client.** Verified against
+the connector auth docs: **static bearer headers are supported on Claude
+Desktop, claude.ai (`static_headers`, beta), and Claude Code** — so Bar 4's
+API-token lane runs with nothing but a `sit_` token in a header. The OAuth
+lane requires RFC 9728 resource metadata, S256 PKCE, and a registration
+story (DCR — which Auth0 supports — or CIMD, or Anthropic-held
+credentials); bare `client_credentials` is unsupported (interactive consent
+always), and tokens in URLs are prohibited.
+
+**Finding: the OIDC lane is issuer-agnostic; "Entra" is three claim
+names.** Read from `internal/callout/validator.go`: go-oidc discovery +
+JWKS, RS256 only, pinned audience — any compliant issuer fits. The shape is
+the claims: `oid` (required, becomes the persona), `roles` (exactly one
+declared team), `preferred_username` (display). Auth0 therefore works via a
+post-login Action emitting those three — with two pre-known traps recorded
+in [bar4-runbook.md](bar4-runbook.md): the `oid` value must be a
+soulstream-legal slug (raw `auth0|…` subjects are not), and Auth0's
+custom-claim namespacing may drop bare claim names, which would justify a
+small issuer-profile config in soulidentity with a measured refusal.
+
+**Node made runnable for the operator act.** `experiment/cmd/node` (flags:
+listen, nats-url, sentinel, realm, public-url, auth-issuer); the OAuth edge
+(RFC 9728 metadata + 401 `WWW-Authenticate` challenges, off unless
+`--public-url` is set, covered by `edge_test.go`); **corpse eviction** — the
+2026-07-30 design note built in: a failed or permanently closed pool entry
+is evicted and admission retried with the next request's badge; and a
+`board` tool so the pre-registered pass protocol (initialize → tools/list →
+board → post_turn) maps onto the prototype as written. Bars 1–3 re-run
+green after the changes [measured]. The operator steps live in
+[bar4-runbook.md](bar4-runbook.md).

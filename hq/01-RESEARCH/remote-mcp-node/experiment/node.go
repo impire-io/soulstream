@@ -34,6 +34,15 @@ type Config struct {
 	NATSURL      string
 	Realm        string
 	SentinelPath string // empty = try the bare token option
+
+	// PublicURL switches the OAuth edge on for hosted MCP clients: RFC 9728
+	// protected-resource metadata at /.well-known/oauth-protected-resource,
+	// and 401 + WWW-Authenticate instead of the handler's bare 400. Empty
+	// keeps the Bars-1–3 behavior exactly as measured.
+	PublicURL string
+	// AuthIssuer is the authorization server (OIDC issuer URL) advertised in
+	// the resource metadata — the same issuer the callout validates against.
+	AuthIssuer string
 }
 
 // Node pools one NATS connection (and one MCP server) per authenticated user.
@@ -102,19 +111,76 @@ func routeHint(bearer string) string {
 	return "oidc:" + claims.Iss + ":" + id
 }
 
-// ServeHTTP records the freshest bearer for the user's pool entry, then
-// hands off to the streamable MCP handler. A real node would answer a
-// missing/refused badge with 401 + WWW-Authenticate; the prototype leans on
-// the handler's 400 for a nil server.
+// ServeHTTP is the node's front door: the resource-metadata route (when the
+// OAuth edge is on), then badge extraction, admission (build-or-evict the
+// pool entry), freshest-bearer bookkeeping, and the streamable MCP handler.
 func (n *Node) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if b := bearerFrom(r); b != "" {
-		n.mu.Lock()
-		if e, ok := n.entries[routeHint(b)]; ok {
-			e.latest.Store(&b)
-		}
-		n.mu.Unlock()
+	if n.cfg.PublicURL != "" && r.URL.Path == "/.well-known/oauth-protected-resource" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"resource":                 n.cfg.PublicURL,
+			"authorization_servers":    []string{n.cfg.AuthIssuer},
+			"bearer_methods_supported": []string{"header"},
+		})
+		return
 	}
+	b := bearerFrom(r)
+	if b == "" {
+		if n.cfg.PublicURL != "" {
+			n.unauthorized(w, "")
+			return
+		}
+		n.inner.ServeHTTP(w, r) // nil server → the handler's 400, as measured
+		return
+	}
+	e := n.ensure(b)
+	if e.err != nil {
+		if n.cfg.PublicURL != "" {
+			n.unauthorized(w, "invalid_token")
+			return
+		}
+		n.inner.ServeHTTP(w, r)
+		return
+	}
+	e.latest.Store(&b)
 	n.inner.ServeHTTP(w, r)
+}
+
+// unauthorized answers 401 with the WWW-Authenticate challenge that points a
+// hosted MCP client at the resource metadata (the discovery entry point).
+func (n *Node) unauthorized(w http.ResponseWriter, errCode string) {
+	c := fmt.Sprintf("Bearer resource_metadata=%q", n.cfg.PublicURL+"/.well-known/oauth-protected-resource")
+	if errCode != "" {
+		c += fmt.Sprintf(", error=%q", errCode)
+	}
+	w.Header().Set("WWW-Authenticate", c)
+	http.Error(w, "unauthorized", http.StatusUnauthorized)
+}
+
+// ensure returns the pool entry a bearer routes to, building it on first
+// sight and EVICTING corpses first: a failed build (refused badge) or a
+// permanently closed connection (nats.go gives up after two consecutive
+// authorization violations) must not poison the hint forever — the next
+// authenticated request retries admission with the badge it carries.
+func (n *Node) ensure(bearer string) *entry {
+	hint := routeHint(bearer)
+	n.mu.Lock()
+	e, ok := n.entries[hint]
+	if ok && (e.err != nil || (e.nc != nil && e.nc.IsClosed())) {
+		if e.nc != nil {
+			e.nc.Close()
+		}
+		delete(n.entries, hint)
+		ok = false
+	}
+	if !ok {
+		e = &entry{}
+		e.latest.Store(&bearer)
+		n.entries[hint] = e
+	}
+	n.mu.Unlock()
+	e.build.Do(func() { e.err = e.connect(n.cfg) })
+	return e
 }
 
 // serverFor is the StreamableHTTPHandler hook: new MCP session → this user's
@@ -124,16 +190,7 @@ func (n *Node) serverFor(r *http.Request) *mcp.Server {
 	if b == "" {
 		return nil
 	}
-	hint := routeHint(b)
-	n.mu.Lock()
-	e, ok := n.entries[hint]
-	if !ok {
-		e = &entry{}
-		e.latest.Store(&b)
-		n.entries[hint] = e
-	}
-	n.mu.Unlock()
-	e.build.Do(func() { e.err = e.connect(n.cfg) })
+	e := n.ensure(b)
 	if e.err != nil {
 		return nil
 	}
@@ -248,6 +305,20 @@ func buildServer(rc *realm.Client, persona, account string) *mcp.Server {
 		Description: "The principal this session acts as.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, _ whoamiArgs) (*mcp.CallToolResult, any, error) {
 		return textResult(persona + "@" + account), nil, nil
+	})
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "board",
+		Description: "List the realm's topics (path, name, lifecycle).",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ whoamiArgs) (*mcp.CallToolResult, any, error) {
+		entries, err := topic.Board(ctx, rc)
+		if err != nil {
+			return nil, nil, err
+		}
+		b, err := json.MarshalIndent(entries, "", "  ")
+		if err != nil {
+			return nil, nil, err
+		}
+		return textResult(string(b)), nil, nil
 	})
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "start_topic",
