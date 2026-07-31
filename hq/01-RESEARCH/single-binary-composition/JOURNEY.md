@@ -67,3 +67,45 @@ runs, plus a TCP control arm (`go test -v` in experiment/):
 
 Suite cost: ~90 s for the 3-run in-process arm — entirely the nine 10 s
 refusal waits; admission itself is milliseconds throughout.
+
+## 2026-07-31 — recon lands: the surfaces enumerated, all three bars stand
+
+The two remaining recon reports (soulidentity serve path;
+archivist/soulstream/soulrealm surfaces) completed the Bar 2 and Bar 3
+evidence:
+
+- **[ceremony.md](ceremony.md)** (Bar 3): the enumerated first-boot
+  inventory, 1:1 with the rig's `Provision`. The recon confirmed the same
+  sequence in soulidentity's own canonical e2e
+  (`client/callout_e2e_test.go`, `TestM4GateAgainstOperatorModeServer`) —
+  the rig's ceremony is that test's, re-expressed through pure
+  `server.Options` instead of a config file. One structural reading worth
+  keeping: soulidentity has **no in-process provisioning API** — every
+  mutating op (`keys.import`, `tokens.create`, `sentinel.mint`, …) is
+  NATS-surface only. For SoulNode that is a feature, not a gap: `soulnode
+  init` provisions over its own in-process connection with the public
+  `client`, exactly as the rig does [measured].
+- **[embed-surfaces.md](embed-surfaces.md)** (Bar 2): per component —
+  soulidentity needs one public `embed.Run` package (serve assembly is
+  `internal/`; the rig's namespace dodge is the proof); soulstream's realm
+  plane is public already (`realm.NewClient(nc, cfg)` is the in-process
+  seam) but the MCP front door is `internal/mcpserver`; the archivist's
+  keeper/witness/store glue is all `internal/` over public primitives;
+  soulrealm embeds launch-one-workload with zero asks, while the
+  long-running node supervisor is its own unbuilt Fleet milestone and the
+  `replace ../soulstream` on its main blocks version pinning. No component
+  needs more than an embed seam [mechanism-argument, signature-level
+  recon]. Four upstream asks, listed in the doc.
+
+**Where the bars stand:** Bar 1 PASS [measured, 3/3 × 3 runs + TCP control,
+with the named refusal-parity finding]. Bar 2 PASS [enumerated; threshold
+met — no component beyond an embed seam]. Bar 3 PASS [measured — the
+ceremony runs from an empty dir in code; inventory 1:1 reviewed].
+
+**Held for the maintainer** (working agreement — teach-back before the
+direction is recorded): graduation to design, which will carry two judgment
+calls — (1) the front door's client-facing connections ride loopback TCP
+while internal planes ride in-process (the refusal-parity finding); (2)
+which upstream asks to file first and whether the constitution ratifies as
+drafted. `/research-graduate single-binary-composition --to design` is
+ready to run once those survive teach-back.
