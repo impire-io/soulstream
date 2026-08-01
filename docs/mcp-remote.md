@@ -70,14 +70,23 @@ Being precise about the gap, since most of the hard parts already exist:
   cross-service proof that a record signed there verifies here.
 - **The node itself** (Soulstream's next cycle): the HTTP door, the per-user
   connection pool, reading keys from the identity plane, re-proving on token expiry.
-- **The connector-friendly edge**: the OAuth discovery handshake hosts like claude.ai
-  expect (API-token badges are the fallback while that settles).
+- **The connector-friendly edge**: the OAuth discovery handshake hosts require. This
+  turns out to be the *load-bearing* gap — a hosted connector (Claude Desktop,
+  claude.ai) authenticates a remote server by OAuth only; there is no static-token
+  field to paste a badge into. So the node needs an authorization server to point at,
+  and choosing it (a small one built into the node for a single persona, or a real
+  OIDC provider for many) is the open build decision.
 - **On SoulIdentity's plate**: a home for persona *presentation* (display name,
   [operator attestations](./operators.md)) beside the keys, so identity-plane realms
   don't lose what the realm phone book carries today.
 
-The full pre-registration — bets, open questions, and what would change the design —
-lives in the research topic in [`hq/01-RESEARCH/`](../hq/01-RESEARCH/).
+This direction is proven, not hypothetical: on a live Synadia Cloud deployment a
+prototype node admitted a client through auth callout and posted a signed,
+correctly-attributed turn — end to end, including over an HTTPS front door. The
+design and its measured evidence live in
+[the remote-MCP-node design](../hq/02-DESIGN/extensions/remote-mcp-node.md) and
+[journey episode 0008](../hq/04-JOURNEY/0008-remote-mcp-node.md); the build is
+feature 018.
 
 ## Related
 

@@ -15,7 +15,7 @@ reversals, because a refuted assumption is as load-bearing as the shipped code.
 > [`../00-GENESIS/how-we-work.md`](../00-GENESIS/how-we-work.md); the numbering
 > and index are enforced by `internal/hqlint`.
 
-## Where things stand (2026-07-29)
+## Where things stand (2026-08-01)
 
 The reference library has shipped the MVP and most of day-2 — **`v0.6.0`**
 (2026-07-29) is current: foundation + op-log engine, CLI + MCP clients,
@@ -60,10 +60,20 @@ substrate, with amendments now folded into
 [`../02-DESIGN/extensions/sealed-topics.md`](../02-DESIGN/extensions/sealed-topics.md)
 (the `{"ct"}` payload wrapper, signature-covered epoch/nonce, signing-chain
 endorsement of sealing keys, key-carrying sealed baselines); the build's
-priority stays gated on the dogfood chafe log (to 2026-08-10). What is
-*not* yet built is the forward plan in
+priority stays gated on the dogfood chafe log (to 2026-08-10). A second
+research topic has concluded: **remote-mcp-node**
+([episode 0008](0008-remote-mcp-node.md)) graduated to design after Bars 1–3
+and its reversal-condition measurement PASSED on a live Synadia Cloud BYON —
+a credential-less MCP node that passes the caller's bearer through to auth
+callout, admitting a no-install client as a real, signed realm member. Bar 4
+found the one gap that shapes the build: Claude Desktop's hosted connector
+authenticates by OAuth only (no static-header lane), so the node's
+authorization-server story is the open decision for feature **018**
+([design](../02-DESIGN/extensions/remote-mcp-node.md)). What is *not* yet
+built is the forward plan in
 [`../03-IMPLEMENTATION/ROADMAP.md`](../03-IMPLEMENTATION/ROADMAP.md):
-eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
+eg-walker live co-editing, sealed topics, a browser/WebSocket client, and the
+remote MCP node (018).
 
 ## Episode index
 
@@ -76,3 +86,4 @@ eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 | 0005 | [Sealed topics survive the substrate: four bars, one encoding amendment](0005-sealed-topics.md) |
 | 0006 | [The signer seam: signing learns to be delegated](0006-the-signer-seam.md) |
 | 0007 | [DX hardening: the seam's two sharp edges, and the cycle guard](0007-dx-hardening-and-the-cycle-guard.md) |
+| 0008 | [The remote MCP node: a URL into the realm, proven on the BYON](0008-remote-mcp-node.md) |
