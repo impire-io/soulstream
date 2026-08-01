@@ -137,13 +137,30 @@ func main() {
 		log.Print("auth callout enabled")
 	}
 
-	// The callout object appears to be addressed by the system id; the view
-	// tells us what the API actually thinks exists.
-	calloutID := system.Id
+	// The callout object has its own id: list the system's callout configs
+	// and pick the one naming our control account. XkeyPublic matters: if the
+	// platform sets one, callout requests are sealed to it and OUR issuer
+	// needs its seed — a blocker to surface loudly, not discover in silence.
+	configs, _, err := client.SystemAPI.ListAuthCalloutConfigs(ctx, system.Id).Execute()
+	fatal("list auth callout configs", err)
+	calloutID := ""
+	for _, c := range configs.Items {
+		if c.ControlAccountId == control.Id {
+			calloutID = c.Id
+			if c.XkeyPublic != nil && *c.XkeyPublic != "" {
+				log.Printf("NOTE: callout xkey is set by the platform (%s) — the issuer needs its seed to decrypt requests", *c.XkeyPublic)
+			} else {
+				log.Print("callout config has no xkey — requests arrive unsealed (signed by the server)")
+			}
+		}
+	}
+	if calloutID == "" {
+		log.Fatalf("byon-setup: no callout config for control account %s after enable", control.Id)
+	}
 	if view, _, err := client.AuthCalloutAPI.GetAuthCallout(ctx, calloutID).Execute(); err != nil {
-		log.Printf("get auth callout (%s): %v — adjust calloutID handling if this persists", calloutID, err)
+		log.Printf("get auth callout (%s): %v", calloutID, err)
 	} else {
-		log.Printf("auth callout: %d target account(s), %d user(s)", len(view.TargetAccounts), len(view.Users))
+		log.Printf("auth callout %s: %d target account(s), %d user(s)", calloutID, len(view.TargetAccounts), len(view.Users))
 	}
 
 	if _, err := client.AuthCalloutAPI.AddAuthCalloutTargetAccount(ctx, calloutID).
@@ -160,8 +177,10 @@ func main() {
 	// The issuer's NATS user lives in the control account; registering it as
 	// a callout user puts it in auth_users (it may listen on
 	// $SYS.REQ.USER.AUTH). Its creds are what soulidentity serve's
-	// --callout-creds takes.
-	issuerID := ensureNatsUser(ctx, client, control.Id, "soulidentity-issuer", ctrlSk)
+	// --callout-creds takes. The platform refuses users under programmatic
+	// sk groups, so the issuer gets an on-demand group of its own.
+	issuerSk := ensureOnDemandSkGroup(ctx, client, control.Id, "auth-users")
+	issuerID := ensureNatsUser(ctx, client, control.Id, "soulidentity-issuer", issuerSk)
 	if _, err := client.AuthCalloutAPI.AddAuthCalloutUser(ctx, calloutID).
 		AuthCalloutAddUserRequest(syncp.AuthCalloutAddUserRequest{NatsUserId: issuerID}).Execute(); err != nil {
 		log.Printf("add callout user: %v (continuing — may already be registered)", err)
@@ -227,6 +246,24 @@ func ensureSkGroup(ctx context.Context, client *syncp.APIClient, accountID, name
 	seedPath := filepath.Join(outDir, "sk-"+name+".seed")
 	fatal("write seed "+seedPath, os.WriteFile(seedPath, []byte(*created.Seed), 0o600))
 	log.Printf("created sk group %q (id %s); seed → %s", name, created.Id, seedPath)
+	return created.Id
+}
+
+// ensureOnDemandSkGroup finds or creates a NON-programmatic sk group — the
+// kind the platform allows NATS users under (its seed stays with Synadia).
+func ensureOnDemandSkGroup(ctx context.Context, client *syncp.APIClient, accountID, name string) string {
+	existing, _, err := client.AccountAPI.ListAccountSkGroup(ctx, accountID).Execute()
+	fatal("list sk groups", err)
+	for _, g := range existing.Items {
+		if g.Name == name && !g.Programmatic {
+			log.Printf("on-demand sk group %q exists (id %s)", name, g.Id)
+			return g.Id
+		}
+	}
+	created, _, err := client.AccountAPI.CreateAccountSkGroup(ctx, accountID).
+		SigningKeyGroupCreateRequest(syncp.SigningKeyGroupCreateRequest{Name: name, Programmatic: false}).Execute()
+	fatal("create on-demand sk group "+name, err)
+	log.Printf("created on-demand sk group %q (id %s)", name, created.Id)
 	return created.Id
 }
 

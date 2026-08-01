@@ -169,3 +169,43 @@ Token — the one input only the operator can mint. Unmeasured until then,
 honestly: every call shape is compile-checked but none has met the real API;
 the callout-id addressing (system id?) is an explicit guess the tool logs
 loudly about.
+
+## 2026-08-01 (evening) — measured on the real thing: callout admission works on the BYON
+
+The reversal-condition question is CLOSED [measured]. With the operator's
+PAT (via 1Password), `byon-setup --apply` wired system DEV end to end —
+control account AUTH created, programmatic scoped sk group on PLATFORM +
+issuer sk group on AUTH (seeds captured at creation, the once), callout
+enabled (config `3HKDWtkv…`, no platform xkey → requests arrive unsealed),
+PLATFORM wired as target, issuer user created and registered. Two API
+realities fixed along the way: the callout object is addressed via
+`ListAuthCalloutConfigs(systemId)` (the system-id guess 404'd), and the
+platform refuses NATS users under programmatic sk groups (the issuer got an
+on-demand group).
+
+Then the whole stack, live: `soulidentity serve` on the operator's machine
+(vault on the BYON's JetStream; the callout connection needs its own NATS
+context — `--callout-creds` alone dials localhost, a serve-UX chafe worth a
+soulidentity issue), keys imported, `sit_` token + sentinel minted, the
+prototype node against `nats://100.108.7.14:4222`, and `cmd/probe` running
+the pre-registered pass protocol as a hosted client would:
+
+    initialize → tools/list → whoami: daan@AAIG2SMP… → board →
+    start_topic: byon-proof-w9jp → post_turn → reader: unknown-key
+    without keyring, then SigVerified from ONE keys.public answer,
+    every op authored "daan".
+
+Callout admission, the scoped both-subject-space template,
+`$SYS.REQ.USER.INFO` principal derivation, first-touch key
+materialisation, and custody signing all hold on nats-server 2.12.7 under
+Synadia Cloud BYON — the deployment class the realms actually live on.
+Small chafe recorded: `token create` prints token + digest on two lines;
+the probe wants the token line only.
+
+What remains of Bar 4 is exactly its point: the no-install client. The
+node runs on 127.0.0.1:8080; `tailscale serve --bg 8080` and a Claude
+Desktop connector with `Authorization: Bearer sit_…` is the operator's
+final act. Secrets note: byon-secrets/ (gitignored) holds the two sk
+seeds, both xkey seeds, issuer creds, token + digest, sentinel — they
+belong in 1Password, and the serve/node processes belong somewhere
+durable (beno1) rather than this session's background shells.
