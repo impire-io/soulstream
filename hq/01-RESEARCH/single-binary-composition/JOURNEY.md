@@ -127,3 +127,29 @@ same shape upstream). Asks remaining: soulstream public `mcp` package
 (interacts with its open `remote-mcp-node` topic — the natural vehicle),
 archivist keeper/archive seam + OnServed bump, soulrealm×soulstream
 release tagging.
+
+## 2026-08-01 — asks 3 and 4 delivered the same day; only the front door remains
+
+- **Archivist (ask 3)**: `archive/` and `keeper/` are public — the embed
+  seam as this topic proposed (open a Store, hand it to `keeper.Run` +
+  `keeper.Witness` + `topic.RespondMemory`). Rode the soulstream
+  v0.4.0→v0.6.0 bump; the pre-registered OnServed change landed, plus a
+  second 017-guard fix the bump surfaced (typed-nil `*SigningKey` must
+  leave `Config.Signer` unset — in the daemon and its test helper both;
+  the guard caught it exactly as designed) [measured, its gate green
+  end-to-end against v0.6.0].
+- **soulrealm (ask 4)**: the `../soulstream` replace is gone — pinned at
+  v0.6.0 (its journey 0011). Measured first: soulstream main is
+  tag-current (v0.6.0 + docs-only commits); full gate green against the
+  pin. soulrealm is now consumable as a tagged dependency the moment it
+  tags.
+- **Remaining (ask 2)**: soulstream's public `mcp` package — deliberately
+  untouched: the `remote-mcp-node` research topic is the maintainer's
+  open investigation (Bar 4 in flight) and its graduation is the natural
+  vehicle for that surface. Held for him.
+
+Consequence for Phase 1: every embed surface M1.1–M1.3 needs now exists
+publicly (identity plane via soulidentity `embed`, realm client via
+`realm.NewClient`, memory via archivist `keeper`/`archive`, workload
+launch via soulrealm's public packages) — the front-door surface gates
+only Phase 2.
