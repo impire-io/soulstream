@@ -122,3 +122,24 @@ is evicted and admission retried with the next request's badge; and a
 board → post_turn) maps onto the prototype as written. Bars 1–3 re-run
 green after the changes [measured]. The operator steps live in
 [bar4-runbook.md](bar4-runbook.md).
+
+## 2026-08-01 — the BYON is reachable; the realm stands on it
+
+The reversal-condition environment exists [measured, probes]: Synadia Cloud
+BYON, context `impire-dev-platform`, server `beno1` (nats-server 2.12.7) at
+`nats://100.108.7.14:4222` — on the tailnet already, RTT 8.4 ms. JetStream
+enabled on the account; the bootstrap user carries `Deny:
+$SYS.REQ.USER.AUTH`, the guard consistent with callout availability on this
+deployment class. Realm `proof` provisioned through the context with the
+default budgets (op-log 1 GiB, inbox 64 MiB, objects 512 MiB, personas
+64 MiB) — soulstream's realm shape stands on the BYON without incident.
+
+Still unmeasured, and honestly so: **callout admission itself.** The AUTH
+side (external authorization, issuer creds, the scoped signing key with the
+both-subject-space template) exists only in the Synadia Cloud console's
+gift; the exact remaining acts are itemised in
+[bar4-runbook.md](bar4-runbook.md) §0a. Lane B's local-IdP question was
+also answered this week: Pocket ID (Go, SQLite, configurable claim keys —
+needs a small RFC 7591 shim) or Ory Hydra (native DCR, proven with Claude,
+bring-your-own consent page) are the recorded candidates, with ZITADEL
+ruled out for the dance (DCR open issue #9810).

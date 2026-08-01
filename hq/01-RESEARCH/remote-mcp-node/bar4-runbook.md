@@ -10,6 +10,46 @@ requires RFC 9728 resource metadata (the node serves it), S256 PKCE, and a
 registration story (DCR, CIMD, or Anthropic-held credentials). Tokens in
 URLs are prohibited — headers or OAuth only.
 
+## 0a. The BYON concretes (probed 2026-08-01)
+
+The deployment exists: Synadia Cloud BYON, context **`impire-dev-platform`**
+(`DEV-PLATFORM-daan` is the same target), server `beno1` (v2.12.7) at
+`nats://100.108.7.14:4222` — already on the tailnet, RTT ~8 ms. JetStream is
+enabled on the account; realm **`proof`** is provisioned with default
+budgets. The bootstrap user carries `Deny: $SYS.REQ.USER.AUTH` (the callout
+guard). What the account does NOT yet have, and only the Synadia Cloud
+console can add:
+
+1. **The AUTH side**: an account with external authorization enabled
+   (allowed account = this app account), its callout xkey, and creds for
+   the issuer user — these become `--callout-creds`/`--auth-account`.
+2. **A scoped signing key on the app account** whose template carries the
+   represented-user allows (see `experiment/rig_test.go`): the
+   `soulidentity` user ops on the own prefix, `SOULSTREAM.>`, `$JS.API.>`,
+   `$KV.>`, `$O.>`, `$SYS.REQ.USER.INFO` (pub) and `_INBOX.>`,
+   `SOULSTREAM.>` (sub). Generate the keypair locally, register the public
+   half as the scoped signing key in the console, keep the seed for the
+   vault import.
+3. Same pattern for an AUTH-account signing key (the issuer's signing key,
+   vault name `auth/issuer`).
+
+Then, on any tailnet machine:
+
+```sh
+# the service + issuer (xkey seeds via SOULIDENTITY_FIRST_KEY / _SURFACE_KEY / _CALLOUT_KEY)
+soulidentity serve --context impire-dev-platform \
+  --callout-creds auth-issuer.creds --auth-account <AUTH-public-key> \
+  --callout-ttl 5m [--oidc-issuer … --oidc-audience …]
+
+# provision the trust material (as the admin principal)
+soulidentity key import --context impire-dev-platform --as <acct>/<user> \
+  --name acme --kind nats-account-signing-key --seed-file team.seed --account <acct-pub>
+soulidentity key import … --name auth/issuer … --account <AUTH-pub>
+soulidentity token create --context impire-dev-platform --as <acct>/<user> \
+  --account <acct-pub> --user daan --label "claude desktop"
+soulidentity sentinel --context impire-dev-platform --as <acct>/<user> > sentinel.creds
+```
+
 ## 0. Prerequisites
 
 - A NATS deployment running the SoulIdentity service **and** the callout
