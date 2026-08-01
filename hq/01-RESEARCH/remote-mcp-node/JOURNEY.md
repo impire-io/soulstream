@@ -143,3 +143,29 @@ also answered this week: Pocket ID (Go, SQLite, configurable claim keys —
 needs a small RFC 7591 shim) or Ory Hydra (native DCR, proven with Claude,
 bring-your-own consent page) are the recorded candidates, with ZITADEL
 ruled out for the dance (DCR open issue #9810).
+
+## 2026-08-01 (later) — the console acts become one command: the Cloud API
+
+The operator pointed at the Synadia Cloud API, and it covers everything §0a
+listed as console work — with two findings worth their own lines:
+
+- **The Cloud API has first-class auth-callout endpoints**
+  (`control-plane-sdk-go` v0.9.0): `EnableAuthCallout(system,
+  {control_account})`, target-account wiring that explicitly names a
+  signing-key group on each side, and callout users registered from
+  control-account NATS users. Synadia's own model matches the rig's shape
+  one-to-one.
+- **Programmatic signing-key groups solve the custody question in
+  soulidentity's favour.** `CreateAccountSkGroup(…, {programmatic: true,
+  scope})` returns the SEED exactly once — the sanctioned export the vault
+  import needs; the console-only worry recorded on 2026-07-31 is void. The
+  scoped group carries our both-subject-space template verbatim
+  (`{{account-subject()}}.{{name()}}` templating included).
+
+Built `experiment/cmd/byon-setup` (plan/apply, idempotent re-runs, seeds
+written 0600 before anything else can fail, next-step soulidentity commands
+printed). Compiles against the SDK; the live run awaits a Personal Access
+Token — the one input only the operator can mint. Unmeasured until then,
+honestly: every call shape is compile-checked but none has met the real API;
+the callout-id addressing (system id?) is an explicit guess the tool logs
+loudly about.

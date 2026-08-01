@@ -17,8 +17,24 @@ The deployment exists: Synadia Cloud BYON, context **`impire-dev-platform`**
 `nats://100.108.7.14:4222` — already on the tailnet, RTT ~8 ms. JetStream is
 enabled on the account; realm **`proof`** is provisioned with default
 budgets. The bootstrap user carries `Deny: $SYS.REQ.USER.AUTH` (the callout
-guard). What the account does NOT yet have, and only the Synadia Cloud
-console can add:
+guard). What the account does NOT yet have is the callout wiring below —
+**scripted in `experiment/cmd/byon-setup`** against the Synadia Cloud API
+(first-class auth-callout endpoints; programmatic signing-key groups whose
+seed is returned exactly once — the sanctioned custody export). It needs a
+Personal Access Token from
+`https://cloud.synadia.com/profile/personal-access-tokens`:
+
+```sh
+cd hq/01-RESEARCH/remote-mcp-node/experiment
+SYNADIA_PAT=uat_… go run ./cmd/byon-setup --system dev-impire-platform          # discover + plan
+SYNADIA_PAT=uat_… go run ./cmd/byon-setup --system dev-impire-platform --apply  # wire it, seeds → byon-secrets/
+```
+
+It performs, idempotently: the control (AUTH) account, a programmatic
+**scoped** sk group on the app account (the both-subject-space template) and
+one on the control account, `EnableAuthCallout`, the target-account wiring,
+and the issuer user (registered as callout user, creds downloaded). What
+that automates, spelled out:
 
 1. **The AUTH side**: an account with external authorization enabled
    (allowed account = this app account), its callout xkey, and creds for
