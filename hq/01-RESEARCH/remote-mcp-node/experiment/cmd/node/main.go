@@ -29,9 +29,8 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if *publicURL != "" && *authIssuer == "" {
-		log.Fatal("node: --public-url needs --auth-issuer (the metadata must name an authorization server)")
-	}
+	// --public-url alone = proxy-fronted with bearer-only auth; adding
+	// --auth-issuer switches the OAuth discovery edge on too.
 
 	n := researchnode.New(researchnode.Config{
 		NATSURL:      *natsURL,

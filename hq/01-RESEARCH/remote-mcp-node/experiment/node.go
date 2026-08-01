@@ -68,7 +68,13 @@ type entry struct {
 
 func New(cfg Config) *Node {
 	n := &Node{cfg: cfg, entries: map[string]*entry{}}
-	n.inner = mcp.NewStreamableHTTPHandler(n.serverFor, nil)
+	// A PublicURL means a reverse proxy (tailscale serve) fronts the node:
+	// requests reach loopback with the public Host, which the SDK's
+	// DNS-rebinding protection would 403. The proxy IS the deployment shape
+	// here, so the localhost guard yields to it.
+	n.inner = mcp.NewStreamableHTTPHandler(n.serverFor, &mcp.StreamableHTTPOptions{
+		DisableLocalhostProtection: cfg.PublicURL != "",
+	})
 	return n
 }
 
@@ -115,7 +121,7 @@ func routeHint(bearer string) string {
 // OAuth edge is on), then badge extraction, admission (build-or-evict the
 // pool entry), freshest-bearer bookkeeping, and the streamable MCP handler.
 func (n *Node) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if n.cfg.PublicURL != "" && r.URL.Path == "/.well-known/oauth-protected-resource" {
+	if n.cfg.PublicURL != "" && n.cfg.AuthIssuer != "" && r.URL.Path == "/.well-known/oauth-protected-resource" {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"resource":                 n.cfg.PublicURL,
@@ -146,12 +152,20 @@ func (n *Node) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	n.inner.ServeHTTP(w, r)
 }
 
-// unauthorized answers 401 with the WWW-Authenticate challenge that points a
-// hosted MCP client at the resource metadata (the discovery entry point).
+// unauthorized answers 401 with a WWW-Authenticate challenge; when an
+// authorization server is configured it points the hosted MCP client at the
+// resource metadata (the discovery entry point) — bearer-only deployments
+// just get the challenge.
 func (n *Node) unauthorized(w http.ResponseWriter, errCode string) {
-	c := fmt.Sprintf("Bearer resource_metadata=%q", n.cfg.PublicURL+"/.well-known/oauth-protected-resource")
+	c := "Bearer"
+	if n.cfg.AuthIssuer != "" {
+		c += fmt.Sprintf(" resource_metadata=%q", n.cfg.PublicURL+"/.well-known/oauth-protected-resource")
+	}
 	if errCode != "" {
-		c += fmt.Sprintf(", error=%q", errCode)
+		if n.cfg.AuthIssuer != "" {
+			c += ","
+		}
+		c += fmt.Sprintf(" error=%q", errCode)
 	}
 	w.Header().Set("WWW-Authenticate", c)
 	http.Error(w, "unauthorized", http.StatusUnauthorized)

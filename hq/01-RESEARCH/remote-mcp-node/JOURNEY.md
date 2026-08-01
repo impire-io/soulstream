@@ -209,3 +209,28 @@ final act. Secrets note: byon-secrets/ (gitignored) holds the two sk
 seeds, both xkey seeds, issuer creds, token + digest, sentinel — they
 belong in 1Password, and the serve/node processes belong somewhere
 durable (beno1) rather than this session's background shells.
+
+## 2026-08-01 (night) — the HTTPS front door works; Bar 4 is one connector away
+
+`tailscale serve --bg 8080` published the node tailnet-only at
+`https://altis.turkey-noodlefish.ts.net`, and the probe re-ran the whole
+pass protocol through it [measured]: same PASS, `SigVerified`, authored
+`daan` — the exact path a Claude Desktop connector takes. Two frictions,
+both now knowledge:
+
+- **First HTTPS hit times out while tailscale mints the cert** — retry and
+  it's fine (18 ms after).
+- **The go-sdk's DNS-rebinding protection 403s proxy-fronted nodes**: the
+  handler auto-rejects loopback-received requests with a non-loopback Host
+  (SDK ≥1.4, `DisableLocalhostProtection` to opt out). The node now
+  declares the deployment shape — `--public-url` set ⇒ proxy expected ⇒
+  the localhost guard yields; `--public-url` also no longer demands
+  `--auth-issuer` (bearer-only lane), and the 401 challenge only advertises
+  resource metadata when an authorization server actually exists. An 018
+  requirement worth remembering: a real node is *always* proxy-fronted.
+
+Remaining: the operator adds the Claude Desktop connector
+(`https://altis.turkey-noodlefish.ts.net`, header `Authorization: Bearer
+sit_…` from byon-secrets/claude-desktop.token) and drives the four tools.
+That observation is Bar 4's pass — then `/research-graduate remote-mcp-node
+--to design`.
