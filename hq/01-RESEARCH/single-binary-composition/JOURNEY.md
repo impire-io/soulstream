@@ -109,3 +109,21 @@ while internal planes ride in-process (the refusal-parity finding); (2)
 which upstream asks to file first and whether the constitution ratifies as
 drafted. `/research-graduate single-binary-composition --to design` is
 ready to run once those survive teach-back.
+
+## 2026-08-01 — upstream ask 1 of 4 delivered: soulidentity's embed seam
+
+The maintainer confirmed the direction ("expose the right constructs in
+the downstream projects") and the first ask landed the same day, through
+soulidentity's own process: D29 + feature `002-embed-seam` (its journey
+episode 0018, merged to its main). `embed.Run(ctx, Options)` is public —
+value-only options, custody unchanged, provisioning still wire-only — and
+its proof module is the sharper version of this topic's own trick
+inverted: a module path *outside* the namespace, so `internal/` imports
+cannot compile [measured, `soulidentity/e2e/embedgate` rides its
+`make test`]. Consequence for this topic: the rig's namespace dodge is now
+deletable — the rig can re-wire through the public seam when the topic
+graduates (or be retired with the folder, since embedgate now proves the
+same shape upstream). Asks remaining: soulstream public `mcp` package
+(interacts with its open `remote-mcp-node` topic — the natural vehicle),
+archivist keeper/archive seam + OnServed bump, soulrealm×soulstream
+release tagging.
