@@ -43,13 +43,26 @@ type State struct {
 	// DoorPublicURL is the door's advertised public address (the OAuth
 	// resource identifier — deployment fronting such as `tailscale
 	// serve` carries HTTPS to the loopback listener); DoorAuthIssuer is
-	// the external authorization server's issuer URL (soulfold is the
-	// intended default, the door stays AS-agnostic); DoorAuthAudience
-	// is the deployment's fixed token audience the identity plane's
-	// OIDC lane validates. All three or none.
+	// the external authorization server's issuer URL (the bundled fold
+	// when the fold plane runs and no issuer is set — the default
+	// wiring; the door stays AS-agnostic); DoorAuthAudience is the
+	// deployment's fixed token audience the identity plane's OIDC lane
+	// validates. All three or none after defaulting.
 	DoorPublicURL    string
 	DoorAuthIssuer   string
 	DoorAuthAudience string
+
+	// The fold plane (soulfold M5's bundled story, opt-in): the
+	// deployment's own passkey-first OIDC provider in-process, storing
+	// on the node's JetStream under its own bucket prefix, seal seed
+	// under <state>/fold/. FoldIssuer's host is WebAuthn's one-way door
+	// at first enrollment — public deployments set it to the fronted
+	// name before anyone enrolls. FoldAudience defaults to
+	// "soulnode-<realm>".
+	FoldEnabled  bool
+	FoldListen   string
+	FoldIssuer   string
+	FoldAudience string
 
 	OperatorSeed []byte
 	OperatorPub  string
@@ -93,6 +106,7 @@ type State struct {
 	OpsCreds       []byte
 	ArchivistCreds []byte
 	RunnerCreds    []byte
+	FoldCreds      []byte
 }
 
 // FoundingPersona is the persona name the first access token represents:
@@ -208,6 +222,9 @@ func Generate(listen, realm string) (*State, error) {
 		return nil, err
 	}
 	if s.RunnerCreds, err = userCreds("runner", realmKP); err != nil {
+		return nil, err
+	}
+	if s.FoldCreds, err = userCreds("fold", realmKP); err != nil {
 		return nil, err
 	}
 	issuerClaims := jwt.NewUserClaims(issuerUserPub)
