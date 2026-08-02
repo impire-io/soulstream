@@ -23,7 +23,7 @@ import (
 const usage = `soulnode — your realm in one binary
 
 Usage:
-  soulnode init [--state DIR] [--listen ADDR] [--realm NAME]
+  soulnode init [--state DIR] [--listen ADDR] [--realm NAME] [--door-listen ADDR]
                                                 found a realm (prints your token ONCE)
   soulnode up   [--state DIR]                   run it until interrupted
   soulnode workload start <declaration.json> [--state DIR]

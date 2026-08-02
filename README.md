@@ -2,6 +2,9 @@
 
 *The whole Soulstream ecosystem in one binary, on a machine you own.*
 
+**New here? [The getting-started guide](docs/getting-started.md)** takes
+you from nothing to a realm your Claude talks to, in about five minutes.
+
 [Soulstream](../soulstream) is the record — topics as shared workbenches,
 operations, baselines, personas. [Soulrealm](../soulrealm) is the room — the
 runtime that launches a realm's agents and tools as workloads.
