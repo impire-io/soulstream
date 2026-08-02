@@ -85,18 +85,19 @@ The wire format already carries every future hook: `Soulstream-Parents` (merge),
 9. **Sealed topics** — the crypto is the single biggest build item and the dogfood scenario doesn't need it. *Not yet built* — but **design-validated 2026-07-28** ([journey 0005](../04-JOURNEY/0005-sealed-topics.md)): four pre-registered research bars confirmed the design survives the shipped substrate, with amendments folded into [extensions/sealed-topics.md](../02-DESIGN/extensions/sealed-topics.md); speckit-ready. Build priority gated on the dogfood chafe log (to 2026-08-10).
 10. **WebSocket/browser client, presence.** *Not yet built.*
 11. **Remote MCP node** (`018`) — a URL into a realm for clients that cannot
-    install anything (sandboxed Claude Desktop, claude.ai connectors). *Not
-    yet built* — but **design-validated 2026-08-01**
-    ([journey 0008](../04-JOURNEY/0008-remote-mcp-node.md)): a
-    credential-less passthrough node, callout-admitted per user, was proven on
-    a Synadia Cloud BYON (Bars 1–3 + the reversal-condition measurement PASS).
-    Design in [extensions/remote-mcp-node.md](../02-DESIGN/extensions/remote-mcp-node.md);
-    the node half of SoulIdentity's M2. The one open build decision is the
-    OAuth authorization server the hosted connector requires (node-embedded
-    single-persona bridge vs. external OIDC AS) — Bar 4 measured that Claude
-    Desktop's remote-connector UI offers OAuth only, no static-header lane.
-    Prototype, BYON-setup tool, and probe carry in from the research (git
-    history).
+    install anything (sandboxed Claude Desktop, claude.ai connectors). **BUILT
+    + released v0.7.0 (2026-08-02)** ([journey
+    0009](../04-JOURNEY/0009-remote-mcp-node-built.md)): a credential-free
+    passthrough node (nested consumer module `node/`), callout-admitted per
+    user, with the tool surface now a public embeddable `mcpserver` (+
+    `soulstream_whoami`) — the node half of SoulIdentity's M2 and SoulNode's
+    fourth upstream ask. The open OAuth decision was resolved **external OIDC
+    only** (soulfold the intended default, the node AS-agnostic; the AS-facing
+    contract proven the interface). All five user stories measured on an
+    in-process admission edge; the R4 trust model closes the prototype's
+    forged-hint DoS. CI/release wired but dormant until the private-module
+    credential exists. Design in
+    [extensions/remote-mcp-node.md](../02-DESIGN/extensions/remote-mcp-node.md).
 
 Beyond the original day-2 list, five features shipped that the plan did not
 enumerate: **distribution** (`012`, the Claude plugin marketplace + release

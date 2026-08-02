@@ -22,19 +22,19 @@ Claude Desktop, a phone, a locked-down corporate laptop. For them the doorway ha
 stand **at the workshop** instead of on the desk — one shared door, reached by URL,
 that many people walk through as themselves.
 
-That is the **remote node**. It is designed but **not built yet** — it's the next
-feature cycle, and this page describes the design so you know what's coming and what
-to wait for.
+That is the **remote node** (`soulstream-node`), and it is **built** — feature 018.
+This page describes how it works and how to run it.
 
-## How the designed door works: show a badge
+## How the door works: show a badge
 
 Everything follows from one rule: **you show a badge, and the badge is checked by the
 badge office — never by the door.**
 
 - **The badge** is a bearer token in the HTTP header your MCP client already knows how
-  to send: an **Entra access token** (your organisation's normal sign-in) or a
-  **SoulIdentity API token** (for clients that can't do the OAuth dance). One header,
-  either shape.
+  to send: an **OIDC access token** (your organisation's normal sign-in, through
+  whatever authorization server the operator chose) or a **SoulIdentity API token**
+  (for clients that can paste a header instead of doing the OAuth dance). One header,
+  either shape — the node passes it through regardless of how you got it.
 - **The door passes the badge through.** The node validates nothing itself: your badge
   becomes the token on a NATS connection opened *for you*, and
   [SoulIdentity](https://github.com/impire-io/soulidentity)'s auth callout — the badge
@@ -58,35 +58,58 @@ badge office — never by the door.**
 
 The result for the person on the locked-down laptop: **a URL, not an install**. Add
 the connector, sign in as yourself, and you're a realm member with the same
-twenty-three buttons — attributed, signed, revocable.
+twenty-four buttons — attributed, signed, revocable.
 
-## What still needs building
+## The sign-in question, answered
 
-Being precise about the gap, since most of the hard parts already exist:
+A hosted connector (Claude Desktop, claude.ai) authenticates a remote server by
+**OAuth only** — there is no static-token field to paste a badge into. So a no-install
+client needs an authorization server to sign in against. Feature 018 resolved this the
+honest way: the node is **never** an authorization server itself. It points at an
+**external** one, and stays agnostic about which — it only publishes, at the standard
+discovery spot, *where* to sign in, and passes the resulting token through. The
+intended default is [soulfold](https://github.com/impire-io/soulfold), the ecosystem's
+own small embeddable OIDC provider; any conforming server works. What "conforming"
+means is written down precisely in the
+[AS-facing contract](../specs/018-remote-mcp-node/contracts/authorization-server.md):
+discovery, dynamic client registration, PKCE, and the exact claims a token must carry
+(notably a legal-slug `oid` that becomes your persona). The node repository proves that
+contract *is* the interface — its tests drive the whole flow against a stand-in built
+from that document alone.
 
-- **Shipped on the SoulIdentity side**: the badge office (auth callout with both
-  token lanes), one-identity-one-persona, keys materialising on first touch, custody
-  signing that satisfies Soulstream's [signer seam](./signing.md) directly, and the
-  cross-service proof that a record signed there verifies here.
-- **The node itself** (Soulstream's next cycle): the HTTP door, the per-user
-  connection pool, reading keys from the identity plane, re-proving on token expiry.
-- **The connector-friendly edge**: the OAuth discovery handshake hosts require. This
-  turns out to be the *load-bearing* gap — a hosted connector (Claude Desktop,
-  claude.ai) authenticates a remote server by OAuth only; there is no static-token
-  field to paste a badge into. So the node needs an authorization server to point at,
-  and choosing it (a small one built into the node for a single persona, or a real
-  OIDC provider for many) is the open build decision.
-- **On SoulIdentity's plate**: a home for persona *presentation* (display name,
-  [operator attestations](./operators.md)) beside the keys, so identity-plane realms
-  don't lose what the realm phone book carries today.
+Clients that can send their own headers (like Claude Code) skip OAuth entirely: paste a
+SoulIdentity API token as the bearer. Same door, same admission edge.
 
-This direction is proven, not hypothetical: on a live Synadia Cloud deployment a
-prototype node admitted a client through auth callout and posted a signed,
-correctly-attributed turn — end to end, including over an HTTPS front door. The
-design and its measured evidence live in
+## Running the door
+
+One binary, `soulstream-node`, config small enough to read at a glance:
+
+```sh
+soulstream-node \
+  --listen 127.0.0.1:8080 \
+  --public-url https://node.example.com \   # front it with HTTPS; enables OAuth
+  --issuer https://auth.example.com \       # your authorization server
+  --realm workshop \
+  --nats-url nats://your-server:4222 \
+  --sentinel-creds ~/.config/soulstream-node/sentinel.creds
+```
+
+Front it with an HTTPS terminator (`tailscale serve`, Caddy, nginx — the node never
+terminates TLS itself). Omit `--public-url` for a loopback/local door with static
+bearers only (the shape the [single-binary house](https://github.com/impire-io/soulnode)
+embeds). Restart it whenever: it holds **no state** — no tokens, no keys, no
+per-user secret on disk — so a restart loses nothing a re-presented badge can't rebuild.
+The realm must already be provisioned; the node never provisions. The full walkthrough,
+including the operator's admission-edge prerequisites, is the
+[018 quickstart](../specs/018-remote-mcp-node/quickstart.md).
+
+This is proven, not hypothetical: on a live Synadia Cloud deployment a prototype node
+admitted a client through auth callout and posted a signed, correctly-attributed turn —
+end to end, over an HTTPS front door — and the shipped node's test rig runs the whole
+admission edge (auth callout + identity plane) in-process, verifying every claim above.
+The design and its measured evidence live in
 [the remote-MCP-node design](../hq/02-DESIGN/extensions/remote-mcp-node.md) and
-[journey episode 0008](../hq/04-JOURNEY/0008-remote-mcp-node.md); the build is
-feature 018.
+[journey episode 0008](../hq/04-JOURNEY/0008-remote-mcp-node.md).
 
 ## Related
 

@@ -14,8 +14,8 @@ import (
 
 	"github.com/impire-io/soulstream/internal/config"
 	"github.com/impire-io/soulstream/internal/keystore"
-	"github.com/impire-io/soulstream/internal/mcpserver"
 	"github.com/impire-io/soulstream/internal/version"
+	"github.com/impire-io/soulstream/mcpserver"
 	"github.com/impire-io/soulstream/realm"
 )
 

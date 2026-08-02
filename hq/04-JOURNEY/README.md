@@ -15,10 +15,10 @@ reversals, because a refuted assumption is as load-bearing as the shipped code.
 > [`../00-GENESIS/how-we-work.md`](../00-GENESIS/how-we-work.md); the numbering
 > and index are enforced by `internal/hqlint`.
 
-## Where things stand (2026-08-01)
+## Where things stand (2026-08-02)
 
-The reference library has shipped the MVP and most of day-2 — **`v0.6.0`**
-(2026-07-29) is current: foundation + op-log engine, CLI + MCP clients,
+The reference library has shipped the MVP and most of day-2 — **`v0.7.0`**
+(2026-08-02) is current: foundation + op-log engine, CLI + MCP clients,
 signing, rollup, scatter-gather discovery, the curator, work stages 1–2,
 distribution, config-file identity, persona accountability
 ([episode 0001](0001-genesis-and-the-reference-library.md), the founding
@@ -38,8 +38,16 @@ publish loudly — hardened for release the same day
 signers refused at `Connect`, responder callbacks carrying the error
 instead of a `-1` sentinel, and the cycle-guard dependency rule (neither
 core repo imports the other; consumers wire the structural interface)
-recorded on both sides — shipped together as **`v0.6.0`**. The **two-week dogfood run
-started 2026-07-27** (protocol:
+recorded on both sides — shipped together as **`v0.6.0`**. Then the **remote
+MCP node** ([episode 0009](0009-remote-mcp-node-built.md), **`v0.7.0`**): a
+URL into the realm for clients that cannot install anything — credential-free
+bearer passthrough onto per-principal callout-admitted connections, the tool
+surface now a public embeddable `mcpserver` (SoulNode's fourth upstream ask,
+plus `soulstream_whoami`), sign-in via an external OIDC authorization server
+only (soulfold the intended default, the AS-facing contract proven to be the
+interface), all five user stories measured on an in-process admission edge,
+and a trust model that closes the prototype's forged-hint DoS. The **two-week
+dogfood run started 2026-07-27** (protocol:
 [`../03-IMPLEMENTATION/DOGFOOD.md`](../03-IMPLEMENTATION/DOGFOOD.md))
 — daan, smith, and scribe on the NGS realm, the archivist keeping; its chafe
 log feeds the eg-walker and sealed-topics gates. The central architectural
@@ -66,14 +74,13 @@ research topic has concluded: **remote-mcp-node**
 and its reversal-condition measurement PASSED on a live Synadia Cloud BYON —
 a credential-less MCP node that passes the caller's bearer through to auth
 callout, admitting a no-install client as a real, signed realm member. Bar 4
-found the one gap that shapes the build: Claude Desktop's hosted connector
-authenticates by OAuth only (no static-header lane), so the node's
-authorization-server story is the open decision for feature **018**
-([design](../02-DESIGN/extensions/remote-mcp-node.md)). What is *not* yet
-built is the forward plan in
+found the one gap that shaped the build: Claude Desktop's hosted connector
+authenticates by OAuth only (no static-header lane), which the node answers
+with an external OIDC authorization server — that topic is now **built and
+shipped** as feature 018 ([episode 0009](0009-remote-mcp-node-built.md)). What
+is *not* yet built is the rest of the forward plan in
 [`../03-IMPLEMENTATION/ROADMAP.md`](../03-IMPLEMENTATION/ROADMAP.md):
-eg-walker live co-editing, sealed topics, a browser/WebSocket client, and the
-remote MCP node (018).
+eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 
 ## Episode index
 
@@ -87,3 +94,4 @@ remote MCP node (018).
 | 0006 | [The signer seam: signing learns to be delegated](0006-the-signer-seam.md) |
 | 0007 | [DX hardening: the seam's two sharp edges, and the cycle guard](0007-dx-hardening-and-the-cycle-guard.md) |
 | 0008 | [The remote MCP node: a URL into the realm, proven on the BYON](0008-remote-mcp-node.md) |
+| 0009 | [The remote MCP node, built: the door that holds nothing](0009-remote-mcp-node-built.md) |

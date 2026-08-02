@@ -1,5 +1,36 @@
 <!-- SPECKIT START -->
-Last landed feature (no cycle active): **017-signer-seam** (v0.6.0,
+Last landed feature (no cycle active): **018-remote-mcp-node** (v0.7.0,
+2026-08-02) — the remote MCP node: a URL into the realm for no-install
+clients. Two deliverables shipped. (1) `internal/mcpserver` PROMOTED to
+public `mcpserver` (embeddable by any host bringing a connected,
+signer-wired `realm.Client`) + `WithKeyring` option (decouples reader
+verification from the per-realm pins file for multi-tenant hosts) + new
+`soulstream_whoami` tool (24 total) — SoulNode's fourth upstream ask.
+`cmd/soulstream-mcp` changed one import; stdio behavior byte-identical.
+(2) Nested consumer module `node/` (own go.mod, committed `replace
+soulstream => ../`, soulidentity by pseudo-version; cycle guard: neither
+core repo imports the other or the node — tested): streamable HTTP,
+credential-free bearer passthrough onto per-principal pooled
+callout-admitted NATS connections, server-asserted principal via
+`$SYS.REQ.USER.INFO`, delegated signing via `client.PersonaSigner` (017
+seam), RFC 9728 + 401 OAuth resource edge. EXTERNAL OIDC AS ONLY (soulfold
+the intended default; node AS-agnostic; the AS-facing contract IS the
+interface, proven by an SC-005 stand-in built from the doc alone).
+R4 TRUST MODEL (the one change over the 56c7a2e prototype): a bearer
+influences a pool entry only AFTER admission for that principal (build /
+byBearer / bound-session refresh / candidate probe) — closes the
+prototype's forged-hint DoS. All 5 stories measured on an in-process rig
+(soulidentity `embed.Run` + operator-mode callout + OIDC AS stand-in).
+GOTCHA banked: node-authored content verifies from soulidentity
+`keys.public`, NOT the soulstream profile registry (node publishes no
+profile). CI/release wired but DORMANT until `NODE_CI_ENABLED` +
+`SOULIDENTITY_READ_TOKEN` exist (node fetches the private soulidentity
+module); core release unaffected. `byon-setup`+`probe` carried best-effort
+(spec Q2). For details: [specs/018-remote-mcp-node/plan.md](specs/018-remote-mcp-node/plan.md)
+(spec+Clarifications, research R1–R11, contracts/{library,authorization-server,http}.md,
+data-model, quickstart, episode `hq/04-JOURNEY/0009-remote-mcp-node-built.md`).
+
+Prior landed feature: **017-signer-seam** (v0.6.0,
 2026-07-29 — includes same-day DX hardening, journeys 0006+0007) — the
 Signer seam: `identity.Signer { PublicKey() string; Sign(canonical []byte)
 (string, error) }` so signing can be delegated to an external custodian
