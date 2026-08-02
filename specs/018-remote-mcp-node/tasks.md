@@ -11,7 +11,7 @@ gate is `make check` green with none skipped.
 **Organization**: by user story. US1 is the MVP slice; US2 is a P1
 constraint on US1's mechanics and lands immediately after. The prototype at
 `git show 56c7a2e:hq/01-RESEARCH/remote-mcp-node/experiment/` is reference
-material for T004, T010–T012, T030–T031 — carry mechanics, re-derive nothing
+material for T004, T010–T012, T034–T035 — carry mechanics, re-derive nothing
 (research R3), EXCEPT the trust model, which is new (R4).
 
 ## Phase 1: Setup
@@ -43,7 +43,10 @@ material for T004, T010–T012, T030–T031 — carry mechanics, re-derive nothi
       ...Option)`: `WithKeyring(func(context.Context) (*identity.Keyring,
       error))` per contracts/library.md §1 — default (no option) keeps the
       file-backed pins path byte-for-byte; `keyring()` consults the
-      provider; option + default-parity tests in `mcpserver/server_test.go`
+      provider; PLUS the one deliberate surface addition (analysis I1):
+      `soulstream_whoami` tool (persona, realm, signer public key — lets a
+      remote user see who the edge admitted them as); option +
+      default-parity + whoami tests in `mcpserver/server_test.go`
 - [ ] T006 Build the node test rig `node/rigtest/rig.go`: embedded
       operator-mode nats-server with auth callout (AUTH + app account
       ceremony via jwt/nkeys — reference `rig_test.go` at 56c7a2e, rebuilt
@@ -92,8 +95,11 @@ post_turn; independent reader verifies `SigVerified`, `Author == persona`
 - [ ] T013 [US1] Integration test `node/node_test.go`: the Independent
       Test above on the rig (static token lane), including tool-surface
       parity assert (node `tools/list` == `mcpserver.NewServer` over
-      stdio-built list — FR-001) and realm-side verification through an
-      independent reader (negative control → keyring → `SigVerified`)
+      stdio-built list — FR-001), whoami returning the server-asserted
+      persona, realm-side verification through an independent reader
+      (negative control → keyring → `SigVerified`), and the loud-signing
+      surface (analysis C1): a rig user admitted WITHOUT the sign.record
+      grant gets a teaching failure — never an unsigned publish (FR-011)
 - [ ] T014 [US1] No/invalid bearer tests: public mode → 401 + challenge
       steering (scenario 3); local mode → 400; nothing reaches the realm
 - [ ] T015 [P] [US1] Docs: create `docs/remote-node.md` ELI5 core ("a

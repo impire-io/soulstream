@@ -29,7 +29,11 @@ func WithKeyring(func(ctx context.Context) (*identity.Keyring, error)) Option
   everything flows from `c` and the injected option. (The default keyring
   is the one legacy exception, preserved for the stdio adapter.)
 - Tool names, schemas, and behavior are IDENTICAL to v0.6.0's
-  `internal/mcpserver` — promotion moves code, it does not edit surface.
+  `internal/mcpserver` — promotion moves code, it does not edit surface —
+  with ONE deliberate addition (analysis I1): `soulstream_whoami`, which
+  reports the session's persona, realm, and signer public key, so a
+  remote user can see who the admission edge decided they are. 24 tools
+  total.
 - BREAKING for nobody: `internal/mcpserver` had no external importers
   (it could not, by definition).
 
