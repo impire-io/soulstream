@@ -149,4 +149,4 @@ cannot hold that.
   built for it; the ceremony split ships behind its own design pass.
 
 The honest, complete history of what works and how it was proven lives
-in [`../hq/04-JOURNEY/`](../hq/04-JOURNEY/README.md).
+in [`../soul-hq/04-JOURNEY/`](../soul-hq/04-JOURNEY/README.md).

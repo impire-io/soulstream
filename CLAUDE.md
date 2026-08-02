@@ -1,11 +1,11 @@
 # SoulNode — orientation
 
-**Read [`hq/`](hq/README.md) first.** Everything about how this project is run
-lives there: the vision and constitution ([`hq/00-GENESIS/`](hq/00-GENESIS/README.md)),
-active research ([`hq/01-RESEARCH/`](hq/01-RESEARCH/README.md)), designs
-([`hq/02-DESIGN/`](hq/02-DESIGN/README.md)), the roadmap
-([`hq/03-IMPLEMENTATION/`](hq/03-IMPLEMENTATION/README.md)), and the honest log
-([`hq/04-JOURNEY/`](hq/04-JOURNEY/README.md)).
+**Read [`../soul-hq/`](../soul-hq/README.md) first.** Everything about how this project is run
+lives there: the vision and constitution ([`../soul-hq/00-GENESIS/`](../soul-hq/00-GENESIS/README.md)),
+active research ([`../soul-hq/01-RESEARCH/`](../soul-hq/01-RESEARCH/README.md)), designs
+([`../soul-hq/02-DESIGN/soulnode/`](../soul-hq/02-DESIGN/soulnode/README.md)), the roadmap
+([`../soul-hq/03-IMPLEMENTATION/`](../soul-hq/03-IMPLEMENTATION/README.md)), and the honest log
+([`../soul-hq/04-JOURNEY/`](../soul-hq/04-JOURNEY/README.md)).
 
 ## What this is
 
@@ -50,12 +50,11 @@ and quickstart live beside it).
 - **Explore → Plan → Code → Commit.** Research goes through `01-RESEARCH/`
   and never through spec-kit; implementation always goes through spec-kit.
 - **Quality gate:** `make fmt && make test && make lint` — all green, nothing
-  skipped, before any "done" (constitution VI; the hq structural lint,
-  `internal/hqlint`, rides `make test`).
+  skipped, before any "done" (constitution VI; the hq structural lint rides the soul-hq gate).
 - Go module `github.com/impire-io/soulnode`; connect to external NATS via
   `orbit.go/natscontext`, modern `nats.go/jetstream` API; never `nats.ws`.
 - Sign every commit. Never commit `.claude/settings.local.json`.
 - **The journey duty:** every landed feature, concluded investigation, or
-  load-bearing decision gets a numbered episode in `hq/04-JOURNEY/` in the
+  load-bearing decision gets a numbered episode in `../soul-hq/04-JOURNEY/` in the
   same change (`/journey-log`; research via `/research-graduate`). Never
   push; pushing stays a human act.

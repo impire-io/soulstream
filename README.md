@@ -23,9 +23,9 @@ Owning your realm should cost one binary and one command.
 ## Status
 
 **Phase 1 is complete — the realm founds, runs, remembers, and executes**
-(journeys [0003](hq/04-JOURNEY/0003-first-boot-is-real.md),
-[0004](hq/04-JOURNEY/0004-the-realm-remembers.md),
-[0005](hq/04-JOURNEY/0005-an-agent-runs.md), 2026-08-02):
+(journeys [0003](../soul-hq/04-JOURNEY/0042-soulnode-first-boot-is-real.md),
+[0004](../soul-hq/04-JOURNEY/0044-soulnode-the-realm-remembers.md),
+[0005](../soul-hq/04-JOURNEY/0045-soulnode-an-agent-runs.md), 2026-08-02):
 
 ```sh
 soulnode init      # founds a realm in ~0.15s — your token, printed once
@@ -36,7 +36,7 @@ soulnode workload start echo.json   # a declared agent runs, attributed
 Then point an MCP client (Claude Code, a desktop client) at
 `http://127.0.0.1:8080` with the printed token as its bearer — the
 session's `whoami` is the persona the *realm* admitted, never what the
-client claims ([journey 0006](hq/04-JOURNEY/0006-the-door-opens.md)).
+client claims ([journey 0006](../soul-hq/04-JOURNEY/0049-soulnode-the-door-opens.md)).
 Admission is the full ecosystem shape (sentinel + token through auth
 callout), memory is the archivist keeping every op and answering with
 citations, and workloads run with minted TTL-bounded credentials under
@@ -61,11 +61,11 @@ The founding bets, held with recorded reversal conditions:
 
 | Area | What it holds |
 |---|---|
-| [`hq/00-GENESIS/`](hq/00-GENESIS/README.md) | Vision, constitution, working rules |
-| [`hq/01-RESEARCH/`](hq/01-RESEARCH/README.md) | Active investigations (one folder each) |
-| [`hq/02-DESIGN/`](hq/02-DESIGN/README.md) | Architecture & feature designs |
-| [`hq/03-IMPLEMENTATION/`](hq/03-IMPLEMENTATION/README.md) | The roadmap: gates, not calendars |
-| [`hq/04-JOURNEY/`](hq/04-JOURNEY/README.md) | Numbered episodes: the honest log |
+| [`../soul-hq/00-GENESIS/`](../soul-hq/00-GENESIS/README.md) | Vision, constitution, working rules |
+| [`../soul-hq/01-RESEARCH/`](../soul-hq/01-RESEARCH/README.md) | Active investigations (one folder each) |
+| [`../soul-hq/02-DESIGN/soulnode/`](../soul-hq/02-DESIGN/soulnode/README.md) | Architecture & feature designs |
+| [`../soul-hq/03-IMPLEMENTATION/`](../soul-hq/03-IMPLEMENTATION/README.md) | The roadmap: gates, not calendars |
+| [`../soul-hq/04-JOURNEY/`](../soul-hq/04-JOURNEY/README.md) | Numbered episodes: the honest log |
 
 Code lives at the repo root as the Go module `github.com/impire-io/soulnode`;
 each feature's spec-kit artifacts freeze under `specs/NNN-*/` as it lands.
