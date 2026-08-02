@@ -258,6 +258,21 @@ client recovery, empty durable state, and token-free logs.
   principal P may govern P's shared realm access; a token that never
   admitted must never displace any principal's freshest token or evict
   their access. (Folded into FR-005 and Edge Cases.)
+- Q: Does "one authorization lane" forbid a client that can send its own
+  headers from presenting an admissible bearer directly (a static
+  API-style token), without any sign-in flow? → A: No — the node's one
+  mechanism is bearer passthrough, indifferent to how the caller obtained
+  the token; what is excluded is the node acting as an authorization
+  server. Sign-in, for clients that need one, is external-AS-only; a
+  directly presented bearer meets the same admission edge. (Folded into
+  FR-009.)
+- Q: A downstream consumer (the single-binary distribution) names
+  "soulstream's public MCP surface" as an upstream ask held for this
+  feature — is making the tool surface embeddable part of 018's scope? →
+  A: Yes — the tool surface the node serves must be a public, embeddable
+  capability of the library so every host (the standalone node, the
+  single-binary house) embeds the same surface rather than forking it.
+  (Folded into FR-015.)
 
 ## Requirements *(mandatory)*
 
@@ -310,8 +325,11 @@ client recovery, empty durable state, and token-free logs.
   out-of-band configuration.
 - **FR-009**: The node MUST NOT be an authorization server: it issues no
   tokens, renders no login or consent surface, and holds no authorization-
-  server credential. Exactly one authorization lane exists: an external
-  authorization server conforming to the stated contract.
+  server credential. Sign-in, for clients that need one, is provided by
+  exactly one lane: an external authorization server conforming to the
+  stated contract. A client that already holds an admissible bearer MAY
+  present it directly — the node's passthrough is indifferent to how a
+  token was obtained; admission remains the edge's decision either way.
 - **FR-010**: The feature MUST state the AS-facing contract precisely and
   AS-agnostically: the discovery relationship, how clients register
   (automatic registration or pre-registered), the sign-in flow class
@@ -338,6 +356,12 @@ client recovery, empty durable state, and token-free logs.
   soulstream library and the identity service's client are both imported by
   the node, and neither core library gains a dependency on the other or on
   the node — the cycle guard holds.
+- **FR-015**: The realm tool surface the node serves MUST be a public,
+  embeddable capability of the library — usable by any host process that
+  brings its own connected, signer-wired realm session — with the existing
+  locally installed MCP client becoming the first embedder, behaviorally
+  unchanged. No host, this node included, may need a private fork of the
+  tool surface.
 
 ### Key Entities
 
