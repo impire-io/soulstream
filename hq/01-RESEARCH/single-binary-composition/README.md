@@ -1,7 +1,8 @@
 # Can the full ecosystem shape run correctly composed in one process?
 
-**State:** active
+**State:** graduated
 **Started:** 2026-07-31
+**Graduated:** 2026-08-02 — to design (`hq/02-DESIGN/0001-soulnode-composition.md`)
 
 ## Abstract
 
@@ -70,6 +71,34 @@ founding reversal condition, restated here as the topic's own).
 
 ## Verdict
 
-<Empty until graduation. Filled by /research-graduate: PASS/FAIL per bar with
-the honest findings, each load-bearing claim tagged [measured] /
-[mechanism-argument] / [judgment].>
+- **Bar 1 — Embedded admission parity: PASS** [measured]. 3/3 observations
+  green on 3 consecutive fresh-rig runs in the DontListen+in-process arm,
+  plus the TCP control arm: token-lane admission 4 ms with the
+  server-asserted principal scoped to its own prefix; bare, garbage, and
+  revoked tokens all refused with `callout REFUSED` in the audit. The
+  protocol's recorded reading for Bar 2: in-process wiring required the
+  module-namespace dodge. One named finding, not a bar failure: refusals
+  over the in-process pipe block a fixed ~10.0 s and lose the -ERR reason
+  (transport-isolated to the pipe, not DontListen) [measured] — superseded
+  as a design constraint by the maintainer's 2026-08-02 all-loopback
+  decision, and demoted to a candidate upstream issue.
+- **Bar 2 — The embed surface is small: PASS** [measured readings +
+  mechanism-argument on the proposed seams]. Every component fits an embed
+  seam; the four upstream asks were enumerated in `embed-surfaces.md` and
+  three were *delivered* before graduation: soulidentity `embed.Run`
+  public (its D29/journey 0018, compiler-proof gate), archivist
+  `archive`/`keeper` public on soulstream v0.6.0, soulrealm pinned to
+  tagged v0.6.0 (its journey 0011). The fourth (soulstream public `mcp`
+  surface) is held for the maintainer's open `remote-mcp-node` topic and
+  gates only Phase 2.
+- **Bar 3 — The ceremony is code, end to end: PASS** [measured]. The
+  rig's `Provision` generates every inventory artifact from an empty
+  directory — pure `server.Options`, no config file, no `nsc`, no manual
+  step — and reaches Bar 1's passing observations; `ceremony.md` and the
+  provision code agree 1:1, and every founding administrative act runs
+  through the public `client` on the node's own connection.
+
+The founding reversal condition was not triggered: no component required
+forking, no embed ask was refused. The one-process bet holds, with the
+transport refined by the maintainer to all-loopback so decomposition stays
+configuration.
