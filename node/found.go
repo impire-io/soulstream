@@ -1,11 +1,16 @@
 package node
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/impire-io/soulidentity/client"
+	"github.com/impire-io/soulstream/realm"
 
 	"github.com/impire-io/soulnode/ceremony"
 )
@@ -17,6 +22,18 @@ import (
 // written LAST as the founding-complete marker. It returns the token's
 // plaintext — the caller prints it once and forgets it.
 func Found(n *Node, st *ceremony.State, stateDir string) (string, error) {
+	// The record substrate is founded with everything else (design §4
+	// step 7): create-or-report, so re-running is always safe.
+	js, err := jetstream.New(n.ncOps)
+	if err != nil {
+		return "", fmt.Errorf("node: jetstream: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, err := realm.ProvisionOn(ctx, js); err != nil {
+		return "", fmt.Errorf("node: provision realm substrate: %w", err)
+	}
+
 	ops := n.Ops()
 	if _, err := ops.ImportKey("realm", client.KindNATSAccountSigningKey,
 		string(st.RealmSigningSeed), st.RealmPub, ""); err != nil {

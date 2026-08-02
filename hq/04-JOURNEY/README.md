@@ -16,6 +16,18 @@ are as load-bearing as the shipped code.
 
 ## Where things stand (2026-08-02)
 
+**M1.2 is done — the realm remembers** ([episode
+0004](0004-the-realm-remembers.md); `specs/002-realm-joins/`): `init`
+founds the record substrate; the memory plane runs in-process (public
+`keeper`/`archive` on a realm client signing through the identity plane —
+persona key vault-held, nothing on disk). Measured: the owner's full path
+through admission (post a turn → archivist keeps it, author `owner` →
+memory answers with attribution and a citation) rides `make test` in
+~5 s; restart continuity exactly-once; the disabled-plane arm clean.
+`config.json` carries `realm` (default `home`) and the first plane block.
+**Next:** M1.3 — an agent runs (the runtime plane; carries the known
+workload-signing-key design question).
+
 **M1.1 is done — first boot is real** ([episode
 0003](0003-first-boot-is-real.md); `specs/001-init-and-up/`): `soulnode
 init && soulnode up` founds and runs a realm — the whole ceremony
@@ -65,3 +77,4 @@ directive) — both since dissolved by the upstream landings above.
 | 0001 | [Genesis: SoulNode gets an HQ](0001-genesis.md) |
 | 0002 | [The composition gate: three bars PASS, the ecosystem opens its seams](0002-the-composition-gate.md) |
 | 0003 | [First boot is real: init and up land](0003-first-boot-is-real.md) |
+| 0004 | [The realm remembers: provisioning and the memory plane land](0004-the-realm-remembers.md) |

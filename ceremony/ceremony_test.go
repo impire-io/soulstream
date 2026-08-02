@@ -9,7 +9,7 @@ import (
 
 func generate(t *testing.T) *State {
 	t.Helper()
-	s, err := Generate("127.0.0.1:0")
+	s, err := Generate("127.0.0.1:0", "home")
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -30,9 +30,30 @@ func TestRoundtripAndVerify(t *testing.T) {
 		loaded.OperatorPub != s.OperatorPub || loaded.Listen != s.Listen {
 		t.Fatal("loaded state does not match generated state")
 	}
+	if loaded.Realm != "home" || !loaded.MemoryEnabled {
+		t.Fatalf("config roundtrip: realm %q, memory %v", loaded.Realm, loaded.MemoryEnabled)
+	}
+	if len(loaded.ArchivistCreds) == 0 {
+		t.Fatal("archivist creds missing from the loaded inventory")
+	}
 	// Verify again — idempotent.
 	if _, err := Verify(dir); err != nil {
 		t.Fatalf("second verify: %v", err)
+	}
+
+	// The disabled-plane block survives the roundtrip too.
+	s2 := generate(t)
+	s2.MemoryEnabled = false
+	dir2 := t.TempDir()
+	if err := s2.Save(dir2); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded2, err := Verify(dir2)
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if loaded2.MemoryEnabled {
+		t.Fatal("memory plane should load disabled")
 	}
 }
 

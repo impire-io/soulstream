@@ -15,25 +15,26 @@ import (
 // The state-directory layout (contracts/state-dir.md). Paths are relative
 // to the state dir; every one of them is required for a complete realm.
 const (
-	fileConfig       = "config.json"
-	fileSentinel     = "sentinel.creds"
-	dirKeys          = "keys"
-	dirUsers         = "users"
-	fileOperator     = "keys/operator.nk"
-	fileSysSeed      = "keys/sys.nk"
-	fileSysJWT       = "keys/sys.jwt"
-	fileAuthSeed     = "keys/auth.nk"
-	fileAuthJWT      = "keys/auth.jwt"
-	fileAuthSigning  = "keys/auth-signing.nk"
-	fileRealmSeed    = "keys/realm.nk"
-	fileRealmJWT     = "keys/realm.jwt"
-	fileRealmSigning = "keys/realm-signing.nk"
-	fileCallout      = "keys/callout.xk"
-	fileVaultFirst   = "keys/vault-first.xk"
-	fileSurface      = "keys/surface.xk"
-	fileServiceCreds = "users/service.creds"
-	fileIssuerCreds  = "users/issuer.creds"
-	fileOpsCreds     = "users/ops.creds"
+	fileConfig         = "config.json"
+	fileSentinel       = "sentinel.creds"
+	dirKeys            = "keys"
+	dirUsers           = "users"
+	fileOperator       = "keys/operator.nk"
+	fileSysSeed        = "keys/sys.nk"
+	fileSysJWT         = "keys/sys.jwt"
+	fileAuthSeed       = "keys/auth.nk"
+	fileAuthJWT        = "keys/auth.jwt"
+	fileAuthSigning    = "keys/auth-signing.nk"
+	fileRealmSeed      = "keys/realm.nk"
+	fileRealmJWT       = "keys/realm.jwt"
+	fileRealmSigning   = "keys/realm-signing.nk"
+	fileCallout        = "keys/callout.xk"
+	fileVaultFirst     = "keys/vault-first.xk"
+	fileSurface        = "keys/surface.xk"
+	fileServiceCreds   = "users/service.creds"
+	fileIssuerCreds    = "users/issuer.creds"
+	fileOpsCreds       = "users/ops.creds"
+	fileArchivistCreds = "users/archivist.creds"
 )
 
 // ErrIncomplete marks a state directory whose keys exist but whose
@@ -43,29 +44,42 @@ const (
 // first boot and dangerous to half-trust after.
 var ErrIncomplete = errors.New("ceremony: incomplete state directory — founding never finished; delete the directory and run init again")
 
+// config is contracts/config.md: listen + realm fixed at founding, plus
+// the per-plane blocks (design §2 — absent block or field means enabled).
 type config struct {
 	Listen string `json:"listen"`
+	Realm  string `json:"realm"`
+	Planes struct {
+		Memory planeConfig `json:"memory"`
+	} `json:"planes"`
 }
+
+type planeConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+func (p planeConfig) enabled() bool { return p.Enabled == nil || *p.Enabled }
 
 // secretFiles maps relative path → the State field's bytes, for Save and
 // Load symmetry. JWTs and creds are secrets-adjacent and get 0600 too.
 func (s *State) files() map[string][]byte {
 	return map[string][]byte{
-		fileOperator:     s.OperatorSeed,
-		fileSysSeed:      s.SysSeed,
-		fileSysJWT:       []byte(s.SysJWT),
-		fileAuthSeed:     s.AuthSeed,
-		fileAuthJWT:      []byte(s.AuthJWT),
-		fileAuthSigning:  s.AuthSigningSeed,
-		fileRealmSeed:    s.RealmSeed,
-		fileRealmJWT:     []byte(s.RealmJWT),
-		fileRealmSigning: s.RealmSigningSeed,
-		fileCallout:      s.CalloutSeed,
-		fileVaultFirst:   s.VaultFirstSeed,
-		fileSurface:      s.SurfaceSeed,
-		fileServiceCreds: s.ServiceCreds,
-		fileIssuerCreds:  s.IssuerCreds,
-		fileOpsCreds:     s.OpsCreds,
+		fileOperator:       s.OperatorSeed,
+		fileSysSeed:        s.SysSeed,
+		fileSysJWT:         []byte(s.SysJWT),
+		fileAuthSeed:       s.AuthSeed,
+		fileAuthJWT:        []byte(s.AuthJWT),
+		fileAuthSigning:    s.AuthSigningSeed,
+		fileRealmSeed:      s.RealmSeed,
+		fileRealmJWT:       []byte(s.RealmJWT),
+		fileRealmSigning:   s.RealmSigningSeed,
+		fileCallout:        s.CalloutSeed,
+		fileVaultFirst:     s.VaultFirstSeed,
+		fileSurface:        s.SurfaceSeed,
+		fileServiceCreds:   s.ServiceCreds,
+		fileIssuerCreds:    s.IssuerCreds,
+		fileOpsCreds:       s.OpsCreds,
+		fileArchivistCreds: s.ArchivistCreds,
 	}
 }
 
@@ -88,7 +102,12 @@ func (s *State) Save(dir string) error {
 			return err
 		}
 	}
-	cfg, err := json.MarshalIndent(config{Listen: s.Listen}, "", "  ")
+	var c config
+	c.Listen = s.Listen
+	c.Realm = s.Realm
+	enabled := s.MemoryEnabled
+	c.Planes.Memory.Enabled = &enabled
+	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
 	}
@@ -164,6 +183,8 @@ func Load(dir string) (*State, error) {
 		return nil, fmt.Errorf("ceremony: damaged %s: %w", fileConfig, err)
 	}
 	s.Listen = cfg.Listen
+	s.Realm = cfg.Realm
+	s.MemoryEnabled = cfg.Planes.Memory.enabled()
 
 	seeds := []struct {
 		rel   string
@@ -229,7 +250,8 @@ func Load(dir string) (*State, error) {
 	for _, cf := range []struct {
 		rel string
 		dst *[]byte
-	}{{fileServiceCreds, &s.ServiceCreds}, {fileIssuerCreds, &s.IssuerCreds}, {fileOpsCreds, &s.OpsCreds}} {
+	}{{fileServiceCreds, &s.ServiceCreds}, {fileIssuerCreds, &s.IssuerCreds},
+		{fileOpsCreds, &s.OpsCreds}, {fileArchivistCreds, &s.ArchivistCreds}} {
 		data, err := read(cf.rel)
 		if err != nil {
 			return nil, err
@@ -282,13 +304,16 @@ func Verify(dir string) (*State, error) {
 	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
 		return nil, fmt.Errorf("ceremony: %s listen %q is not loopback", fileConfig, s.Listen)
 	}
+	if s.Realm == "" {
+		return nil, fmt.Errorf("ceremony: damaged %s: realm name missing", fileConfig)
+	}
 	return s, nil
 }
 
 // ArtifactCount is the number of persisted founding artifacts a complete
 // state directory carries (config + keys + users + sentinel) — the number
 // init's verify report cites.
-func ArtifactCount() int { return 16 + 1 } // files() + config counted in Save; +sentinel
+func ArtifactCount() int { return 16 + 1 + 1 } // files() incl. archivist + config + sentinel
 
 func requireMode(path string, isDir bool) error {
 	info, err := os.Stat(path)

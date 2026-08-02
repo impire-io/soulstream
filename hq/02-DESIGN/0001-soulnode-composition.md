@@ -40,7 +40,10 @@ Every plane carries the same connection block:
 ```
 
 - **All defaults** → the bundle: embedded server enabled, every plane on
-  loopback with state-dir creds.
+  loopback with state-dir creds. (As-built from 002: `config.json`
+  carries `listen`, `realm` — fixed at founding — and
+  `planes.memory.enabled`; each block gains `url`/`creds` when a plane
+  can actually be pointed elsewhere.)
 - **BYO NATS** → embedded server `enabled: false`, every URL points at
   the user's server. The ceremony's account half runs against that server
   (see §4's [O]).
@@ -80,8 +83,10 @@ enumerated and the rig proved executable from an empty directory
    / `.keys.public`, `soulidentity.status` / `.xkey`, `SOULSTREAM.>`,
    `$JS.API.>`, `$KV.>`, `$O.>`, `$SYS.REQ.USER.INFO` (pub);
    `_INBOX.>`, `SOULSTREAM.>` (sub).
-5. **Bypass-lane users**: AUTH issuer user; realm service + ops users
-   (account-key signed). These never leave the state dir.
+5. **Bypass-lane users**: AUTH issuer user; realm service, ops, and
+   archivist users (account-key signed). These never leave the state
+   dir. (The archivist's entry is transport only — its *persona* signing
+   key is vault-held, materialized on first touch; as-built in 002.)
 6. **Curve keys**: callout xkey (public in the AUTH JWT, seed to the
    issuer), vault first key, service surface key.
 7. **Buckets** `SOULIDENTITY_VAULT` + `SOULIDENTITY_TOKENS`; **realm

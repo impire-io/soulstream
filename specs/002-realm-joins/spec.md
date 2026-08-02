@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-realm-joins`
 **Created**: 2026-08-02
-**Status**: Draft
+**Status**: Implemented (landed 2026-08-02 — journey 0004)
 **Input**: User description: "M1.2 — the realm joins (design 0001 §6, §9-M1.2): init additionally provisions the realm's stream substrate on the embedded server and the node gains the memory plane — the archivist keeps every operation and answers the memory convention, attributed to its own persona with a vault-held key."
 
 ## User Scenarios & Testing *(mandatory)*

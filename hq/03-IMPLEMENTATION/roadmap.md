@@ -38,8 +38,13 @@ criteria made precise per feature in `specs/NNN-*/`:
   (server-asserted persona, own-prefix confinement, audited refusals).
   One open exception tracked: soulidentity pinned at a pseudo-version of
   main until it tags.
-- **M1.2 — The realm joins.** Realm provisioned; the archivist keeps ops
-  and answers memory through its public `keeper`/`archive` seam.
+- **M1.2 — The realm joins.** ✅ **Done** ([episode
+  0004](../04-JOURNEY/0004-the-realm-remembers.md);
+  `specs/002-realm-joins/`). Measured: the owner's full admission path —
+  post → kept (author `owner`) → memory answers with attribution and a
+  citation — in ~5 s inside `make test`; restart exactly-once; the
+  disabled-plane arm clean; the archivist's persona key vault-held.
+  Second pseudo-version pin tracked (archivist, above its v0.1.0).
 - **M1.3 — An agent runs.** A declared workload launches through
   soulrealm's public packages (native backend), posts an attributed turn,
   lifecycle as work ops — soulrealm's own M1.1 proof re-run inside

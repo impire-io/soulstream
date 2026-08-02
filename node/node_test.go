@@ -1,7 +1,10 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +13,9 @@ import (
 	"github.com/nats-io/nats.go"
 
 	siclient "github.com/impire-io/soulidentity/client"
+	"github.com/impire-io/soulstream-archivist/archive"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/topic"
 
 	"github.com/impire-io/soulnode/ceremony"
 )
@@ -69,7 +75,7 @@ func TestM11Gate(t *testing.T) {
 	dir := t.TempDir()
 
 	// init's founding half (the cmd drives exactly this path).
-	st, err := ceremony.Generate("127.0.0.1:0")
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -159,4 +165,189 @@ func TestM11Gate(t *testing.T) {
 		t.Fatalf("status after restart: %v", err)
 	}
 	n2.Stop()
+}
+
+// TestM12Memory is design 0001 §9-M1.2: the token-admitted owner posts a
+// turn (signed through the identity plane), the archivist keeps it and
+// answers memory with attribution; the archive resumes exactly-once
+// across a restart; the archivist's persona key is vault-held.
+func TestM12Memory(t *testing.T) {
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	audit := &syncBuffer{}
+	n, err := Start(Config{StateDir: dir, State: st, AuditWriter: audit})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	token, err := Found(n, st, dir)
+	if err != nil {
+		t.Fatalf("found: %v", err)
+	}
+
+	// The owner's whole path rides admission: sentinel + token.
+	ncOwner, err := nats.Connect(n.URL(),
+		nats.UserCredentials(ceremony.SentinelPath(dir)), nats.Token(token),
+		nats.RetryOnFailedConnect(false), nats.MaxReconnects(0))
+	if err != nil {
+		t.Fatalf("owner admission: %v", err)
+	}
+	signer, err := siclient.New(ncOwner, st.RealmPub, ceremony.FoundingPersona).
+		PersonaSigner(ceremony.FoundingPersona)
+	if err != nil {
+		t.Fatalf("owner signer: %v", err)
+	}
+	ctx := context.Background()
+	rc, err := realm.NewClient(ctx, ncOwner, realm.Config{
+		Realm: st.Realm, Persona: ceremony.FoundingPersona, Signer: signer,
+	})
+	if err != nil {
+		t.Fatalf("owner realm client: %v", err)
+	}
+	h, err := topic.StartTopic(ctx, rc, topic.StartTopicInput{Name: "notes"})
+	if err != nil {
+		t.Fatalf("start topic: %v", err)
+	}
+	turnID, err := h.PostTurn(ctx, "remember the milk")
+	if err != nil {
+		t.Fatalf("post turn: %v", err)
+	}
+
+	// Memory answers with the archivist's attribution and a citation.
+	var res *topic.MemoryResult
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		res, err = topic.MemoryQuery(ctx, rc, topic.MemoryQueryInput{Query: "milk"}, nil)
+		if err == nil && len(res.Answers) > 0 && len(res.Answers[0].Citations) > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("memory never cited the turn (err %v, res %+v, audit %s)", err, res, audit.String())
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	if res.Answers[0].Witness != "archivist" {
+		t.Fatalf("answer attributed to %q, want archivist", res.Answers[0].Witness)
+	}
+
+	// The archivist's persona key is vault-held: the directory answers,
+	// and no persona key file exists anywhere in the state dir.
+	if _, err := n.Ops().PersonaPublicKey("archivist"); err != nil {
+		t.Fatalf("archivist persona key not in the vault: %v", err)
+	}
+
+	topicPath := h.Path()
+	if err := rc.Close(); err != nil { // closes ncOwner (client owns it)
+		t.Fatalf("owner close: %v", err)
+	}
+	n.Stop()
+
+	// Exactly-once across restart: count kept exhibits, run again, post
+	// one more, and the count grows by exactly one.
+	store, err := archive.Open(filepath.Join(dir, "archive"))
+	if err != nil {
+		t.Fatalf("archive open: %v", err)
+	}
+	c1, err := store.Count()
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	kept, ok := store.Get(topicPath, turnID)
+	if !ok {
+		t.Fatal("the posted turn was not kept")
+	}
+	rec, err := kept.Record()
+	if err != nil {
+		t.Fatalf("kept record: %v", err)
+	}
+	if rec.Author != ceremony.FoundingPersona {
+		t.Fatalf("kept author %q, want %q", rec.Author, ceremony.FoundingPersona)
+	}
+
+	st2, err := ceremony.Verify(dir)
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	n2, err := Start(Config{StateDir: dir, State: st2, AuditWriter: audit})
+	if err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	ncOwner2, err := nats.Connect(n2.URL(),
+		nats.UserCredentials(ceremony.SentinelPath(dir)), nats.Token(token),
+		nats.RetryOnFailedConnect(false), nats.MaxReconnects(0))
+	if err != nil {
+		t.Fatalf("owner re-admission: %v", err)
+	}
+	signer2, err := siclient.New(ncOwner2, st.RealmPub, ceremony.FoundingPersona).
+		PersonaSigner(ceremony.FoundingPersona)
+	if err != nil {
+		t.Fatalf("owner signer 2: %v", err)
+	}
+	rc2, err := realm.NewClient(ctx, ncOwner2, realm.Config{
+		Realm: st.Realm, Persona: ceremony.FoundingPersona, Signer: signer2,
+	})
+	if err != nil {
+		t.Fatalf("owner realm client 2: %v", err)
+	}
+	if _, err := topic.Open(rc2, topicPath).PostTurn(ctx, "and the bread"); err != nil {
+		t.Fatalf("post after restart: %v", err)
+	}
+	deadline = time.Now().Add(15 * time.Second)
+	for {
+		c2, err := store.Count()
+		if err != nil {
+			t.Fatalf("count: %v", err)
+		}
+		if c2 == c1+1 {
+			break
+		}
+		if c2 > c1+1 {
+			t.Fatalf("archive grew by %d, want exactly 1 (duplicate capture)", c2-c1)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("archive stuck at %d, want %d", c2, c1+1)
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	_ = rc2.Close()
+	n2.Stop()
+}
+
+// TestMemoryDisabled is SC-004: the plane block honored — admission works
+// exactly as M1.1, and no archive directory is created.
+func TestMemoryDisabled(t *testing.T) {
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	st.MemoryEnabled = false
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	audit := &syncBuffer{}
+	n, err := Start(Config{StateDir: dir, State: st, AuditWriter: audit})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer n.Stop()
+	token, err := Found(n, st, dir)
+	if err != nil {
+		t.Fatalf("found: %v", err)
+	}
+	nc, err := nats.Connect(n.URL(),
+		nats.UserCredentials(ceremony.SentinelPath(dir)), nats.Token(token),
+		nats.RetryOnFailedConnect(false), nats.MaxReconnects(0))
+	if err != nil {
+		t.Fatalf("admission with memory disabled: %v", err)
+	}
+	nc.Close()
+	if _, err := os.Stat(filepath.Join(dir, "archive")); !os.IsNotExist(err) {
+		t.Fatalf("archive directory exists with the plane disabled (stat err: %v)", err)
+	}
 }

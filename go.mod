@@ -3,10 +3,19 @@ module github.com/impire-io/soulnode
 go 1.26.2
 
 require (
+	github.com/impire-io/soulstream v0.6.0
+	github.com/impire-io/soulstream-archivist v0.1.1-0.20260801091613-643bb771cd5d
 	github.com/nats-io/jwt/v2 v2.8.2
 	github.com/nats-io/nats-server/v2 v2.14.3
 	github.com/nats-io/nats.go v1.52.0
 	github.com/nats-io/nkeys v0.4.16
+)
+
+require (
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/gowebpki/jcs v1.0.1 // indirect
+	github.com/synadia-io/orbit.go/natscontext v0.1.3 // indirect
+	golang.org/x/net v0.57.0 // indirect
 )
 
 require (

@@ -27,6 +27,13 @@ type State struct {
 	// config.json — the file is the configuration.
 	Listen string
 
+	// Realm is the realm name, fixed at founding (config.json).
+	Realm string
+
+	// MemoryEnabled gates the memory plane (design §2's first plane
+	// block); the bundle default is true.
+	MemoryEnabled bool
+
 	OperatorSeed []byte
 	OperatorPub  string
 
@@ -54,10 +61,13 @@ type State struct {
 	SurfaceSeed    []byte
 
 	// Account-signed users — the creds bypass lane. These never leave
-	// the state directory.
-	ServiceCreds []byte
-	IssuerCreds  []byte
-	OpsCreds     []byte
+	// the state directory. The archivist's entry is its transport
+	// credential only; its persona signing key is vault-held (D26
+	// upstream), never on disk here.
+	ServiceCreds   []byte
+	IssuerCreds    []byte
+	OpsCreds       []byte
+	ArchivistCreds []byte
 }
 
 // FoundingPersona is the persona name the first access token represents:
@@ -67,11 +77,14 @@ const FoundingPersona = "owner"
 
 // Generate runs the whole founding ceremony in memory (design 0001 §4,
 // steps 1–6): no prompts, no external binaries, no I/O.
-func Generate(listen string) (*State, error) {
+func Generate(listen, realm string) (*State, error) {
 	if listen == "" {
 		return nil, fmt.Errorf("ceremony: listen address required")
 	}
-	s := &State{Listen: listen}
+	if realm == "" {
+		return nil, fmt.Errorf("ceremony: realm name required")
+	}
+	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true}
 
 	// 1. The operator — the trust root.
 	opKP, err := nkeys.CreateOperator()
@@ -158,6 +171,9 @@ func Generate(listen string) (*State, error) {
 		return nil, err
 	}
 	if s.OpsCreds, err = userCreds("ops", realmKP); err != nil {
+		return nil, err
+	}
+	if s.ArchivistCreds, err = userCreds("archivist", realmKP); err != nil {
 		return nil, err
 	}
 	issuerClaims := jwt.NewUserClaims(issuerUserPub)

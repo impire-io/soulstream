@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -18,9 +19,14 @@ import (
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/impire-io/soulidentity/client"
 	"github.com/impire-io/soulidentity/embed"
+	"github.com/impire-io/soulstream-archivist/archive"
+	"github.com/impire-io/soulstream-archivist/keeper"
+	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream/topic"
 
 	"github.com/impire-io/soulnode/ceremony"
 )
@@ -46,6 +52,12 @@ type Node struct {
 	ncService *nats.Conn
 	ncIssuer  *nats.Conn
 	ncOps     *nats.Conn
+
+	// The memory plane (nil when disabled): the realm client owns the
+	// archivist connection; the two loops report into memErr.
+	realmClient *realm.Client
+	memErr      chan error
+	audit       *slog.Logger
 
 	ops *client.Client
 	url string
@@ -159,10 +171,11 @@ func Start(cfg Config) (*Node, error) {
 	// Ready means the sealed surface answers. A vault-key mismatch or a
 	// plane startup failure surfaces here, named by the plane.
 	n.ops = client.New(n.ncOps, st.RealmPub, "ops")
+	n.audit = logger
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		if _, err := n.ops.Status(); err == nil {
-			return n, nil
+			break
 		}
 		select {
 		case err := <-n.planes:
@@ -173,6 +186,77 @@ func Start(cfg Config) (*Node, error) {
 			return fail(errors.New("node: identity plane did not become ready"))
 		}
 	}
+
+	if st.MemoryEnabled {
+		if err := n.startMemory(ctx, cfg); err != nil {
+			return fail(err)
+		}
+	}
+	return n, nil
+}
+
+// startMemory wires the memory plane (design §6): the substrate guard,
+// the archivist's realm client with its vault-held persona signer, the
+// keeper, and the memory witness. Startup failures are named; runtime
+// exits land in memErr and are reported loud at Stop.
+func (n *Node) startMemory(ctx context.Context, cfg Config) error {
+	st := cfg.State
+
+	// Create-or-verify the record substrate before the keeper needs it
+	// (research R2 — makes "is the realm provisioned?" unreachable).
+	js, err := jetstream.New(n.ncOps)
+	if err != nil {
+		return fmt.Errorf("node: memory plane: jetstream: %w", err)
+	}
+	provCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if _, err := realm.ProvisionOn(provCtx, js); err != nil {
+		return fmt.Errorf("node: memory plane: realm substrate: %w", err)
+	}
+
+	ncArch, err := nats.Connect(n.url,
+		nats.UserCredentials(ceremony.UserCredsPath(cfg.StateDir, "archivist")),
+		nats.Name("soulnode-archivist"))
+	if err != nil {
+		return fmt.Errorf("node: memory plane: archivist connection: %w", err)
+	}
+	// The persona's signing key is vault-held, materialized on first
+	// touch — nothing persona-shaped on disk (research R3).
+	signer, err := client.New(ncArch, st.RealmPub, "archivist").PersonaSigner("archivist")
+	if err != nil {
+		ncArch.Close()
+		return fmt.Errorf("node: memory plane: persona signer: %w", err)
+	}
+	rc, err := realm.NewClient(ctx, ncArch, realm.Config{
+		Realm: st.Realm, Persona: "archivist", Signer: signer,
+	})
+	if err != nil {
+		ncArch.Close()
+		return fmt.Errorf("node: memory plane: realm client: %w", err)
+	}
+	n.realmClient = rc // owns ncArch from here
+
+	store, err := archive.Open(filepath.Join(cfg.StateDir, "archive"))
+	if err != nil {
+		return fmt.Errorf("node: memory plane: archive: %w", err)
+	}
+	kept, err := store.LoadState()
+	if err != nil {
+		return fmt.Errorf("node: memory plane: archive state: %w", err)
+	}
+	w := keeper.Witness(store, kept.CoverageFrom)
+	w.OnServed = func(kind string, served int, err error) {
+		if err != nil {
+			n.audit.Warn("memory serve failed", "kind", kind, "err", err)
+			return
+		}
+		n.audit.Info("memory served", "kind", kind, "n", served)
+	}
+
+	n.memErr = make(chan error, 2)
+	go func() { n.memErr <- keeper.Run(ctx, rc, store, nil) }()
+	go func() { n.memErr <- topic.RespondMemory(ctx, rc, w) }()
+	return nil
 }
 
 // Stop drains the planes, closes the node's connections, and shuts the
@@ -184,6 +268,22 @@ func (n *Node) Stop() {
 		case <-n.planes: // embed.Run drained and returned
 		case <-time.After(10 * time.Second):
 		}
+	}
+	if n.memErr != nil {
+		// Both memory loops end with the ctx; anything that is not the
+		// ctx ending is reported loud (constitution III: never silent).
+		for range 2 {
+			select {
+			case err := <-n.memErr:
+				if err != nil && !errors.Is(err, context.Canceled) {
+					n.audit.Error("memory plane exited", "err", err)
+				}
+			case <-time.After(10 * time.Second):
+			}
+		}
+	}
+	if n.realmClient != nil {
+		_ = n.realmClient.Close()
 	}
 	for _, nc := range []*nats.Conn{n.ncOps, n.ncIssuer, n.ncService} {
 		if nc != nil {

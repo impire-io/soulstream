@@ -22,7 +22,8 @@ import (
 const usage = `soulnode — your realm in one binary
 
 Usage:
-  soulnode init [--state DIR] [--listen ADDR]   found a realm (prints your token ONCE)
+  soulnode init [--state DIR] [--listen ADDR] [--realm NAME]
+                                                found a realm (prints your token ONCE)
   soulnode up   [--state DIR]                   run it until interrupted
   soulnode version
 
@@ -79,13 +80,17 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	fs.SetOutput(errw)
 	stateFlag := fs.String("state", "", "state directory")
 	listen := fs.String("listen", "127.0.0.1:4222", "loopback listener (written to config.json on the founding run)")
+	realmName := fs.String("realm", "home", "realm name (written to config.json on the founding run)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	listenSet := false
+	listenSet, realmSet := false, false
 	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "listen" {
+		switch f.Name {
+		case "listen":
 			listenSet = true
+		case "realm":
+			realmSet = true
 		}
 	})
 	dir, err := stateDir(*stateFlag)
@@ -110,14 +115,17 @@ func cmdInit(args []string, out, errw io.Writer) error {
 		if listenSet && *listen != st.Listen {
 			return fmt.Errorf("state at %s already listens on %s — config.json is the configuration; edit it there or found a new realm", dir, st.Listen)
 		}
-		fmt.Fprintf(out, "soulnode: state at %s verified — %d artifacts, listener %s\n",
-			dir, ceremony.ArtifactCount(), st.Listen)
+		if realmSet && *realmName != st.Realm {
+			return fmt.Errorf("state at %s is realm %q — the name is fixed at founding", dir, st.Realm)
+		}
+		fmt.Fprintf(out, "soulnode: state at %s verified — %d artifacts, realm %q, listener %s\n",
+			dir, ceremony.ArtifactCount(), st.Realm, st.Listen)
 		return nil
 	}
 
 	// The founding run: generate, persist, boot transiently, perform the
 	// founding acts, print the one secret.
-	st, err := ceremony.Generate(*listen)
+	st, err := ceremony.Generate(*listen, *realmName)
 	if err != nil {
 		return err
 	}
@@ -133,7 +141,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "soulnode: realm founded at %s\n", dir)
+	fmt.Fprintf(out, "soulnode: realm %q founded at %s\n", st.Realm, dir)
 	fmt.Fprintf(out, "your access token (shown once, never stored):\n\n    %s\n\n", token)
 	fmt.Fprintf(out, "point a client at nats://%s with sentinel %s\n",
 		st.Listen, ceremony.SentinelPath(dir))
@@ -171,9 +179,12 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "soulnode: state %s\n", dir)
+	fmt.Fprintf(out, "soulnode: state %s (realm %q)\n", dir, st.Realm)
 	fmt.Fprintf(out, "soulnode: listening on nats://%s (loopback)\n", st.Listen)
 	fmt.Fprintln(out, "soulnode: identity plane serving")
+	if st.MemoryEnabled {
+		fmt.Fprintln(out, "soulnode: memory plane serving")
+	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
