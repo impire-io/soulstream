@@ -31,7 +31,7 @@ release, checksum-verified, cached). Then run the guided first-time setup:
 
 It walks the whole path — NATS context, realm provisioning, the
 [sticker files](./configuration.md), and a signing key. Done: the agent has its
-twenty-three buttons.
+twenty-four buttons.
 
 ## Route two: any MCP host
 
