@@ -2,6 +2,12 @@
 // participate through tool calls. The server is bound to one persona for its lifetime;
 // every tool acts as that persona over the realm + topic library.
 //
+// The package is public so any host can embed the tool surface by bringing its
+// own connected, signer-wired realm client — the stdio adapter, the remote
+// node, and single-binary distributions all serve the SAME surface; none may
+// fork it. Per-session identity comes entirely from the client passed to
+// NewServer; hosts that multiplex principals construct one server per session.
+//
 // Tool logic lives in handler methods on a struct holding the session client, so it is
 // testable directly against an in-process server without stdio or a live MCP client.
 package mcpserver
@@ -24,15 +30,38 @@ import (
 
 type handlers struct {
 	c *realm.Client
+	// keyringFn, when set, replaces the default file-backed pins keyring.
+	// A shared pins file on disk is the wrong shape for hosts serving many
+	// principals at once.
+	keyringFn func(context.Context) (*identity.Keyring, error)
 }
 
 func newHandlers(c *realm.Client) *handlers { return &handlers{c: c} }
+
+// Option customizes a server for its host. Zero options is the stdio
+// adapter's exact behavior.
+type Option func(*handlers)
+
+// WithKeyring injects the reader-verification keyring provider, replacing the
+// default per-realm pins file. Hosts that multiplex principals must inject
+// one. The provider may return (nil, nil): verification degrades to
+// unknown-key exactly as a missing pins file does — it never blocks a read.
+func WithKeyring(provider func(context.Context) (*identity.Keyring, error)) Option {
+	return func(h *handlers) { h.keyringFn = provider }
+}
 
 // keyring builds the session's reader keyring per call: pins + directory → keyring,
 // persisting extended pins. Rebuilt per read (not cached) so a rotation published
 // mid-session is honoured; the directory is one KV list at dogfood scale. Every
 // failure degrades to nil — verification never blocks a read.
 func (h *handlers) keyring(ctx context.Context) *identity.Keyring {
+	if h.keyringFn != nil {
+		kr, err := h.keyringFn(ctx)
+		if err != nil {
+			return nil
+		}
+		return kr
+	}
 	pinsPath, err := keystore.ResolvePinsFile("", h.c.Realm())
 	if err != nil {
 		return nil
@@ -75,10 +104,19 @@ func distrusted(kr *identity.Keyring) []string {
 }
 
 // NewServer builds an MCP server exposing the Soulstream tools, all acting as c's persona.
-func NewServer(c *realm.Client) *mcp.Server {
+// Options customize host concerns (see WithKeyring); zero options is the stdio adapter's
+// exact behavior.
+func NewServer(c *realm.Client, opts ...Option) *mcp.Server {
 	h := newHandlers(c)
+	for _, opt := range opts {
+		opt(h)
+	}
 	s := mcp.NewServer(&mcp.Implementation{Name: "soulstream", Version: version.Version}, nil)
 
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "soulstream_whoami",
+		Description: "Who this session is: the persona the realm admitted, the realm name, and the public signing key in use (empty when the session is unsigned). What you publish is attributed to exactly this identity.",
+	}, h.whoami)
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "soulstream_board",
 		Description: "List every topic on the realm's board (path, name, lifecycle).",
@@ -173,6 +211,25 @@ func NewServer(c *realm.Client) *mcp.Server {
 	}, h.memoryFetch)
 
 	return s
+}
+
+type whoamiInput struct{}
+
+// whoamiResult is the session's server-side identity as this client holds it.
+// Through the remote node the persona is the principal the admission edge
+// asserted — whoami is how a remote user sees who the realm decided they are.
+type whoamiResult struct {
+	Persona         string `json:"persona"`
+	Realm           string `json:"realm"`
+	SignerPublicKey string `json:"signer_public_key,omitempty"`
+}
+
+func (h *handlers) whoami(_ context.Context, _ *mcp.CallToolRequest, _ whoamiInput) (*mcp.CallToolResult, any, error) {
+	out := whoamiResult{Persona: h.c.Persona(), Realm: h.c.Realm()}
+	if s := h.c.Signer(); s != nil {
+		out.SignerPublicKey = s.PublicKey()
+	}
+	return jsonResult(out)
 }
 
 func jsonResult(v any) (*mcp.CallToolResult, any, error) {
