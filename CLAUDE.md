@@ -1,5 +1,19 @@
 <!-- SPECKIT START -->
-Last landed feature (no cycle active): **017-signer-seam** (v0.6.0,
+ACTIVE CYCLE: **018-remote-mcp-node** (branch `018-remote-mcp-node`) — the
+remote MCP node: a URL into the realm for no-install clients. Two
+deliverables: public `mcpserver` (promoted from internal, +`WithKeyring`
+option — SoulNode's fourth upstream ask, FR-015) and the nested consumer
+module `node/` (streamable HTTP, bearer passthrough onto per-principal
+pooled callout-admitted connections, freshest-bearer + session-binding +
+candidate-probe non-interference, `$SYS.REQ.USER.INFO` principal,
+PersonaSigner via 017 seam, RFC 9728 + 401 challenge; EXTERNAL OIDC AS
+only — soulfold is the intended AS, the AS-facing contract is the
+interface). Plan: [specs/018-remote-mcp-node/plan.md](specs/018-remote-mcp-node/plan.md)
+(spec incl. Clarifications 2026-08-02, research R1–R11, data-model,
+contracts/{library,authorization-server,http}.md, quickstart). Prototype
+reference: `git show 56c7a2e:hq/01-RESEARCH/remote-mcp-node/experiment/`.
+
+Last landed feature: **017-signer-seam** (v0.6.0,
 2026-07-29 — includes same-day DX hardening, journeys 0006+0007) — the
 Signer seam: `identity.Signer { PublicKey() string; Sign(canonical []byte)
 (string, error) }` so signing can be delegated to an external custodian
