@@ -209,11 +209,11 @@ kill/restart mid-traffic recovers with only a re-presented bearer
 - [x] T033 [US5] Restart test in `node/custody_test.go`: kill mid-traffic,
       restart, client's next request with its current bearer is re-admitted
       and continues; durable footprint still empty (SC-004 second half)
-- [ ] T034 [P] [US5] Carry `node/cmd/byon-setup` from 56c7a2e (Synadia
+- [x] T034 [P] [US5] Carry `node/cmd/byon-setup` from 56c7a2e (Synadia
       Cloud callout wiring; dry-run default, `--apply`, XKey surfaced
       loudly; secrets 0600) — compile + dry-run plan test; mark
       best-effort in its README header (spec Q2)
-- [ ] T035 [P] [US5] Carry `node/cmd/probe` from 56c7a2e (pass protocol +
+- [x] T035 [P] [US5] Carry `node/cmd/probe` from 56c7a2e (pass protocol +
       independent realm verification) — the follow-up measurement driver
       (spec Q1); compile test
 - [ ] T036 [P] [US5] Docs: `docs/remote-node.md` operator half (front
