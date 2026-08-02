@@ -39,6 +39,18 @@ type State struct {
 	DoorEnabled bool
 	DoorListen  string
 
+	// Public door mode (the roadmap's Phase-2 public clause, additive):
+	// DoorPublicURL is the door's advertised public address (the OAuth
+	// resource identifier — deployment fronting such as `tailscale
+	// serve` carries HTTPS to the loopback listener); DoorAuthIssuer is
+	// the external authorization server's issuer URL (soulfold is the
+	// intended default, the door stays AS-agnostic); DoorAuthAudience
+	// is the deployment's fixed token audience the identity plane's
+	// OIDC lane validates. All three or none.
+	DoorPublicURL    string
+	DoorAuthIssuer   string
+	DoorAuthAudience string
+
 	OperatorSeed []byte
 	OperatorPub  string
 

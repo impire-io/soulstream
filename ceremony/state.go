@@ -60,6 +60,13 @@ type config struct {
 type planeConfig struct {
 	Enabled *bool  `json:"enabled,omitempty"`
 	Listen  string `json:"listen,omitempty"`
+
+	// Door only (contracts/config.md, the public-mode addendum): the
+	// advertised public address, the external AS's issuer URL, and the
+	// deployment's fixed token audience. All three or none.
+	PublicURL    string `json:"public_url,omitempty"`
+	AuthIssuer   string `json:"auth_issuer,omitempty"`
+	AuthAudience string `json:"auth_audience,omitempty"`
 }
 
 func (p planeConfig) enabled() bool { return p.Enabled == nil || *p.Enabled }
@@ -116,6 +123,9 @@ func (s *State) Save(dir string) error {
 	doorEnabled := s.DoorEnabled
 	c.Planes.Door.Enabled = &doorEnabled
 	c.Planes.Door.Listen = s.DoorListen
+	c.Planes.Door.PublicURL = s.DoorPublicURL
+	c.Planes.Door.AuthIssuer = s.DoorAuthIssuer
+	c.Planes.Door.AuthAudience = s.DoorAuthAudience
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -199,6 +209,9 @@ func Load(dir string) (*State, error) {
 	if s.DoorListen == "" {
 		s.DoorListen = "127.0.0.1:8080"
 	}
+	s.DoorPublicURL = cfg.Planes.Door.PublicURL
+	s.DoorAuthIssuer = cfg.Planes.Door.AuthIssuer
+	s.DoorAuthAudience = cfg.Planes.Door.AuthAudience
 
 	seeds := []struct {
 		rel   string
@@ -339,6 +352,22 @@ func Verify(dir string) (*State, error) {
 		if ip := net.ParseIP(dhost); dhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
 			return nil, fmt.Errorf("ceremony: %s door listen %q is not loopback", fileConfig, s.DoorListen)
 		}
+	}
+	// Public mode is a package deal: the door needs the advertised URL
+	// and the AS; the identity plane's OIDC lane needs the AS and the
+	// audience. A partial declaration is a config error, never a
+	// silently absent OAuth story.
+	publicFields := 0
+	for _, f := range []string{s.DoorPublicURL, s.DoorAuthIssuer, s.DoorAuthAudience} {
+		if f != "" {
+			publicFields++
+		}
+	}
+	if publicFields != 0 && publicFields != 3 {
+		return nil, fmt.Errorf("ceremony: %s public door mode needs all of planes.door.public_url, auth_issuer, auth_audience (or none)", fileConfig)
+	}
+	if publicFields == 3 && !s.DoorEnabled {
+		return nil, fmt.Errorf("ceremony: %s declares public door mode with the door disabled", fileConfig)
 	}
 	return s, nil
 }

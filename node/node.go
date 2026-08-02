@@ -112,6 +112,13 @@ func Start(cfg Config) (*Node, error) {
 	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
 		return nil, fmt.Errorf("node: listen port %q: %w", portStr, err)
 	}
+	// Port 0 means "any free port" everywhere else in the config's
+	// vocabulary (and in the pre-flight probe above); nats-server would
+	// read 0 as its default 4222, silently disagreeing with the probe.
+	// Its own random-port spelling is -1.
+	if port == 0 {
+		port = -1
+	}
 
 	res := &natsserver.MemAccResolver{}
 	for pub, token := range map[string]string{
@@ -176,7 +183,12 @@ func Start(cfg Config) (*Node, error) {
 			SurfaceKey:  string(st.SurfaceSeed),
 			CalloutKey:  string(st.CalloutSeed),
 			AuthAccount: st.AuthPub,
-			Logger:      logger,
+			// Public door mode brings the OIDC lane: browser users hold
+			// tokens from the deployment's external AS; the callout
+			// validates them against exactly this issuer and audience.
+			OIDCIssuer:   st.DoorAuthIssuer,
+			OIDCAudience: st.DoorAuthAudience,
+			Logger:       logger,
 		})
 	}()
 
@@ -230,7 +242,12 @@ func (n *Node) startDoor(cfg Config) error {
 		Realm:        st.Realm,
 		NATSURL:      n.url,
 		SentinelPath: ceremony.SentinelPath(cfg.StateDir),
-		Logger:       n.audit,
+		// Public mode (upstream's own switch): the advertised resource
+		// identifier and the AS the resource metadata names. HTTPS is
+		// deployment fronting before the loopback listener.
+		PublicURL:  st.DoorPublicURL,
+		AuthIssuer: st.DoorAuthIssuer,
+		Logger:     n.audit,
 	})
 	if err != nil {
 		_ = l.Close()
