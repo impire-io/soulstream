@@ -228,7 +228,7 @@ kill/restart mid-traffic recovers with only a re-presented bearer
       measured rule (FR-014)
 - [ ] T038 [P] Update `docs/mcp.md` (the two doors: local adapter vs
       remote node) and `README.md` component list; docs index links
-- [ ] T039 [P] Extend `.goreleaser.yaml` + release workflow: build
+- [x] T039 [P] Extend `.goreleaser.yaml` + release workflow: build
       `soulstream-node` from `node/` (goreleaser `dir` builds work from
       checkout despite the replace), snapshot-verify locally; extend
       `.github/workflows/ci.yml` with the node module job (`GOPRIVATE`,
