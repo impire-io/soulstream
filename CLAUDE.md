@@ -18,15 +18,15 @@ house.
 
 ## Status
 
-**Composition gate met — Phase 1 unblocked** ([journey
-0002](hq/04-JOURNEY/0002-the-composition-gate.md), 2026-08-02): all three
-bars PASS, constitution ratified 1.0.0, transport decided all-loopback
-(decomposition is configuration). Design
-[`0001-soulnode-composition.md`](hq/02-DESIGN/0001-soulnode-composition.md)
-governs Phase 1; the upstream embed seams exist (soulidentity `embed.Run`,
-archivist `keeper`/`archive`, soulrealm pinned to soulstream v0.6.0).
-**Next:** the spec-kit pass for M1.1 (`soulnode init` + server + identity
-plane).
+**Phase 1 complete** (journeys 0003/0004/0005, 2026-08-02): `soulnode
+init` founds a realm (~0.15 s, 20 artifacts, token printed once);
+`soulnode up` runs server + identity + memory planes on ordinary
+loopback connections; `soulnode workload start` runs a declared agent
+under full enforcement (invocation-scoped runtime; the claim-race
+supervisor stays upstream with Fleet). All design 0001 §9 criteria
+measured green in `make test`. Standing exception: three pseudo-version
+pins await upstream tags. **Next:** Phase 2 — the front door — gated on
+soulstream's `018-remote-mcp-node` (in flight upstream).
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

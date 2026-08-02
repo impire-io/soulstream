@@ -53,6 +53,13 @@ type State struct {
 	RealmSigningSeed []byte
 	RealmSigningPub  string
 
+	// The workload minting key: a PLAIN signing key beside the scoped
+	// one — the runtime's minter embeds per-workload permissions in the
+	// user JWTs it signs, and a scoped key would reject them (measured
+	// upstream, soulrealm journey 0010).
+	WorkloadSigningSeed []byte
+	WorkloadSigningPub  string
+
 	// Curve seeds: callout (public half rides in AuthJWT), the vault
 	// first key, and the service surface key.
 	CalloutSeed    []byte
@@ -68,6 +75,7 @@ type State struct {
 	IssuerCreds    []byte
 	OpsCreds       []byte
 	ArchivistCreds []byte
+	RunnerCreds    []byte
 }
 
 // FoundingPersona is the persona name the first access token represents:
@@ -133,12 +141,17 @@ func Generate(listen, realm string) (*State, error) {
 		return nil, fmt.Errorf("ceremony: auth jwt: %w", err)
 	}
 
-	// 4. The realm account: JetStream and the persona scope.
+	// 4. The realm account: JetStream, the persona scope, and the
+	// workload minting key (plain — R1).
 	realmSK, _ := nkeys.CreateAccount()
 	s.RealmSigningSeed, _ = realmSK.Seed()
 	s.RealmSigningPub, _ = realmSK.PublicKey()
+	workloadSK, _ := nkeys.CreateAccount()
+	s.WorkloadSigningSeed, _ = workloadSK.Seed()
+	s.WorkloadSigningPub, _ = workloadSK.PublicKey()
 	realmClaims := jwt.NewAccountClaims(s.RealmPub)
 	realmClaims.Name = "REALM"
+	realmClaims.SigningKeys.Add(s.WorkloadSigningPub)
 	realmClaims.Limits.JetStreamLimits = jwt.JetStreamLimits{
 		MemoryStorage: -1, DiskStorage: -1, Streams: -1, Consumer: -1,
 	}
@@ -174,6 +187,9 @@ func Generate(listen, realm string) (*State, error) {
 		return nil, err
 	}
 	if s.ArchivistCreds, err = userCreds("archivist", realmKP); err != nil {
+		return nil, err
+	}
+	if s.RunnerCreds, err = userCreds("runner", realmKP); err != nil {
 		return nil, err
 	}
 	issuerClaims := jwt.NewUserClaims(issuerUserPub)

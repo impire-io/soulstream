@@ -16,6 +16,20 @@ are as load-bearing as the shipped code.
 
 ## Where things stand (2026-08-02)
 
+**Phase 1 is complete — an agent runs** ([episode
+0005](0005-an-agent-runs.md); `specs/003-an-agent-runs/`): `soulnode
+workload start` is the invocation-scoped runtime plane — upstream's own
+`agent-echo`, declared unchanged, launches with a minted TTL-bounded
+credential, posts as its persona, and its lifecycle lands as a completed
+work item owned by `runner`; nothing credential-shaped lingers after end
+of life. The ceremony carries the two-keys split (plain workload minting
+key beside the scoped admission key; inventory 20). The composition
+caught a consumer-proven upstream bug on its first enforcing run —
+agents lacked `$JS.API.INFO` for the realm client's availability probe —
+fixed upstream first (soulrealm `3fee11f`), pin bumped. Three
+pseudo-version pins await upstream tags. **Next:** Phase 2 — the front
+door, gated on soulstream's `018-remote-mcp-node` (in flight upstream).
+
 **M1.2 is done — the realm remembers** ([episode
 0004](0004-the-realm-remembers.md); `specs/002-realm-joins/`): `init`
 founds the record substrate; the memory plane runs in-process (public
@@ -78,3 +92,4 @@ directive) — both since dissolved by the upstream landings above.
 | 0002 | [The composition gate: three bars PASS, the ecosystem opens its seams](0002-the-composition-gate.md) |
 | 0003 | [First boot is real: init and up land](0003-first-boot-is-real.md) |
 | 0004 | [The realm remembers: provisioning and the memory plane land](0004-the-realm-remembers.md) |
+| 0005 | [An agent runs: Phase 1 is complete](0005-an-agent-runs.md) |

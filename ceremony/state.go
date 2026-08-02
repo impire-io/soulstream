@@ -15,26 +15,28 @@ import (
 // The state-directory layout (contracts/state-dir.md). Paths are relative
 // to the state dir; every one of them is required for a complete realm.
 const (
-	fileConfig         = "config.json"
-	fileSentinel       = "sentinel.creds"
-	dirKeys            = "keys"
-	dirUsers           = "users"
-	fileOperator       = "keys/operator.nk"
-	fileSysSeed        = "keys/sys.nk"
-	fileSysJWT         = "keys/sys.jwt"
-	fileAuthSeed       = "keys/auth.nk"
-	fileAuthJWT        = "keys/auth.jwt"
-	fileAuthSigning    = "keys/auth-signing.nk"
-	fileRealmSeed      = "keys/realm.nk"
-	fileRealmJWT       = "keys/realm.jwt"
-	fileRealmSigning   = "keys/realm-signing.nk"
-	fileCallout        = "keys/callout.xk"
-	fileVaultFirst     = "keys/vault-first.xk"
-	fileSurface        = "keys/surface.xk"
-	fileServiceCreds   = "users/service.creds"
-	fileIssuerCreds    = "users/issuer.creds"
-	fileOpsCreds       = "users/ops.creds"
-	fileArchivistCreds = "users/archivist.creds"
+	fileConfig          = "config.json"
+	fileSentinel        = "sentinel.creds"
+	dirKeys             = "keys"
+	dirUsers            = "users"
+	fileOperator        = "keys/operator.nk"
+	fileSysSeed         = "keys/sys.nk"
+	fileSysJWT          = "keys/sys.jwt"
+	fileAuthSeed        = "keys/auth.nk"
+	fileAuthJWT         = "keys/auth.jwt"
+	fileAuthSigning     = "keys/auth-signing.nk"
+	fileRealmSeed       = "keys/realm.nk"
+	fileRealmJWT        = "keys/realm.jwt"
+	fileRealmSigning    = "keys/realm-signing.nk"
+	fileWorkloadSigning = "keys/workload-signing.nk"
+	fileCallout         = "keys/callout.xk"
+	fileVaultFirst      = "keys/vault-first.xk"
+	fileSurface         = "keys/surface.xk"
+	fileServiceCreds    = "users/service.creds"
+	fileIssuerCreds     = "users/issuer.creds"
+	fileOpsCreds        = "users/ops.creds"
+	fileArchivistCreds  = "users/archivist.creds"
+	fileRunnerCreds     = "users/runner.creds"
 )
 
 // ErrIncomplete marks a state directory whose keys exist but whose
@@ -64,22 +66,24 @@ func (p planeConfig) enabled() bool { return p.Enabled == nil || *p.Enabled }
 // Load symmetry. JWTs and creds are secrets-adjacent and get 0600 too.
 func (s *State) files() map[string][]byte {
 	return map[string][]byte{
-		fileOperator:       s.OperatorSeed,
-		fileSysSeed:        s.SysSeed,
-		fileSysJWT:         []byte(s.SysJWT),
-		fileAuthSeed:       s.AuthSeed,
-		fileAuthJWT:        []byte(s.AuthJWT),
-		fileAuthSigning:    s.AuthSigningSeed,
-		fileRealmSeed:      s.RealmSeed,
-		fileRealmJWT:       []byte(s.RealmJWT),
-		fileRealmSigning:   s.RealmSigningSeed,
-		fileCallout:        s.CalloutSeed,
-		fileVaultFirst:     s.VaultFirstSeed,
-		fileSurface:        s.SurfaceSeed,
-		fileServiceCreds:   s.ServiceCreds,
-		fileIssuerCreds:    s.IssuerCreds,
-		fileOpsCreds:       s.OpsCreds,
-		fileArchivistCreds: s.ArchivistCreds,
+		fileOperator:        s.OperatorSeed,
+		fileSysSeed:         s.SysSeed,
+		fileSysJWT:          []byte(s.SysJWT),
+		fileAuthSeed:        s.AuthSeed,
+		fileAuthJWT:         []byte(s.AuthJWT),
+		fileAuthSigning:     s.AuthSigningSeed,
+		fileRealmSeed:       s.RealmSeed,
+		fileRealmJWT:        []byte(s.RealmJWT),
+		fileRealmSigning:    s.RealmSigningSeed,
+		fileWorkloadSigning: s.WorkloadSigningSeed,
+		fileCallout:         s.CalloutSeed,
+		fileVaultFirst:      s.VaultFirstSeed,
+		fileSurface:         s.SurfaceSeed,
+		fileServiceCreds:    s.ServiceCreds,
+		fileIssuerCreds:     s.IssuerCreds,
+		fileOpsCreds:        s.OpsCreds,
+		fileArchivistCreds:  s.ArchivistCreds,
+		fileRunnerCreds:     s.RunnerCreds,
 	}
 }
 
@@ -197,6 +201,7 @@ func Load(dir string) (*State, error) {
 		{fileAuthSigning, &s.AuthSigningSeed, kind(nkeys.PrefixByteAccount)},
 		{fileRealmSeed, &s.RealmSeed, kind(nkeys.PrefixByteAccount)},
 		{fileRealmSigning, &s.RealmSigningSeed, kind(nkeys.PrefixByteAccount)},
+		{fileWorkloadSigning, &s.WorkloadSigningSeed, kind(nkeys.PrefixByteAccount)},
 		{fileCallout, &s.CalloutSeed, kind(nkeys.PrefixByteCurve)},
 		{fileVaultFirst, &s.VaultFirstSeed, kind(nkeys.PrefixByteCurve)},
 		{fileSurface, &s.SurfaceSeed, kind(nkeys.PrefixByteCurve)},
@@ -229,6 +234,9 @@ func Load(dir string) (*State, error) {
 	if s.RealmSigningPub, err = pubOf(s.RealmSigningSeed); err != nil {
 		return nil, fmt.Errorf("ceremony: %s: %w", fileRealmSigning, err)
 	}
+	if s.WorkloadSigningPub, err = pubOf(s.WorkloadSigningSeed); err != nil {
+		return nil, fmt.Errorf("ceremony: %s: %w", fileWorkloadSigning, err)
+	}
 	if s.CalloutPub, err = pubOf(s.CalloutSeed); err != nil {
 		return nil, fmt.Errorf("ceremony: %s: %w", fileCallout, err)
 	}
@@ -251,7 +259,8 @@ func Load(dir string) (*State, error) {
 		rel string
 		dst *[]byte
 	}{{fileServiceCreds, &s.ServiceCreds}, {fileIssuerCreds, &s.IssuerCreds},
-		{fileOpsCreds, &s.OpsCreds}, {fileArchivistCreds, &s.ArchivistCreds}} {
+		{fileOpsCreds, &s.OpsCreds}, {fileArchivistCreds, &s.ArchivistCreds},
+		{fileRunnerCreds, &s.RunnerCreds}} {
 		data, err := read(cf.rel)
 		if err != nil {
 			return nil, err
@@ -297,6 +306,11 @@ func Verify(dir string) (*State, error) {
 	if scope, ok := realm.SigningKeys.GetScope(s.RealmSigningPub); !ok || scope == nil {
 		return nil, fmt.Errorf("ceremony: %s lacks the scoped signing key %s", fileRealmJWT, fileRealmSigning)
 	}
+	// The workload minting key must be endorsed PLAIN (nil scope): a
+	// scoped key would reject the minter's carried permissions (R1).
+	if scope, ok := realm.SigningKeys.GetScope(s.WorkloadSigningPub); !ok || scope != nil {
+		return nil, fmt.Errorf("ceremony: %s does not endorse %s as a plain signing key", fileRealmJWT, fileWorkloadSigning)
+	}
 	host, _, err := net.SplitHostPort(s.Listen)
 	if err != nil {
 		return nil, fmt.Errorf("ceremony: damaged %s: listen %q: %w", fileConfig, s.Listen, err)
@@ -313,7 +327,7 @@ func Verify(dir string) (*State, error) {
 // ArtifactCount is the number of persisted founding artifacts a complete
 // state directory carries (config + keys + users + sentinel) — the number
 // init's verify report cites.
-func ArtifactCount() int { return 16 + 1 + 1 } // files() incl. archivist + config + sentinel
+func ArtifactCount() int { return 18 + 1 + 1 } // files() + config + sentinel
 
 func requireMode(path string, isDir bool) error {
 	info, err := os.Stat(path)

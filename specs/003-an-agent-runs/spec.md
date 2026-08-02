@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-an-agent-runs`
 **Created**: 2026-08-02
-**Status**: Draft
+**Status**: Implemented (landed 2026-08-02 — journey 0005)
 **Input**: User description: "M1.3 — an agent runs (design 0001 §6, §9-M1.3): a declared agent workload launches through the runtime plane (native backend), posts a turn attributed to its persona, and its lifecycle appears as work ops — soulrealm's own first proof, re-run inside SoulNode."
 
 ## User Scenarios & Testing *(mandatory)*

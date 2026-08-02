@@ -77,7 +77,10 @@ enumerated and the rig proved executable from an empty directory
    user>)`, `Authorization.AllowedAccounts` = the realm account,
    `Authorization.XKey` = the callout curve key; plus its **signing key**
    (vault name `auth/issuer` — signs admitted users and the sentinel).
-4. **Realm account** nkey + JWT: JetStream unlimited locally, plus the
+4. **Realm account** nkey + JWT: JetStream unlimited locally, plus a
+   **plain workload signing key** (`SigningKeys.Add` — the runtime
+   minter's key; per-workload permissions ride in the JWTs it signs, a
+   scoped key rejects them; as-built in 003) and the
    **scoped signing key** whose `jwt.UserScope` template *is* the admitted
    persona's permission set — `soulidentity.{{account-subject()}}.{{name()}}.sign.record`
    / `.keys.public`, `soulidentity.status` / `.xkey`, `SOULSTREAM.>`,
@@ -130,11 +133,15 @@ inherited from soulidentity's D22.
   `keeper.Witness` + `topic.RespondMemory` on a realm client
   (`realm.NewClient` over loopback, archivist persona, signer from the
   identity plane's `client.PersonaSigner`).
-- **Runtime** [D]: soulrealm public packages, native backend, workloads
-  as declarations (`soulrealm workload start` semantics in-process). The
-  long-running node supervisor (claim-race placement, sweeper) is
-  soulrealm's own unbuilt Fleet milestone — SoulNode consumes it when it
-  lands upstream and MUST NOT invent one here (constitution I).
+- **Runtime** [V as-built in 003]: soulrealm public packages, native
+  backend, workloads as declarations — **invocation-scoped**: `soulnode
+  workload start` supervises one declared workload as persona `runner`
+  (transport creds from the ceremony, signer vault-held), minting with
+  the ceremony's *plain* workload signing key (a scoped key rejects the
+  minter's carried permissions — the two-keys split). The long-running
+  node supervisor (claim-race placement, sweeper) is soulrealm's own
+  unbuilt Fleet milestone — SoulNode consumes it when it lands upstream
+  and MUST NOT invent one here (constitution I).
 
 ## 7. Shutdown and failure [D]
 

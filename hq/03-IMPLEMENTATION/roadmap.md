@@ -6,14 +6,20 @@ IV).
 
 ## Where we are
 
-**The composition gate is met — Phase 1 is unblocked** ([episode
-0002](../04-JOURNEY/0002-the-composition-gate.md), 2026-08-02): all three
-pre-registered bars measured PASS, three of the four upstream embed asks
-delivered before graduation, the transport decided all-loopback by the
-maintainer (decomposition is configuration), and the constitution ratified
-at 1.0.0. Design
-[`0001-soulnode-composition.md`](../02-DESIGN/0001-soulnode-composition.md)
-governs Phase 1. **Next:** the spec-kit pass for M1.1.
+**Phase 1 is complete** (episodes
+[0003](../04-JOURNEY/0003-first-boot-is-real.md) /
+[0004](../04-JOURNEY/0004-the-realm-remembers.md) /
+[0005](../04-JOURNEY/0005-an-agent-runs.md), all 2026-08-02): `soulnode
+init` founds a realm in ~0.15 s and `soulnode up` runs it — embedded
+operator-mode server, identity plane, memory plane on ordinary loopback
+connections; `soulnode workload start` runs a declared agent with a
+minted credential under full enforcement. Every §9 exit criterion of
+design [`0001-soulnode-composition.md`](../02-DESIGN/0001-soulnode-composition.md)
+is measured green in `make test`. Standing exception: three
+pseudo-version pins await upstream tags (soulidentity, archivist,
+soulrealm). **Next:** Phase 2 — the front door — gated on soulstream's
+`018-remote-mcp-node` cycle (in flight upstream, carrying the fourth
+embed ask).
 
 ## Phase 0 — Composition (research) — ✅ closed 2026-08-02
 
@@ -45,10 +51,17 @@ criteria made precise per feature in `specs/NNN-*/`:
   citation — in ~5 s inside `make test`; restart exactly-once; the
   disabled-plane arm clean; the archivist's persona key vault-held.
   Second pseudo-version pin tracked (archivist, above its v0.1.0).
-- **M1.3 — An agent runs.** A declared workload launches through
-  soulrealm's public packages (native backend), posts an attributed turn,
-  lifecycle as work ops — soulrealm's own M1.1 proof re-run inside
-  SoulNode.
+- **M1.3 — An agent runs.** ✅ **Done — Phase 1 complete** ([episode
+  0005](../04-JOURNEY/0005-an-agent-runs.md);
+  `specs/003-an-agent-runs/`). Measured: upstream's `agent-echo`,
+  declared unchanged, runs with a minted TTL-bounded credential under
+  full enforcement — turn authored by its persona, lifecycle a completed
+  work item owned by `runner`, everything kept, nothing
+  credential-shaped lingering. The two-keys split landed in the ceremony
+  (plain workload minting key beside the scoped admission key). One
+  consumer-proven upstream fix on the first enforcing run (soulrealm
+  `3fee11f`: agents need `$JS.API.INFO`). Third pseudo-version pin
+  tracked (soulrealm, no tags upstream).
 
 External dependency, tracked openly: soulrealm has no tagged release yet
 (it pins soulstream v0.6.0 but is itself consumed at `main` until it

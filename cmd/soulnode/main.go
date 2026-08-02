@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -25,6 +26,8 @@ Usage:
   soulnode init [--state DIR] [--listen ADDR] [--realm NAME]
                                                 found a realm (prints your token ONCE)
   soulnode up   [--state DIR]                   run it until interrupted
+  soulnode workload start <declaration.json> [--state DIR]
+                                                run one declared workload (node must be up)
   soulnode version
 
 State dir: --state, else $SOULNODE_STATE, else <user config dir>/soulnode.
@@ -45,6 +48,8 @@ func run(args []string, out, errw io.Writer) int {
 		err = cmdInit(args[1:], out, errw)
 	case "up":
 		err = cmdUp(args[1:], out, errw)
+	case "workload":
+		err = cmdWorkload(args[1:], out, errw)
 	case "version":
 		fmt.Fprintln(out, version.Version)
 	case "help", "-h", "--help":
@@ -191,5 +196,41 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	<-sig
 	fmt.Fprintln(out, "soulnode: draining")
 	n.Stop()
+	return nil
+}
+
+func cmdWorkload(args []string, out, errw io.Writer) error {
+	if len(args) < 1 || args[0] != "start" {
+		return fmt.Errorf("workload needs a subcommand: start <declaration.json>")
+	}
+	fs := flag.NewFlagSet("workload start", flag.ContinueOnError)
+	fs.SetOutput(errw)
+	stateFlag := fs.String("state", "", "state directory")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("workload start needs exactly one declaration file")
+	}
+	dir, err := stateDir(*stateFlag)
+	if err != nil {
+		return err
+	}
+	st, err := ceremony.Verify(dir)
+	if err != nil {
+		return err
+	}
+	if !ceremony.Founded(dir) {
+		return ceremony.ErrIncomplete
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	fmt.Fprintf(out, "soulnode: launching workload from %s\n", fs.Arg(0))
+	if err := node.RunWorkload(ctx, node.Config{StateDir: dir, State: st, AuditWriter: errw},
+		"nats://"+st.Listen, fs.Arg(0)); err != nil {
+		return err
+	}
+	fmt.Fprintln(out, "soulnode: workload finished (terminal work op recorded)")
 	return nil
 }

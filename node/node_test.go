@@ -3,7 +3,9 @@ package node
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -316,6 +318,118 @@ func TestM12Memory(t *testing.T) {
 	}
 	_ = rc2.Close()
 	n2.Stop()
+}
+
+// TestM13AgentRuns is design 0001 §9-M1.3: upstream's own agent-echo,
+// declared and launched through the runtime plane, posts a turn as its
+// persona while its lifecycle lands as work ops — soulrealm's founding
+// proof, re-run inside the composition.
+func TestM13AgentRuns(t *testing.T) {
+	// The artifact is upstream's reference agent, built from the module
+	// cache (research R4).
+	agentPath := filepath.Join(t.TempDir(), "agent-echo")
+	build := exec.Command("go", "build", "-o", agentPath,
+		"github.com/impire-io/soulrealm/cmd/agent-echo")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build agent-echo: %v\n%s", err, out)
+	}
+
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	audit := &syncBuffer{}
+	n, err := Start(Config{StateDir: dir, State: st, AuditWriter: audit})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer n.Stop()
+	token, err := Found(n, st, dir)
+	if err != nil {
+		t.Fatalf("found: %v", err)
+	}
+
+	// The owner starts the topic the workload will serve.
+	ncOwner, err := nats.Connect(n.URL(),
+		nats.UserCredentials(ceremony.SentinelPath(dir)), nats.Token(token),
+		nats.RetryOnFailedConnect(false), nats.MaxReconnects(0))
+	if err != nil {
+		t.Fatalf("owner admission: %v", err)
+	}
+	signer, err := siclient.New(ncOwner, st.RealmPub, ceremony.FoundingPersona).
+		PersonaSigner(ceremony.FoundingPersona)
+	if err != nil {
+		t.Fatalf("owner signer: %v", err)
+	}
+	ctx := context.Background()
+	rc, err := realm.NewClient(ctx, ncOwner, realm.Config{
+		Realm: st.Realm, Persona: ceremony.FoundingPersona, Signer: signer,
+	})
+	if err != nil {
+		t.Fatalf("owner realm client: %v", err)
+	}
+	defer func() { _ = rc.Close() }()
+	h, err := topic.StartTopic(ctx, rc, topic.StartTopicInput{Name: "jobs"})
+	if err != nil {
+		t.Fatalf("start topic: %v", err)
+	}
+
+	// Declare and run the workload through the runtime plane.
+	decl := fmt.Sprintf(`{"role":"agent","lifecycle":"service","persona":"echo","topic":%q,"artifact":%q}`,
+		h.Path(), "file://"+agentPath)
+	declPath := filepath.Join(dir, "..", "echo.json")
+	if err := os.WriteFile(declPath, []byte(decl), 0o600); err != nil {
+		t.Fatalf("write declaration: %v", err)
+	}
+	if err := RunWorkload(ctx, Config{StateDir: dir, State: st, AuditWriter: audit},
+		n.URL(), declPath); err != nil {
+		t.Fatalf("run workload: %v (audit: %s)", err, audit.String())
+	}
+
+	// The realm remembers all of it: the agent's turn, attributed; the
+	// lifecycle as a completed work item owned by the runner persona.
+	mt, err := h.Materialise(ctx)
+	if err != nil {
+		t.Fatalf("materialise: %v", err)
+	}
+	var echoed bool
+	for _, c := range mt.Contributions {
+		if c.Author == "echo" && strings.Contains(c.Body, "hello from echo") {
+			echoed = true
+		}
+	}
+	if !echoed {
+		t.Fatalf("no turn authored by the workload persona; contributions: %+v", mt.Contributions)
+	}
+	if len(mt.WorkItems) != 1 {
+		t.Fatalf("want 1 work item, got %d", len(mt.WorkItems))
+	}
+	w := mt.WorkItems[0]
+	if w.Author != "runner" || string(w.Status) != "done" {
+		t.Fatalf("work item author=%q status=%q, want runner/done", w.Author, w.Status)
+	}
+
+	// SC-002, as upstream actually behaves: the workload's minted creds
+	// lived only in its scratch dir, and the backend REMOVES the scratch
+	// at end of life — so after completion no credential of any kind may
+	// linger under scratch. (The minted-not-ceremony property is enforced
+	// upstream: the native backend writes spec.Cred, which the minter
+	// produced from the workload signing key — the ceremony creds never
+	// enter the LaunchSpec.)
+	var leftovers []string
+	_ = filepath.WalkDir(filepath.Join(dir, "scratch"), func(path string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(path, ".creds") {
+			leftovers = append(leftovers, path)
+		}
+		return nil
+	})
+	if len(leftovers) != 0 {
+		t.Fatalf("credentials linger in scratch after end of life: %v", leftovers)
+	}
 }
 
 // TestMemoryDisabled is SC-004: the plane block honored — admission works
