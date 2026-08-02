@@ -17,6 +17,14 @@ reversals, because a refuted assumption is as load-bearing as the shipped code.
 
 ## Where things stand (2026-08-02)
 
+**The node module is consumable** ([episode
+0010](0010-the-node-becomes-consumable.md)): its landing-day
+`replace => ../` dropped the same day v0.7.0 made it unnecessary — the
+module now pins the tag and downstream compositions can require it
+(soulnode's Phase 2 front door is the first). Full node suite measured
+green against the tag; co-development rides an untracked `go.work`
+(soulrealm 0011's discipline, adopted).
+
 The reference library has shipped the MVP and most of day-2 — **`v0.7.0`**
 (2026-08-02) is current: foundation + op-log engine, CLI + MCP clients,
 signing, rollup, scatter-gather discovery, the curator, work stages 1–2,
@@ -95,3 +103,4 @@ eg-walker live co-editing, sealed topics, and a browser/WebSocket client.
 | 0007 | [DX hardening: the seam's two sharp edges, and the cycle guard](0007-dx-hardening-and-the-cycle-guard.md) |
 | 0008 | [The remote MCP node: a URL into the realm, proven on the BYON](0008-remote-mcp-node.md) |
 | 0009 | [The remote MCP node, built: the door that holds nothing](0009-remote-mcp-node-built.md) |
+| 0010 | [The node becomes consumable: the replace drops](0010-the-node-becomes-consumable.md) |

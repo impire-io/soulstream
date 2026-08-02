@@ -2,14 +2,16 @@ module github.com/impire-io/soulstream/node
 
 go 1.26.2
 
-// The node always builds from a repo checkout (it is not `go install @latest`-able):
-// it must see the soulstream packages of the SAME change-set — the public mcpserver
-// surface lands together with the node that first embeds it.
-replace github.com/impire-io/soulstream => ../
+// The node pins the tagged soulstream that carries its mcpserver surface —
+// v0.7.0 IS the change-set this module landed with, so the original
+// same-change-set concern is answered by the tag itself. No replace: the
+// module is consumable by downstream compositions (soulnode is the first).
+// Co-developing against an unreleased soulstream rides an untracked go.work,
+// the discipline soulrealm and the e2e modules already live by.
 
 require (
 	github.com/impire-io/soulidentity v0.0.0-20260802073850-5eaf52cf9c8d
-	github.com/impire-io/soulstream v0.0.0-00010101000000-000000000000
+	github.com/impire-io/soulstream v0.7.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/nats-io/jwt/v2 v2.8.2
 	github.com/nats-io/nats-server/v2 v2.14.3
