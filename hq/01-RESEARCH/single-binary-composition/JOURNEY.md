@@ -153,3 +153,38 @@ publicly (identity plane via soulidentity `embed`, realm client via
 `realm.NewClient`, memory via archivist `keeper`/`archive`, workload
 launch via soulrealm's public packages) — the front-door surface gates
 only Phase 2.
+
+## 2026-08-02 — the maintainer's call: everything through loopback
+
+Teach-back on the front-door judgment returned a stronger decision than
+the proposed split: **every plane connects over ordinary NATS connections
+to the embedded server's loopback listener — no in-process transport
+anywhere.** The reasoning is decomposition: SoulNode must eventually
+support running only *parts* — a NATS server someone already has,
+soulrealm on a different machine — and that is pure configuration only if
+every plane's connection is already URL + creds. A split transport would
+make the bundled shape special; all-loopback makes the bundle just the
+deployment where every URL happens to be 127.0.0.1. [maintainer decision,
+2026-08-02, superseding the split proposed 2026-08-01]
+
+Consequences:
+
+- Constitution II strengthens (the local shape is byte-identical to
+  hosted — every plane on the wire). Constitution III's "connected
+  in-process" phrasing must be amended before ratification: one process
+  runs the *enabled* planes; which planes run here is configuration. The
+  vision's "The bundle" bullet gains the selective-composition horizon.
+- The refusal-parity finding demotes from design constraint to a
+  candidate upstream issue (nats in-process pipe: fixed ~10 s refusals
+  that lose the -ERR reason) — worth filing, no longer load-bearing.
+- The rig's DontListen/InProcessServer arm becomes a finding of record,
+  not the product shape; the TCP control arm was the SoulNode shape all
+  along — stated openly.
+- The embedded server binds 127.0.0.1 by default. Accepted residue: a
+  loopback listener exists; admission still gates it (callout — the
+  sentinel is public by design, tokens are the secret).
+
+Reversal condition: a deployment class where any local listener is
+untenable, or measured loopback overhead that matters at single-node
+scale, reopens in-process transport — gated on the upstream refusal fix
+landing first.
