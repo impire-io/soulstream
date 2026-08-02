@@ -1,6 +1,7 @@
 package rigtest
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -161,7 +162,7 @@ func signRS256(key *rsa.PrivateKey, kid string, claims map[string]any) (string, 
 	}
 	signing := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(payload)
 	sum := sha256.Sum256([]byte(signing))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, 0, sum[:])
+	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, sum[:])
 	if err != nil {
 		return "", fmt.Errorf("sign: %w", err)
 	}

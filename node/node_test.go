@@ -3,9 +3,11 @@ package node_test
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,13 +36,45 @@ func serveNode(t *testing.T, r *rigtest.Rig, cfg node.Config) string {
 	return srv.URL
 }
 
+// serveNodeLogging is serveNode with the node's logger captured into buf.
+func serveNodeLogging(t *testing.T, r *rigtest.Rig, cfg node.Config, buf *syncBuf) string {
+	t.Helper()
+	cfg.Logger = slog.New(slog.NewTextHandler(buf, nil))
+	return serveNode(t, r, cfg)
+}
+
+// syncBuf is a concurrency-safe log sink for the token-material audit.
+type syncBuf struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
 // mcpSession dials an MCP session at url presenting bearer on every request.
 func mcpSession(t *testing.T, url, bearer string) *mcp.ClientSession {
+	t.Helper()
+	return mcpSessionWithHost(t, url, bearer, "")
+}
+
+// mcpSessionWithHost dials an MCP session overriding the Host header (host
+// != "" exercises the proxy-fronted shape).
+func mcpSessionWithHost(t *testing.T, url, bearer, host string) *mcp.ClientSession {
 	t.Helper()
 	client := mcp.NewClient(&mcp.Implementation{Name: "node-test-client", Version: "0.0.1"}, nil)
 	transport := &mcp.StreamableClientTransport{
 		Endpoint:   url,
-		HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},
+		HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer, host: host}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	t.Cleanup(cancel)
@@ -52,12 +86,18 @@ func mcpSession(t *testing.T, url, bearer string) *mcp.ClientSession {
 	return sess
 }
 
-// bearerRT stamps Authorization on every request — the hosted client's
-// freshest-bearer behavior.
-type bearerRT struct{ bearer string }
+// bearerRT stamps Authorization (and optionally overrides Host) on every
+// request — the hosted client's freshest-bearer behavior.
+type bearerRT struct {
+	bearer string
+	host   string
+}
 
 func (b bearerRT) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("Authorization", "Bearer "+b.bearer)
+	if b.host != "" {
+		r.Host = b.host
+	}
 	return http.DefaultTransport.RoundTrip(r)
 }
 
