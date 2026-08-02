@@ -141,6 +141,10 @@ func Start(t *testing.T, ttl time.Duration) *Rig {
 	admin := siclient.New(ncAdmin, k.acmePub, "ops")
 	mustImport(t, admin, "acme", k.acmeSKSeed, k.acmePub)
 	mustImport(t, admin, "auth/issuer", k.authSKSeed, k.authPub)
+	// A second declared role (bound to the AUTH account, so it does NOT make
+	// ACME's token lane ambiguous) purely so an OIDC token naming both "acme"
+	// and this role is genuinely ambiguous (D24) — the conformance case.
+	mustImport(t, admin, "member-alt", k.authSKSeed, k.authPub)
 
 	sentinelPath := mintSentinel(t, admin)
 
@@ -183,7 +187,14 @@ func (r *Rig) RevokeStaticToken(t *testing.T, digest string) {
 // the browser flow) for a person identified by oid, holding the given roles.
 func (r *Rig) OIDCToken(t *testing.T, oid string, roles ...string) string {
 	t.Helper()
-	tok, err := r.AS.Token(r.AS.Claims(oid, roles...))
+	return r.OIDCTokenRaw(t, r.AS.Claims(oid, roles...))
+}
+
+// OIDCTokenRaw mints a validly-signed token over arbitrary claims — for
+// conformance-refusal tests that need to violate one claim rule at a time.
+func (r *Rig) OIDCTokenRaw(t *testing.T, claims map[string]any) string {
+	t.Helper()
+	tok, err := r.AS.Token(claims)
 	if err != nil {
 		t.Fatalf("oidc token: %v", err)
 	}

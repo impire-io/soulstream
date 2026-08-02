@@ -117,6 +117,20 @@ func (s *ASStub) TokenWrongKey(claims map[string]any) (string, error) {
 	return signRS256(rogue, "rogue", claims)
 }
 
+// TokenAlgNone mints an unsigned (alg=none) token — the alg-downgrade the
+// validator must refuse (contract §3: RS256 only).
+func (s *ASStub) TokenAlgNone(claims map[string]any) (string, error) {
+	header, err := json.Marshal(map[string]any{"alg": "none", "typ": "JWT"})
+	if err != nil {
+		return "", err
+	}
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(payload) + ".", nil
+}
+
 func (s *ASStub) discovery(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
