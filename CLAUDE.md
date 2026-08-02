@@ -28,7 +28,7 @@ profile). CI/release wired but DORMANT until `NODE_CI_ENABLED` +
 module); core release unaffected. `byon-setup`+`probe` carried best-effort
 (spec Q2). For details: [specs/018-remote-mcp-node/plan.md](specs/018-remote-mcp-node/plan.md)
 (spec+Clarifications, research R1–R11, contracts/{library,authorization-server,http}.md,
-data-model, quickstart, episode `hq/04-JOURNEY/0009-remote-mcp-node-built.md`).
+data-model, quickstart, episode `../soul-hq/04-JOURNEY/0047-soulstream-remote-mcp-node-built.md`).
 
 Prior landed feature: **017-signer-seam** (v0.6.0,
 2026-07-29 — includes same-day DX hardening, journeys 0006+0007) — the
@@ -58,7 +58,7 @@ For details read: [specs/017-signer-seam/plan.md](specs/017-signer-seam/plan.md)
 (spec: `specs/017-signer-seam/spec.md` incl. Clarifications 2026-07-29,
 decisions: `research.md` R1–R7, contract: `contracts/library.md`, model:
 `data-model.md`, consumer view: `quickstart.md`, episode:
-`hq/04-JOURNEY/0006-the-signer-seam.md`).
+`../soul-hq/04-JOURNEY/0026-soulstream-the-signer-seam.md`).
 Done: `001`–`005` (MVP), `006-signing`, `007-rollup`, `008-discover`, `009-curator`,
 `010-work`, `011-vocab`, `012-distribution` (v0.1.0), `013-config` (v0.2.0),
 `014-persona-accountability` (v0.3.0/v0.3.1), `015-memory` (v0.4.0, archivist
@@ -82,18 +82,17 @@ Project conventions:
 ## How this project is run (read this first)
 
 The SPECKIT block above tracks the active feature; the durable way of working
-lives in `hq/`. Before touching anything:
+lives in `../soul-hq/`. Before touching anything:
 
-- **`hq/00-GENESIS/` first** — [`vision.md`](hq/00-GENESIS/vision.md),
-  [`constitution.md`](hq/00-GENESIS/constitution.md) (articles + the anti-drift
+- **`../soul-hq/00-GENESIS/` first** — [`vision.md`](../soul-hq/00-GENESIS/vision.md),
+  [`constitution.md`](../soul-hq/00-GENESIS/constitution.md) (articles + the anti-drift
   working agreement, wired into spec-kit via the
   `.specify/memory/constitution.md` symlink), and
-  [`how-we-work.md`](hq/00-GENESIS/how-we-work.md). Decisions are held against
+  [`how-we-work.md`](../soul-hq/00-GENESIS/how-we-work.md). Decisions are held against
   these.
 - **[`AGENTS.md`](AGENTS.md)** — the numbered reading order and the
   non-negotiables in brief.
 - **The journey duty (required):** every landed feature, concluded research
   investigation, or load-bearing decision gets a numbered episode in
-  `hq/04-JOURNEY/` in the same change — `/journey-log` does this (research topics
-  get theirs via `/research-graduate`). The structure is enforced by
-  `internal/hqlint` under `make test`.
+  `../soul-hq/04-JOURNEY/` in the same change — `/journey-log` does this (research topics
+  get theirs via `/research-graduate`). The structure is enforced by soul-hq's internal/hqlint under its own make test.

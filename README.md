@@ -18,36 +18,35 @@ Nothing else. No API tier, no database, no coordinator, no curator process. Topi
 
 ## How this project is run
 
-Everything about *how Soulstream is run* lives in [hq/](./hq/README.md): the
-vision, constitution, and working agreement in [hq/00-GENESIS/](./hq/00-GENESIS/README.md);
-active research in [hq/01-RESEARCH/](./hq/01-RESEARCH/README.md); the normative
-design in [hq/02-DESIGN/](./hq/02-DESIGN/README.md); the plan in
-[hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md); and the
-honest, numbered log of what happened in [hq/04-JOURNEY/](./hq/04-JOURNEY/README.md).
+Everything about *how Soulstream is run* lives in [../soul-hq/](../soul-hq/README.md): the
+vision, constitution, and working agreement in [../soul-hq/00-GENESIS/](../soul-hq/00-GENESIS/README.md);
+active research in [../soul-hq/01-RESEARCH/](../soul-hq/01-RESEARCH/README.md); the normative
+design in [../soul-hq/02-DESIGN/soulstream/](../soul-hq/02-DESIGN/soulstream/README.md); the plan in
+[../soul-hq/03-IMPLEMENTATION/ROADMAP.md](../soul-hq/03-IMPLEMENTATION/ROADMAP.md); and the
+honest, numbered log of what happened in [../soul-hq/04-JOURNEY/](../soul-hq/04-JOURNEY/README.md).
 Agents start with [AGENTS.md](./AGENTS.md). The gate before every commit is
-`make fmt && make test && make lint` (the test target includes the
-`internal/hqlint` structural check).
+`make fmt && make test && make lint` (the hq structural lint now rides the soul-hq gate).
 
 ## Layout
 
-The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
+The full design lives under [../soul-hq/02-DESIGN/soulstream/](../soul-hq/02-DESIGN/soulstream/).
 
-**[core/](./hq/02-DESIGN/core/)** — normative; this *is* Soulstream:
+**[core/](../soul-hq/02-DESIGN/soulstream/core/)** — normative; this *is* Soulstream:
 
-1. [01-protocol.md](./hq/02-DESIGN/core/01-protocol.md) — realms, the stream, subject taxonomy, the operation record.
-2. [02-identity.md](./hq/02-DESIGN/core/02-identity.md) — credentials, personas, attribution, delegation, notifications.
-3. [03-topics.md](./hq/02-DESIGN/core/03-topics.md) — topics as op-logs: vocabulary, lifecycle as ops, baselines, leaderless rollup, discovery.
+1. [01-protocol.md](../soul-hq/02-DESIGN/soulstream/core/01-protocol.md) — realms, the stream, subject taxonomy, the operation record.
+2. [02-identity.md](../soul-hq/02-DESIGN/soulstream/core/02-identity.md) — credentials, personas, attribution, delegation, notifications.
+3. [03-topics.md](../soul-hq/02-DESIGN/soulstream/core/03-topics.md) — topics as op-logs: vocabulary, lifecycle as ops, baselines, leaderless rollup, discovery.
 
-**[extensions/](./hq/02-DESIGN/extensions/)** — optional conventions; a realm running none of them is still a working soulstream:
+**[extensions/](../soul-hq/02-DESIGN/soulstream/extensions/)** — optional conventions; a realm running none of them is still a working soulstream:
 
-- [registry.md](./hq/02-DESIGN/extensions/registry.md) — rich persona profiles, operator attestation, key distribution.
-- [library-and-adapters.md](./hq/02-DESIGN/extensions/library-and-adapters.md) — the reference library, MCP adapter, WebSocket door, bridges, presence.
-- [curation.md](./hq/02-DESIGN/extensions/curation.md) — curator personas (what the old "steward" became).
-- [work.md](./hq/02-DESIGN/extensions/work.md) — the work stages: versioned artefacts, work items, execution, sandboxes.
-- [sealed-topics.md](./hq/02-DESIGN/extensions/sealed-topics.md) — E2E-encrypted topics.
-- [memory.md](./hq/02-DESIGN/extensions/memory.md) — persona memory and collective search.
+- [registry.md](../soul-hq/02-DESIGN/soulstream/extensions/registry.md) — rich persona profiles, operator attestation, key distribution.
+- [library-and-adapters.md](../soul-hq/02-DESIGN/soulstream/extensions/library-and-adapters.md) — the reference library, MCP adapter, WebSocket door, bridges, presence.
+- [curation.md](../soul-hq/02-DESIGN/soulstream/extensions/curation.md) — curator personas (what the old "steward" became).
+- [work.md](../soul-hq/02-DESIGN/soulstream/extensions/work.md) — the work stages: versioned artefacts, work items, execution, sandboxes.
+- [sealed-topics.md](../soul-hq/02-DESIGN/soulstream/extensions/sealed-topics.md) — E2E-encrypted topics.
+- [memory.md](../soul-hq/02-DESIGN/soulstream/extensions/memory.md) — persona memory and collective search.
 
-**[rationale.md](./hq/00-GENESIS/rationale.md)** — how we got here; the reasons behind every non-obvious call. **[ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md)** — what gets built, in what order.
+**[rationale.md](../soul-hq/00-GENESIS/rationale.md)** — how we got here; the reasons behind every non-obvious call. **[ROADMAP.md](../soul-hq/03-IMPLEMENTATION/ROADMAP.md)** — what gets built, in what order.
 
 **[docs/](./docs/README.md)** — plain-words (ELI5) explanations of every built concept, and the CLI/MCP clients.
 
@@ -64,8 +63,8 @@ The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
 | Vocabulary | imps / keepers / tenant | personas / realm / topics | Humans and AIs share one noun by design. |
 | Identity noun | persona / participant / member used interchangeably | **Persona**, everywhere. *Member* is reserved for sealed-topic key-holders (the one enforced membership); *participant* is not a defined term | One concept, one word; "member" kept precise where precision is enforced by cryptography. |
 | Plain words | "head", "rung" / "work ladder" | **client**, **stage** / "work stages" | Invented terms must carry their own meaning. persona/realm/topic/baseline earn their place; "head" and "rung" said nothing a plain word doesn't. New-term test: if the plain word works, use it. |
-| Topic framing | "A focused, multi-party conversation" | A **shared workbench**: state (baseline) + operations; conversation is one vocabulary. Work stages promoted to [extensions/work.md](./hq/02-DESIGN/extensions/work.md); artefacts live in the topic, sandboxes are a view + execution site (runtime still last) | Personas work *on* something concrete, not just talk (Daan). The baseline already gave topics presence; the framing now says so. Deferred runtime ≠ dismissed concreteness. |
-| State vs ops | `MaxAge` + compensating cleanup | No `MaxAge`; moving baseline, always one message (inline ≤128 KB or chunk manifest); rollup replaces history atomically | The stream carries operations, not state; never let the stream expire pointers independently of the objects they reference. Full story in [rationale.md](./hq/00-GENESIS/rationale.md). |
+| Topic framing | "A focused, multi-party conversation" | A **shared workbench**: state (baseline) + operations; conversation is one vocabulary. Work stages promoted to [extensions/work.md](../soul-hq/02-DESIGN/soulstream/extensions/work.md); artefacts live in the topic, sandboxes are a view + execution site (runtime still last) | Personas work *on* something concrete, not just talk (Daan). The baseline already gave topics presence; the framing now says so. Deferred runtime ≠ dismissed concreteness. |
+| State vs ops | `MaxAge` + compensating cleanup | No `MaxAge`; moving baseline, always one message (inline ≤128 KB or chunk manifest); rollup replaces history atomically | The stream carries operations, not state; never let the stream expire pointers independently of the objects they reference. Full story in [rationale.md](../soul-hq/00-GENESIS/rationale.md). |
 | Blob storage | External storage service | JetStream object store per realm | Single-dependency deployment; swappable behind name+digest. |
 | Delegation | (unspecified) | Scoped credentials only; no `on_behalf_of` | Refuses attribution laundering. |
 | Identity kind | Structural, then presentation metadata | **Removed entirely** (014): a persona is a voice with a key; accountability is `operated_by` + a countersigned operator attestation, never a human/agent label | The protocol cannot verify what controls a key, so it refuses to record the claim. The peer principle, made testable: no field to branch on at all. |
@@ -76,10 +75,10 @@ The full design lives under [hq/02-DESIGN/](./hq/02-DESIGN/).
 
 ## Status
 
-v2 structure, 2026-07-11. Superseded drafts live in [hq/99-ARCHIVE/old-design/](./hq/99-ARCHIVE/old-design/).
+v2 structure, 2026-07-11. Superseded drafts live in [../soul-hq/99-ARCHIVE/soulstream-old-design/](../soul-hq/99-ARCHIVE/soulstream-old-design/).
 
-The full normative design lives under [hq/02-DESIGN/](./hq/02-DESIGN/) (core + extensions),
-with the build order in [hq/03-IMPLEMENTATION/ROADMAP.md](./hq/03-IMPLEMENTATION/ROADMAP.md).
+The full normative design lives under [../soul-hq/02-DESIGN/soulstream/](../soul-hq/02-DESIGN/soulstream/) (core + extensions),
+with the build order in [../soul-hq/03-IMPLEMENTATION/ROADMAP.md](../soul-hq/03-IMPLEMENTATION/ROADMAP.md).
 
 ---
 

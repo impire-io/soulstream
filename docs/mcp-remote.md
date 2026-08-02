@@ -108,8 +108,8 @@ admitted a client through auth callout and posted a signed, correctly-attributed
 end to end, over an HTTPS front door — and the shipped node's test rig runs the whole
 admission edge (auth callout + identity plane) in-process, verifying every claim above.
 The design and its measured evidence live in
-[the remote-MCP-node design](../hq/02-DESIGN/extensions/remote-mcp-node.md) and
-[journey episode 0008](../hq/04-JOURNEY/0008-remote-mcp-node.md).
+[the remote-MCP-node design](../../soul-hq/02-DESIGN/soulstream/extensions/remote-mcp-node.md) and
+[journey episode 0008](../../soul-hq/04-JOURNEY/0038-soulstream-remote-mcp-node.md).
 
 ## Related
 

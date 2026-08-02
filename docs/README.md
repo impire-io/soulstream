@@ -51,11 +51,11 @@ before any detail. Start at the top and read down — each page builds on the on
 ## Going deeper
 
 - The **normative design** (the "what is Soulstream, exactly" spec) lives in
-  [../hq/02-DESIGN/](../hq/02-DESIGN/) — core + extensions.
+  [../../soul-hq/02-DESIGN/soulstream/](../../soul-hq/02-DESIGN/soulstream/) — core + extensions.
 - The **build history** (per-feature spec → plan → tasks → analysis) lives in
   [../specs/](../specs/), one folder per cycle (`001-foundation` … `005-mcp`).
-- The **why** behind non-obvious calls: [../hq/00-GENESIS/rationale.md](../hq/00-GENESIS/rationale.md);
-  the **build order**: [../hq/03-IMPLEMENTATION/ROADMAP.md](../hq/03-IMPLEMENTATION/ROADMAP.md).
+- The **why** behind non-obvious calls: [../soul-hq/00-GENESIS/rationale.md](../soul-hq/00-GENESIS/rationale.md);
+  the **build order**: [../../soul-hq/03-IMPLEMENTATION/ROADMAP.md](../../soul-hq/03-IMPLEMENTATION/ROADMAP.md).
 
 ## A note on audience
 
