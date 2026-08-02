@@ -28,6 +28,13 @@ archivist `keeper`/`archive`, soulrealm pinned to soulstream v0.6.0).
 **Next:** the spec-kit pass for M1.1 (`soulnode init` + server + identity
 plane).
 
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan:
+`specs/001-init-and-up/plan.md` (spec, research, data model, contracts,
+and quickstart live beside it).
+<!-- SPECKIT END -->
+
 ## The rules that bind every change
 
 - **Composition, not invention** (constitution I, non-negotiable): no domain
