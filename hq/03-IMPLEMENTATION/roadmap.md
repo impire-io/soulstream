@@ -29,11 +29,15 @@ refusals — candidate upstream issue), not the product shape.
 Runs the spec-kit flow against design 0001 (§9 acceptance criteria). Exit
 criteria made precise per feature in `specs/NNN-*/`:
 
-- **M1.1 — The server and the identity plane.** `soulnode init` (the full
-  persisted ceremony, idempotent, zero manual steps) + `soulnode up`:
-  embedded operator-mode server on loopback, SoulIdentity in-process via
-  its public `embed.Run`, admission proven (printed token admits scoped;
-  garbage/revoked refused, audited).
+- **M1.1 — The server and the identity plane.** ✅ **Done** ([episode
+  0003](../04-JOURNEY/0003-first-boot-is-real.md);
+  `specs/001-init-and-up/`). Measured: `init` founds a realm in 0.15 s
+  (17 artifacts, owner-only modes, token printed once, re-init a
+  verified no-op); the found→admit→refuse→revoke→restart e2e rides
+  `make test` in ~1 s; admission matches the research exactly
+  (server-asserted persona, own-prefix confinement, audited refusals).
+  One open exception tracked: soulidentity pinned at a pseudo-version of
+  main until it tags.
 - **M1.2 — The realm joins.** Realm provisioned; the archivist keeps ops
   and answers memory through its public `keeper`/`archive` seam.
 - **M1.3 — An agent runs.** A declared workload launches through

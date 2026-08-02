@@ -1,5 +1,9 @@
 .PHONY: fmt tidy build test lint check
 
+# Stamp the binary with a real version for local builds; releases set the tag.
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -X github.com/impire-io/soulnode/internal/version.Version=$(VERSION)
+
 # Format all Go source (gofmt); golangci-lint's formatters also cover goimports.
 fmt:
 	gofmt -w .
@@ -10,6 +14,7 @@ tidy:
 
 build:
 	go build ./...
+	go build -ldflags "$(LDFLAGS)" -o bin/ ./cmd/...
 
 # All tests, no skips — includes the hq structural lint (internal/hqlint).
 test:

@@ -16,6 +16,19 @@ are as load-bearing as the shipped code.
 
 ## Where things stand (2026-08-02)
 
+**M1.1 is done — first boot is real** ([episode
+0003](0003-first-boot-is-real.md); `specs/001-init-and-up/`): `soulnode
+init && soulnode up` founds and runs a realm — the whole ceremony
+persisted into one state directory (17 artifacts, owner-only modes), the
+founding acts through public surfaces, the first token printed once, the
+embedded operator-mode server + identity plane on ordinary loopback
+connections. Measured: init in 0.15 s; the found→admit→refuse→revoke→
+restart e2e rides `make test` in ~1 s; re-init is a verified no-op. One
+refuted assumption on record (refuse-on-0755 became tighten-then-verify).
+Dependency exception tracked: soulidentity pinned at a pseudo-version
+until it tags. **Next:** M1.2 — the realm joins (provisioning + the
+archivist plane).
+
 **The composition gate is met — Phase 1 is unblocked** ([episode
 0002](0002-the-composition-gate.md)): the `single-binary-composition` topic
 measured all three pre-registered bars PASS — embedded admission parity
@@ -51,3 +64,4 @@ directive) — both since dissolved by the upstream landings above.
 |---|---|
 | 0001 | [Genesis: SoulNode gets an HQ](0001-genesis.md) |
 | 0002 | [The composition gate: three bars PASS, the ecosystem opens its seams](0002-the-composition-gate.md) |
+| 0003 | [First boot is real: init and up land](0003-first-boot-is-real.md) |

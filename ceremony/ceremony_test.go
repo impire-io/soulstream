@@ -1,0 +1,147 @@
+package ceremony
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func generate(t *testing.T) *State {
+	t.Helper()
+	s, err := Generate("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	return s
+}
+
+func TestRoundtripAndVerify(t *testing.T) {
+	dir := t.TempDir()
+	s := generate(t)
+	if err := s.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := Verify(dir)
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if loaded.RealmPub != s.RealmPub || loaded.AuthPub != s.AuthPub ||
+		loaded.OperatorPub != s.OperatorPub || loaded.Listen != s.Listen {
+		t.Fatal("loaded state does not match generated state")
+	}
+	// Verify again — idempotent.
+	if _, err := Verify(dir); err != nil {
+		t.Fatalf("second verify: %v", err)
+	}
+}
+
+func TestModesAreOwnerOnly(t *testing.T) {
+	dir := t.TempDir()
+	s := generate(t)
+	if err := s.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if err := WriteSentinel(dir, "-----BEGIN NATS USER JWT-----\nfake\n"); err != nil {
+		t.Fatalf("sentinel: %v", err)
+	}
+	err := filepath.WalkDir(dir, func(path string, _ os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		if info.Mode().Perm()&0o077 != 0 {
+			t.Errorf("%s has group/other bits: %o", path, info.Mode().Perm())
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+}
+
+func TestFoundedAndEmpty(t *testing.T) {
+	dir := t.TempDir()
+	if empty, _ := Empty(dir); !empty {
+		t.Fatal("fresh temp dir should be empty")
+	}
+	if empty, _ := Empty(filepath.Join(dir, "absent")); !empty {
+		t.Fatal("absent dir should count as empty")
+	}
+	s := generate(t)
+	if err := s.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if empty, _ := Empty(dir); empty {
+		t.Fatal("saved dir should not be empty")
+	}
+	if Founded(dir) {
+		t.Fatal("no sentinel yet — must not read as founded (the incomplete state)")
+	}
+	if err := WriteSentinel(dir, "creds"); err != nil {
+		t.Fatalf("sentinel: %v", err)
+	}
+	if !Founded(dir) {
+		t.Fatal("sentinel written — must read as founded")
+	}
+}
+
+// TestDamageMatrix: every damage class is refused with the artifact named.
+func TestDamageMatrix(t *testing.T) {
+	cases := []struct {
+		name   string
+		damage func(t *testing.T, dir string)
+		want   string
+	}{
+		{"missing-jwt", func(t *testing.T, dir string) {
+			t.Helper()
+			if err := os.Remove(filepath.Join(dir, "keys/auth.jwt")); err != nil {
+				t.Fatal(err)
+			}
+		}, "keys/auth.jwt"},
+		{"corrupt-seed", func(t *testing.T, dir string) {
+			t.Helper()
+			if err := os.WriteFile(filepath.Join(dir, "keys/operator.nk"), []byte("not-a-seed"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "keys/operator.nk"},
+		{"jwt-seed-mismatch", func(t *testing.T, dir string) {
+			t.Helper()
+			other := generateForTest(t)
+			if err := os.WriteFile(filepath.Join(dir, "keys/sys.jwt"), []byte(other.SysJWT), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "keys/sys.jwt"},
+		{"non-loopback-listen", func(t *testing.T, dir string) {
+			t.Helper()
+			if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"listen":"0.0.0.0:4222"}`+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "not loopback"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			s := generate(t)
+			if err := s.Save(dir); err != nil {
+				t.Fatalf("save: %v", err)
+			}
+			tc.damage(t, dir)
+			_, err := Verify(dir)
+			if err == nil {
+				t.Fatal("damaged state verified clean")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error %q does not name %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func generateForTest(t *testing.T) *State {
+	t.Helper()
+	return generate(t)
+}

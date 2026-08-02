@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-init-and-up`
 **Created**: 2026-08-02
-**Status**: Draft
+**Status**: Implemented (landed 2026-08-02 — journey 0003)
 **Input**: User description: "M1.1 — soulnode init and up: the server and the identity plane (design 0001 §3–§6, §9-M1.1). `soulnode init` performs the entire first-boot ceremony into a state directory … `soulnode up` runs the composition: embedded operator-mode server on a loopback listener and the identity plane in-process … Acceptance per design §9-M1.1."
 
 ## User Scenarios & Testing *(mandatory)*
