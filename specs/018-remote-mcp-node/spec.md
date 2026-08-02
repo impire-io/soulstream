@@ -235,6 +235,30 @@ client recovery, empty durable state, and token-free logs.
   realm connection is per-principal and re-admission is retried on that
   principal's next authenticated request.
 
+## Clarifications
+
+### Session 2026-08-02
+
+- Q: Does the feature's primary success criterion require a live hosted
+  client and a live authorization server, or is a scripted conforming
+  client plus an AS stand-in the gate? → A: The scripted flow is the gate
+  (SC-001, SC-005); the live hosted-client-with-live-AS run is a documented
+  follow-up measurement, mirroring where 017 placed its live cross-service
+  proof. (Folded into SC-001 and Assumptions.)
+- Q: Is the realm-side deployment wiring (admission-edge scope template,
+  managed-cloud account plumbing) a productized command of this feature or
+  documentation plus carried tooling? → A: Documentation plus the
+  research-era script carried as operator tooling — explicitly not a
+  product surface of this feature; cloud-specific parts are best-effort.
+  (Folded into Assumptions.)
+- Q: May a forged routing hint degrade the imitated principal's service
+  (weak reading of "a forged hint just builds a connection the edge
+  refuses"), or must the node guarantee non-interference? → A:
+  Non-interference: only a token that has actually been admitted as
+  principal P may govern P's shared realm access; a token that never
+  admitted must never displace any principal's freshest token or evict
+  their access. (Folded into FR-005 and Edge Cases.)
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -264,7 +288,10 @@ client recovery, empty durable state, and token-free logs.
   of the same principal MAY share realm access; sessions of different
   principals MUST NOT. A forged or colliding routing hint MUST NOT grant
   access, displace an admitted principal's service, or deny service to the
-  principal it imitates.
+  principal it imitates: only a token that has been admitted as a principal
+  may govern that principal's shared realm access — a token that never
+  admitted MUST NOT become any principal's freshest token or cause eviction
+  of their access.
 - **FR-006**: Presenting a fresh valid token MUST be sufficient to keep a
   session serviceable across token lifetimes and across the node's internal
   reconnections to the realm, with no other refresh mechanism required of
@@ -346,7 +373,10 @@ client recovery, empty durable state, and token-free logs.
 - **SC-001**: From a client with nothing installed, a person can go from
   knowing only the node's URL to a working realm session — discovery,
   sign-in, admitted — and their first published operation verifies as
-  their persona on every existing read surface.
+  their persona on every existing read surface. The gate is this flow
+  driven by a scripted conforming client end to end; the same flow through
+  a live hosted client against a live authorization server is a documented
+  follow-up measurement, not a gate.
 - **SC-002**: With multiple principals active concurrently through one
   node, 100% of operations are attributed to their true author, and an
   adversarial run presenting forged identity hints yields zero requests
@@ -384,8 +414,9 @@ client recovery, empty durable state, and token-free logs.
   AS-agnostic and the in-progress server does not block the door.
 - Realm-side deployment wiring (the admission edge's scope template, the
   managed-cloud account plumbing) is an operator prerequisite documented
-  by this feature, with the research-era setup script as its starting
-  point; it is deployment tooling, not node surface.
+  by this feature, with the research-era setup script carried as operator
+  tooling; it is explicitly not a product surface of this feature, and its
+  cloud-specific parts are best-effort.
 - One node instance fronts one realm. Fronting several realms is running
   several nodes — acceptable at this maturity and consistent with
   "configuration you can reason about at a glance".
