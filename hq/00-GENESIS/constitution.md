@@ -30,15 +30,17 @@ persona on hosted infrastructure — so what SoulNode proves locally holds
 hosted, and vice versa. Divergence between the two shapes is a bug, never a
 feature.
 
-### III. One Process, Workloads Apart
+### III. One Process, Planes by Configuration
 
-Everything SoulNode runs lives in the one process — embedded server, identity
-plane, memory, runtime, front door — connected in-process, with no sidecar
-daemons required. Workloads are the exception and always run outside the
-process, through soulrealm's isolation backends. A workload failure never
-takes the node down; a node-component failure is surfaced and named, never
-silent. Anything that cannot run in-process is a named limitation with its
-reason recorded, not a quiet extra daemon.
+SoulNode runs its enabled planes — embedded server, identity, memory,
+runtime, front door — in one process, each connected over an ordinary NATS
+connection (loopback by default), with no sidecar daemons required. Which
+planes run, and which URLs they connect to, is configuration: pointing a
+plane at a remote server, or disabling the embedded server in favor of one
+the user already has, must never require a different build or a different
+plane implementation. Workloads always run outside the process, through
+soulrealm's isolation backends; a workload failure never takes the node
+down, and a node-plane failure is surfaced and named, never silent.
 
 ### IV. Research Gates Before Build Spends
 
@@ -110,5 +112,10 @@ propagation into any spec-kit template that depends on the changed text.
 Spec-kit plans verify compliance through the Constitution Check; reviews call
 out violations rather than accommodate them.
 
-**Version**: 0.1.0 (draft — ratifies when the first design graduates) |
-**Drafted**: 2026-07-31
+**Version**: 1.0.0 (ratified 2026-08-02 with the graduation of
+`single-binary-composition` into design 0001 — journey episode 0002) |
+**Drafted**: 2026-07-31 | **Amended at ratification**: Article III reworded
+from "One Process, Workloads Apart" (in-process transport) to "One Process,
+Planes by Configuration" (loopback transport, decomposition by
+configuration) — the maintainer's 2026-08-02 direction, recorded in episode
+0002.

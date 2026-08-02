@@ -18,7 +18,7 @@ made during implementation propagate back here (see
 
 | # | Document | Covers | Status |
 |---|---|---|---|
-| — | *None yet* | The first design arrives when `single-binary-composition` graduates (roadmap Phase 0) | — |
+| 0001 | [`0001-soulnode-composition.md`](0001-soulnode-composition.md) | The all-loopback composition: five planes by configuration, the embedded operator-mode server, the persisted first-boot ceremony (`soulnode init`), admission, plane wiring, shutdown, the seamed front door, Phase 1 acceptance criteria | graduated from `single-binary-composition` (episode 0002) |
 
 ## Status legend (used once documents exist)
 

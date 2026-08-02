@@ -6,85 +6,77 @@ IV).
 
 ## Where we are
 
-**The project was founded 2026-07-31** ([episode
-0001](../04-JOURNEY/0001-genesis.md)): SoulNode is the single-binary
-distribution of the Soulstream ecosystem — embedded NATS, SoulIdentity, the
-archivist, soulrealm, and an MCP front door in one process, first boot as a
-product. No code exists yet — deliberately, per constitution IV: the
-composition gate comes first. **Next:** open the `single-binary-composition`
-research topic (Phase 0) with `/research-start`.
+**The composition gate is met — Phase 1 is unblocked** ([episode
+0002](../04-JOURNEY/0002-the-composition-gate.md), 2026-08-02): all three
+pre-registered bars measured PASS, three of the four upstream embed asks
+delivered before graduation, the transport decided all-loopback by the
+maintainer (decomposition is configuration), and the constitution ratified
+at 1.0.0. Design
+[`0001-soulnode-composition.md`](../02-DESIGN/0001-soulnode-composition.md)
+governs Phase 1. **Next:** the spec-kit pass for M1.1.
 
-## Phase 0 — Composition (research) — *next*
+## Phase 0 — Composition (research) — ✅ closed 2026-08-02
 
-Open `single-binary-composition` via `/research-start` (bars are drafted with
-the maintainer at open, per how-we-work; the areas below scope the topic, they
-are not the bars):
+**Gate met.** `single-binary-composition` graduated to design (episode
+0002). Decided: five planes in one process, every plane on an ordinary
+loopback NATS connection (constitution III as ratified); the first-boot
+ceremony is code, provisioning through public surfaces only; the
+in-process pipe transport is a finding of record (fixed ~10 s mute
+refusals — candidate upstream issue), not the product shape.
 
-- **In-process admission.** The SoulIdentity service and callout issuer,
-  running against an *embedded* operator-mode NATS server, admit and scope
-  personas identically to the wire rig. The reference measurement is
-  soulstream's `remote-mcp-node` rig (Bars 1–3 measured PASS on the wire,
-  2026-07-30; see `../../../soulstream/hq/01-RESEARCH/` while the topic is
-  open, git history after).
-- **Embed surfaces.** The minimal public surface each component needs so
-  SoulNode can wire it without `internal/` imports (constitution I). Known
-  today [measured]: SoulIdentity's serve path lives entirely under
-  `internal/`; soulrealm's natstest operator rig is `internal/` too.
-- **The ceremony, enumerated.** Every artifact `soulnode init` must generate
-  — operator, system/AUTH/realm accounts, signing keys, sentinel, vault first
-  key, buckets — written down end-to-end with nothing implicit.
+## Phase 1 — The bundle (design → build) — *unblocked*
 
-**Gate for Phase 1.** The outcome decides whether the bundle is one process
-(the founding bet) or a supervised multi-process fallback (the named
-reversal, episode 0001).
-
-## Phase 1 — The bundle (design → build) — gated on Phase 0
-
-Runs the spec-kit flow against the design Phase 0 graduates into. Exit
+Runs the spec-kit flow against design 0001 (§9 acceptance criteria). Exit
 criteria made precise per feature in `specs/NNN-*/`:
 
-- **M1.1 — The server and the identity plane in one process.** Embedded
-  operator-mode NATS (JetStream on a state dir) + the SoulIdentity service
-  and callout issuer, wired in-process; admission proven with the same
-  observations as the wire rig.
-- **M1.2 — `soulnode init`.** The full first-boot ceremony, zero manual key
-  steps, idempotent on an existing state dir (constitution V).
-- **M1.3 — The realm joins.** The soulrealm node (native backend) and the
-  archivist run in-process; an agent launches, posts a turn attributed to its
-  persona, and memory answers.
+- **M1.1 — The server and the identity plane.** `soulnode init` (the full
+  persisted ceremony, idempotent, zero manual steps) + `soulnode up`:
+  embedded operator-mode server on loopback, SoulIdentity in-process via
+  its public `embed.Run`, admission proven (printed token admits scoped;
+  garbage/revoked refused, audited).
+- **M1.2 — The realm joins.** Realm provisioned; the archivist keeps ops
+  and answers memory through its public `keeper`/`archive` seam.
+- **M1.3 — An agent runs.** A declared workload launches through
+  soulrealm's public packages (native backend), posts an attributed turn,
+  lifecycle as work ops — soulrealm's own M1.1 proof re-run inside
+  SoulNode.
 
-External dependencies, tracked openly: the public embed surfaces land
-upstream (SoulIdentity, soulrealm, archivist — constitution I forbids
-`internal/` reaches); soulstream↔soulrealm release tagging (soulrealm's main
-carries a `replace` directive today [measured], which SoulNode cannot consume).
+External dependency, tracked openly: soulrealm has no tagged release yet
+(it pins soulstream v0.6.0 but is itself consumed at `main` until it
+tags); SoulNode pins it the moment it does.
 
 ## Phase 2 — The front door (design → build) — gated
 
-The MCP edge in-process: streamable HTTP, static-bearer admission through the
-callout, corpse-evicting connection pool. HTTPS documented via the host's
-`tailscale serve` — no embedded tailnet yet. External reference: soulstream's
-`remote-mcp-node` topic (Bars 1–3 PASS; Bar 4 — the no-install client — in
-progress there). Gate: that topic's outcome, plus a design pass on what of
-the prototype node graduates where.
+The MCP edge in-process: streamable HTTP, static-bearer admission through
+the callout, per-user pooled **loopback** connections, corpse eviction.
+Gate: soulstream's `remote-mcp-node` topic (the maintainer's open
+investigation — Bars 1–3 PASS there, Bar 4 in flight) and the public MCP
+surface it graduates into — the fourth upstream ask, deliberately held for
+that vehicle.
 
 ## Phase 3 — The tailnet inside — gated
 
 An embedded tailnet node (tsnet) behind a flag: a stable MagicDNS name and
 HTTPS certs with zero host setup. Built only if Phase 2 measures the
-host-`tailscale serve` path insufficient for the audience — the dependency is
-heavy, and the gate exists to keep it honest.
+host-`tailscale serve` path insufficient for the audience — the dependency
+is heavy, and the gate exists to keep it honest.
 
 ## Later horizons (named, not planned)
 
 Each will get its own research gate when it approaches:
 
+- **BYO NATS.** Design 0001 §4 carries the [O]: the ceremony subset
+  against a user-supplied server. Ships behind its own pass, not with the
+  bundle.
 - **Day 2.** Upgrade in place, backup/restore of the state dir, moving a
   realm to a new machine as a copy.
 - **Multi-node.** Deferred to soulrealm's Fleet work; SoulNode stays
-  single-node until Fleet is real and a second node is a measured need.
+  single-node until the upstream node supervisor exists and a second node
+  is a measured need.
 
 ## Discipline
 
-Exit criteria are written before the work and amended only openly with the raw
-findings recorded. Landing a feature updates this file, writes a journey
-episode, and propagates design changes — in the same merge (constitution VI).
+Exit criteria are written before the work and amended only openly with the
+raw findings recorded. Landing a feature updates this file, writes a
+journey episode, and propagates design changes — in the same merge
+(constitution VI).

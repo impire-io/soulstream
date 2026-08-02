@@ -17,8 +17,8 @@ non-negotiables.
    was built, what was refuted, and why things are the way they are.
 3. `hq/03-IMPLEMENTATION/roadmap.md` — the live plan: phases, milestones, and
    the research gate each depends on.
-4. `hq/02-DESIGN/README.md` — the design map (empty until the first topic
-   graduates).
+4. `hq/02-DESIGN/README.md` — the design map; 0001 (the composition) is
+   the one to read before touching code.
 
 ## Non-negotiables (constitution articles, in brief)
 
@@ -30,8 +30,9 @@ non-negotiables.
   `replace` on main; new behavior lands upstream first.
 - **Same shape as any deployment** (II): embedded NATS runs operator mode
   with auth-callout admission exactly as hosted; no local-only auth lane.
-- **One process, workloads apart** (III): node components in-process,
-  workloads outside via soulrealm's backends.
+- **One process, planes by configuration** (III): enabled planes in one
+  process on ordinary loopback NATS connections; repointing or disabling
+  a plane is configuration. Workloads outside via soulrealm's backends.
 - **The working agreement** (anti-drift): load-bearing claims carry an
   evidence class (`[measured]` / `[mechanism-argument]` / `[judgment]`, only
   measured closes a debate); direction decisions record their reversal

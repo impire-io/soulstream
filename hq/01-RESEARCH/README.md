@@ -42,6 +42,7 @@ the work produces.
 
 ## Active topics
 
-| Topic | Question | Started |
-|---|---|---|
-| [`single-binary-composition/`](single-binary-composition/README.md) | Can the full ecosystem shape run correctly composed in one process, and what must each component expose for SoulNode to wire it without `internal/` reaches? | 2026-07-31 |
+*None open.* Graduated so far: `single-binary-composition` (2026-08-02,
+journey [episode 0002](../04-JOURNEY/0002-the-composition-gate.md) → design
+[`0001-soulnode-composition.md`](../02-DESIGN/0001-soulnode-composition.md));
+folder removed, full trail in git history.

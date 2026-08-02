@@ -18,10 +18,15 @@ house.
 
 ## Status
 
-**Founded 2026-07-31** ([journey 0001](hq/04-JOURNEY/0001-genesis.md)). No
-code yet — deliberately, per constitution IV. **Next:** open the
-`single-binary-composition` research topic (roadmap Phase 0) with
-`/research-start`; its bars are pre-registered with the maintainer.
+**Composition gate met — Phase 1 unblocked** ([journey
+0002](hq/04-JOURNEY/0002-the-composition-gate.md), 2026-08-02): all three
+bars PASS, constitution ratified 1.0.0, transport decided all-loopback
+(decomposition is configuration). Design
+[`0001-soulnode-composition.md`](hq/02-DESIGN/0001-soulnode-composition.md)
+governs Phase 1; the upstream embed seams exist (soulidentity `embed.Run`,
+archivist `keeper`/`archive`, soulrealm pinned to soulstream v0.6.0).
+**Next:** the spec-kit pass for M1.1 (`soulnode init` + server + identity
+plane).
 
 ## The rules that bind every change
 
@@ -31,8 +36,10 @@ code yet — deliberately, per constitution IV. **Next:** open the
   needs new behavior lands upstream first.
 - **Same shape as any deployment** (constitution II): operator-mode NATS +
   auth-callout admission, identical to hosted; no dev-only auth lane.
-- **One process, workloads apart** (constitution III): everything in-process
-  except workloads, which run through soulrealm's backends.
+- **One process, planes by configuration** (constitution III): enabled
+  planes in one process, each on an ordinary loopback NATS connection;
+  repointing or disabling a plane is configuration, never a different
+  build. Workloads run outside, through soulrealm's backends.
 - **Explore → Plan → Code → Commit.** Research goes through `01-RESEARCH/`
   and never through spec-kit; implementation always goes through spec-kit.
 - **Quality gate:** `make fmt && make test && make lint` — all green, nothing
