@@ -30,3 +30,49 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The remote node (node/) is a separate module importing the PRIVATE
+  # soulidentity module, so its release build needs a read credential the
+  # core release does not. It APPENDS its archives to the release the core
+  # job just created for this tag (goreleaser `release.mode: append`),
+  # keeping the core release self-contained.
+  #
+  # DORMANT until enabled — same switches as the ci.yml `node` job:
+  #   secret SOULIDENTITY_READ_TOKEN (read on impire-io/soulidentity)
+  #   variable NODE_CI_ENABLED = "true"
+  # Until then this job is skipped and the core release ships alone.
+  node-release:
+    runs-on: ubuntu-latest
+    needs: release # append only after the core release exists
+    if: ${{ vars.NODE_CI_ENABLED == 'true' }}
+    env:
+      GOPRIVATE: github.com/impire-io/*
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: node/go.mod
+
+      - name: Authenticate to the private soulidentity module
+        run: |
+          git config --global \
+            url."https://x-access-token:${SOULIDENTITY_READ_TOKEN}@github.com/impire-io/".insteadOf \
+            "https://github.com/impire-io/"
+        env:
+          SOULIDENTITY_READ_TOKEN: ${{ secrets.SOULIDENTITY_READ_TOKEN }}
+
+      - name: Test the node module
+        working-directory: node
+        run: go test ./...
+
+      - name: Release the node archives
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean -f .goreleaser.node.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
