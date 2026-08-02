@@ -37,6 +37,7 @@ const (
 	fileOpsCreds        = "users/ops.creds"
 	fileArchivistCreds  = "users/archivist.creds"
 	fileRunnerCreds     = "users/runner.creds"
+	fileFoldCreds       = "users/fold.creds"
 )
 
 // ErrIncomplete marks a state directory whose keys exist but whose
@@ -54,7 +55,19 @@ type config struct {
 	Planes struct {
 		Memory planeConfig `json:"memory"`
 		Door   planeConfig `json:"door"`
+		// Fold is a pointer on purpose: the block's absence means
+		// disabled — state dirs founded before the fold plane existed
+		// must not sprout one on upgrade.
+		Fold *foldConfig `json:"fold,omitempty"`
 	} `json:"planes"`
+}
+
+// foldConfig is the bundled OIDC provider's block (opt-in).
+type foldConfig struct {
+	Enabled  *bool  `json:"enabled,omitempty"`
+	Listen   string `json:"listen,omitempty"`
+	Issuer   string `json:"issuer,omitempty"`
+	Audience string `json:"audience,omitempty"`
 }
 
 type planeConfig struct {
@@ -93,6 +106,7 @@ func (s *State) files() map[string][]byte {
 		fileOpsCreds:        s.OpsCreds,
 		fileArchivistCreds:  s.ArchivistCreds,
 		fileRunnerCreds:     s.RunnerCreds,
+		fileFoldCreds:       s.FoldCreds,
 	}
 }
 
@@ -126,6 +140,9 @@ func (s *State) Save(dir string) error {
 	c.Planes.Door.PublicURL = s.DoorPublicURL
 	c.Planes.Door.AuthIssuer = s.DoorAuthIssuer
 	c.Planes.Door.AuthAudience = s.DoorAuthAudience
+	foldEnabled := s.FoldEnabled
+	c.Planes.Fold = &foldConfig{Enabled: &foldEnabled, Listen: s.FoldListen,
+		Issuer: s.FoldIssuer, Audience: s.FoldAudience}
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -212,6 +229,27 @@ func Load(dir string) (*State, error) {
 	s.DoorPublicURL = cfg.Planes.Door.PublicURL
 	s.DoorAuthIssuer = cfg.Planes.Door.AuthIssuer
 	s.DoorAuthAudience = cfg.Planes.Door.AuthAudience
+	if f := cfg.Planes.Fold; f != nil && (f.Enabled == nil || *f.Enabled) {
+		s.FoldEnabled = true
+		s.FoldListen = f.Listen
+		if s.FoldListen == "" {
+			s.FoldListen = "127.0.0.1:8378"
+		}
+		s.FoldIssuer = f.Issuer
+		if s.FoldIssuer == "" {
+			s.FoldIssuer = "http://" + s.FoldListen
+		}
+		s.FoldAudience = f.Audience
+		if s.FoldAudience == "" {
+			s.FoldAudience = "soulnode-" + s.Realm
+		}
+		// The default wiring (soulfold M5's distribution story): public
+		// door mode with no AS named points at the bundled fold.
+		if s.DoorPublicURL != "" && s.DoorAuthIssuer == "" {
+			s.DoorAuthIssuer = s.FoldIssuer
+			s.DoorAuthAudience = s.FoldAudience
+		}
+	}
 
 	seeds := []struct {
 		rel   string
@@ -293,6 +331,17 @@ func Load(dir string) (*State, error) {
 		}
 		*cf.dst = data
 	}
+	// The fold's creds are required only when its plane is enabled: a
+	// state dir founded before the fold plane existed loads fine with
+	// the plane off, and enabling it there is a named refusal.
+	if data, err := os.ReadFile(filepath.Join(dir, fileFoldCreds)); err == nil {
+		if _, err := jwt.ParseDecoratedJWT(data); err != nil {
+			return nil, fmt.Errorf("ceremony: damaged %s: %w", fileFoldCreds, err)
+		}
+		s.FoldCreds = data
+	} else if s.FoldEnabled {
+		return nil, fmt.Errorf("ceremony: planes.fold is enabled but %s is missing — this realm was founded before the fold plane existed; disable the plane or re-init a fresh realm", fileFoldCreds)
+	}
 	return s, nil
 }
 
@@ -369,13 +418,22 @@ func Verify(dir string) (*State, error) {
 	if publicFields == 3 && !s.DoorEnabled {
 		return nil, fmt.Errorf("ceremony: %s declares public door mode with the door disabled", fileConfig)
 	}
+	if s.FoldEnabled {
+		fhost, _, err := net.SplitHostPort(s.FoldListen)
+		if err != nil {
+			return nil, fmt.Errorf("ceremony: damaged %s: fold listen %q: %w", fileConfig, s.FoldListen, err)
+		}
+		if ip := net.ParseIP(fhost); fhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
+			return nil, fmt.Errorf("ceremony: %s fold listen %q is not loopback", fileConfig, s.FoldListen)
+		}
+	}
 	return s, nil
 }
 
 // ArtifactCount is the number of persisted founding artifacts a complete
 // state directory carries (config + keys + users + sentinel) — the number
 // init's verify report cites.
-func ArtifactCount() int { return 18 + 1 + 1 } // files() + config + sentinel
+func ArtifactCount() int { return 19 + 1 + 1 } // files() + config + sentinel
 
 func requireMode(path string, isDir bool) error {
 	info, err := os.Stat(path)

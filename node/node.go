@@ -22,6 +22,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
+	foldembed "github.com/impire-io/soulfold/embed"
 	"github.com/impire-io/soulidentity/client"
 	"github.com/impire-io/soulidentity/embed"
 	"github.com/impire-io/soulstream-archivist/archive"
@@ -68,12 +69,21 @@ type Node struct {
 	doorErr  chan error
 	doorURL  string
 
+	// The fold plane (nil when disabled): the bundled OIDC provider
+	// through soulfold's public embed seam, storing on this node's
+	// JetStream under its own bucket prefix.
+	foldErr chan error
+	foldURL string
+
 	ops *client.Client
 	url string
 }
 
 // DoorURL is the door plane's HTTP endpoint ("" when disabled).
 func (n *Node) DoorURL() string { return n.doorURL }
+
+// FoldURL is the bundled fold's issuer URL ("" when disabled).
+func (n *Node) FoldURL() string { return n.foldURL }
 
 // URL is the client URL of the embedded server's loopback listener.
 func (n *Node) URL() string { return n.url }
@@ -175,6 +185,19 @@ func Start(cfg Config) (*Node, error) {
 	}
 
 	logger := newAuditLogger(audit)
+	n.audit = logger
+
+	// The fold plane starts before the identity plane: the callout's
+	// OIDC validator discovers its issuer at startup, and in the
+	// bundled default that issuer IS the fold. The fold itself needs
+	// only its bypass-lane connection — the server verifies it
+	// natively, no callout in the path.
+	if st.FoldEnabled {
+		if err := n.startFold(ctx, cfg); err != nil {
+			return fail(err)
+		}
+	}
+
 	go func() {
 		n.planes <- embed.Run(ctx, embed.Options{
 			Conn:        n.ncService,
@@ -195,7 +218,6 @@ func Start(cfg Config) (*Node, error) {
 	// Ready means the sealed surface answers. A vault-key mismatch or a
 	// plane startup failure surfaces here, named by the plane.
 	n.ops = client.New(n.ncOps, st.RealmPub, "ops")
-	n.audit = logger
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		if _, err := n.ops.Status(); err == nil {
@@ -222,6 +244,45 @@ func Start(cfg Config) (*Node, error) {
 		}
 	}
 	return n, nil
+}
+
+// startFold runs the bundled OIDC provider (soulfold's public embed
+// seam): the fold's buckets live on this node's JetStream over its own
+// bypass-lane connection, the seal seed under <state>/fold/, DCR on
+// (hosted clients register themselves), the deployment audience fixed,
+// and the founding persona seeded with the realm role — their first
+// browser sign-in enrolls their passkey.
+func (n *Node) startFold(ctx context.Context, cfg Config) error {
+	st := cfg.State
+	n.foldErr = make(chan error, 1)
+	ready := make(chan string, 1)
+	go func() {
+		n.foldErr <- foldembed.Run(ctx, foldembed.Options{
+			Issuer:        st.FoldIssuer,
+			Listen:        st.FoldListen,
+			StateDir:      filepath.Join(cfg.StateDir, "fold"),
+			NATSURL:       n.url,
+			NATSCreds:     ceremony.UserCredsPath(cfg.StateDir, "fold"),
+			TokenAudience: st.FoldAudience,
+			EnableDCR:     true,
+			SeedUsers: []foldembed.SeedUser{{
+				Username:    ceremony.FoundingPersona,
+				DisplayName: ceremony.FoundingPersona,
+				Roles:       []string{"realm"},
+			}},
+			Ready: func(addr string) { ready <- addr },
+		})
+	}()
+	select {
+	case <-ready:
+		n.foldURL = st.FoldIssuer
+		return nil
+	case err := <-n.foldErr:
+		n.foldErr = nil
+		return fmt.Errorf("node: fold plane failed to start: %w", err)
+	case <-time.After(15 * time.Second):
+		return errors.New("node: fold plane did not become ready")
+	}
 }
 
 // startDoor wires the MCP door plane (design §8, as landed upstream in
@@ -348,6 +409,15 @@ func (n *Node) Stop() {
 		select {
 		case <-n.planes: // embed.Run drained and returned
 		case <-time.After(10 * time.Second):
+		}
+		if n.foldErr != nil {
+			select {
+			case err := <-n.foldErr: // the fold rides the same ctx
+				if err != nil && !errors.Is(err, context.Canceled) {
+					n.audit.Error("fold plane exited", "err", err)
+				}
+			case <-time.After(10 * time.Second):
+			}
 		}
 	}
 	if n.memErr != nil {
