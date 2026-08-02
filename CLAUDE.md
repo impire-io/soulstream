@@ -18,15 +18,15 @@ house.
 
 ## Status
 
-**Phase 1 complete** (journeys 0003/0004/0005, 2026-08-02): `soulnode
-init` founds a realm (~0.15 s, 20 artifacts, token printed once);
-`soulnode up` runs server + identity + memory planes on ordinary
-loopback connections; `soulnode workload start` runs a declared agent
-under full enforcement (invocation-scoped runtime; the claim-race
-supervisor stays upstream with Fleet). All design 0001 §9 criteria
-measured green in `make test`. Standing exception: three pseudo-version
-pins await upstream tags. **Next:** Phase 2 — the front door — gated on
-soulstream's `018-remote-mcp-node` (in flight upstream).
+**Phases 1 and 2 (local mode) complete** (journeys 0003–0006,
+2026-08-02): `init` founds a realm (~0.15 s, token printed once); `up`
+runs server + identity + memory + the MCP door on loopback; `workload
+start` runs a declared agent under enforcement. An MCP client with the
+founding token gets the full tool surface with realm-admitted identity.
+All measured green in `make test`. Standing exception: four
+pseudo-version pins await upstream tags (soulidentity, archivist,
+soulrealm, soulstream/node). Public door mode waits on soulfold
+upstream; Phase 3 (tsnet) keeps its measurement gate.
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

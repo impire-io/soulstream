@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/impire-io/soulidentity/embed"
 	"github.com/impire-io/soulstream-archivist/archive"
 	"github.com/impire-io/soulstream-archivist/keeper"
+	door "github.com/impire-io/soulstream/node"
 	"github.com/impire-io/soulstream/realm"
 	"github.com/impire-io/soulstream/topic"
 
@@ -59,9 +61,19 @@ type Node struct {
 	memErr      chan error
 	audit       *slog.Logger
 
+	// The door plane (nil when disabled): upstream's remote MCP node on
+	// a loopback HTTP listener SoulNode holds.
+	doorNode *door.Node
+	doorSrv  *http.Server
+	doorErr  chan error
+	doorURL  string
+
 	ops *client.Client
 	url string
 }
+
+// DoorURL is the door plane's HTTP endpoint ("" when disabled).
+func (n *Node) DoorURL() string { return n.doorURL }
 
 // URL is the client URL of the embedded server's loopback listener.
 func (n *Node) URL() string { return n.url }
@@ -192,7 +204,44 @@ func Start(cfg Config) (*Node, error) {
 			return fail(err)
 		}
 	}
+	if st.DoorEnabled {
+		if err := n.startDoor(cfg); err != nil {
+			return fail(err)
+		}
+	}
 	return n, nil
+}
+
+// startDoor wires the MCP door plane (design §8, as landed upstream in
+// soulstream 018): streamable HTTP in, bearer passthrough to this node's
+// own callout admission, the public tool surface out. The door custodies
+// nothing — it reads only the public sentinel. SoulNode holds the
+// listener so a bind conflict is a named refusal and tests get real
+// ports.
+func (n *Node) startDoor(cfg Config) error {
+	st := cfg.State
+	l, err := net.Listen("tcp", st.DoorListen)
+	if err != nil {
+		return fmt.Errorf("node: door cannot listen on %s (change planes.door.listen in %s): %w",
+			st.DoorListen, filepath.Join(cfg.StateDir, "config.json"), err)
+	}
+	d, err := door.New(door.Config{
+		Listen:       st.DoorListen,
+		Realm:        st.Realm,
+		NATSURL:      n.url,
+		SentinelPath: ceremony.SentinelPath(cfg.StateDir),
+		Logger:       n.audit,
+	})
+	if err != nil {
+		_ = l.Close()
+		return fmt.Errorf("node: door: %w", err)
+	}
+	n.doorNode = d
+	n.doorURL = "http://" + l.Addr().String()
+	n.doorSrv = &http.Server{Handler: d.Handler()}
+	n.doorErr = make(chan error, 1)
+	go func() { n.doorErr <- n.doorSrv.Serve(l) }()
+	return nil
 }
 
 // startMemory wires the memory plane (design §6): the substrate guard,
@@ -262,6 +311,21 @@ func (n *Node) startMemory(ctx context.Context, cfg Config) error {
 // Stop drains the planes, closes the node's connections, and shuts the
 // server down. The state directory remains valid for the next Start.
 func (n *Node) Stop() {
+	// The door goes first: no new sessions while the planes drain, and
+	// its pool closes before the connections underneath it do.
+	if n.doorSrv != nil {
+		shCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = n.doorSrv.Shutdown(shCtx)
+		cancel()
+		n.doorNode.Close()
+		select {
+		case err := <-n.doorErr:
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				n.audit.Error("door plane exited", "err", err)
+			}
+		case <-time.After(5 * time.Second):
+		}
+	}
 	if n.cancel != nil {
 		n.cancel()
 		select {

@@ -34,6 +34,11 @@ type State struct {
 	// block); the bundle default is true.
 	MemoryEnabled bool
 
+	// DoorEnabled and DoorListen are the MCP door plane (design §2's
+	// second block): a loopback HTTP listener, enabled by default.
+	DoorEnabled bool
+	DoorListen  string
+
 	OperatorSeed []byte
 	OperatorPub  string
 
@@ -92,7 +97,8 @@ func Generate(listen, realm string) (*State, error) {
 	if realm == "" {
 		return nil, fmt.Errorf("ceremony: realm name required")
 	}
-	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true}
+	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true,
+		DoorEnabled: true, DoorListen: "127.0.0.1:8080"}
 
 	// 1. The operator — the trust root.
 	opKP, err := nkeys.CreateOperator()

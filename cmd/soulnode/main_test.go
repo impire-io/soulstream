@@ -12,7 +12,7 @@ import (
 func TestInitPrintsTokenExactlyOnce(t *testing.T) {
 	dir := t.TempDir()
 	var out, errw bytes.Buffer
-	if code := run([]string{"init", "--state", dir, "--listen", "127.0.0.1:0"}, &out, &errw); code != 0 {
+	if code := run([]string{"init", "--state", dir, "--listen", "127.0.0.1:0", "--door-listen", "127.0.0.1:0"}, &out, &errw); code != 0 {
 		t.Fatalf("init exit %d: %s", code, errw.String())
 	}
 	if got := strings.Count(out.String(), "sit_"); got != 1 {
@@ -51,7 +51,7 @@ func TestUpRefusesUninitialized(t *testing.T) {
 func TestWorkloadRefusals(t *testing.T) {
 	dir := t.TempDir() + "/state"
 	var out, errw bytes.Buffer
-	if code := run([]string{"init", "--state", dir, "--listen", "127.0.0.1:0"}, &out, &errw); code != 0 {
+	if code := run([]string{"init", "--state", dir, "--listen", "127.0.0.1:0", "--door-listen", "127.0.0.1:0"}, &out, &errw); code != 0 {
 		t.Fatalf("init exit %d: %s", code, errw.String())
 	}
 

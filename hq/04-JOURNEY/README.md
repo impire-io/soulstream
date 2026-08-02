@@ -16,6 +16,19 @@ are as load-bearing as the shipped code.
 
 ## Where things stand (2026-08-02)
 
+**The door is open — Phase 2's local mode is done** ([episode
+0006](0006-the-door-opens.md); `specs/004-the-front-door/`): upstream's
+remote MCP node (soulstream 018, v0.7.0; made consumable in its journey
+0010) runs as the door plane — `planes.door`, loopback HTTP, static
+bearers through the realm's own callout, custodying nothing. Measured: a
+real MCP client with the founding token forms a session, lists the tool
+surface, and `whoami` names the realm-admitted owner; garbage bearers
+refuse; the state dir is untouched by the door. The vision sentence
+executes: `init && up`, paste the token, work. Public mode waits on
+soulfold upstream; four pseudo-version pins await upstream tags.
+**Next:** day-2 polish and releases (tags), or Phase 3's tsnet gate when
+Phase 2 fronting is measured insufficient.
+
 **Phase 1 is complete — an agent runs** ([episode
 0005](0005-an-agent-runs.md); `specs/003-an-agent-runs/`): `soulnode
 workload start` is the invocation-scoped runtime plane — upstream's own
@@ -93,3 +106,4 @@ directive) — both since dissolved by the upstream landings above.
 | 0003 | [First boot is real: init and up land](0003-first-boot-is-real.md) |
 | 0004 | [The realm remembers: provisioning and the memory plane land](0004-the-realm-remembers.md) |
 | 0005 | [An agent runs: Phase 1 is complete](0005-an-agent-runs.md) |
+| 0006 | [The door opens: the MCP front door lands](0006-the-door-opens.md) |

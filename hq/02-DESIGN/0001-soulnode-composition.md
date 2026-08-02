@@ -151,14 +151,19 @@ server shuts down last. A plane failure is surfaced and named (log +
 non-zero exit if fatal at boot; runtime restarts of planes are Phase 1's
 [O] — default: fail loud, no silent restarts).
 
-## 8. The front door — seamed, not designed [named for Phase 2]
+## 8. The front door [V as-built in 004]
 
 MCP over streamable HTTP, static-bearer admission through the callout,
 per-user pooled loopback connections, corpse eviction on dead pools —
-the shape soulstream's `remote-mcp-node` research measured. Gated on that
-topic's outcome and soulstream's public MCP surface (the fourth upstream
-ask, held for the maintainer). Nothing in §§1–7 may depend on its
-internals; it consumes the same admission lane as any client.
+landed upstream as soulstream 018 (v0.7.0, `soulstream/node`) and wired
+as the door plane: `planes.door {enabled, listen}` (loopback,
+`127.0.0.1:8080` default), the node holding the listener, upstream's
+handler mounted, the existing sentinel, the audit logger; local mode
+only. The door custodies nothing and consumes the same admission lane
+as any client. Public mode (`public_url`, `auth_issuer` — the OAuth
+story) joins the block additively when soulfold exists upstream; HTTPS
+today is a fronting concern (`tailscale serve`), with Phase 3's tsnet
+behind its own gate.
 
 ## 9. Acceptance criteria (Phase 1, made precise per feature in specs/)
 

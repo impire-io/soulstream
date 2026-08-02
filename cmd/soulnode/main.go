@@ -86,6 +86,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	stateFlag := fs.String("state", "", "state directory")
 	listen := fs.String("listen", "127.0.0.1:4222", "loopback listener (written to config.json on the founding run)")
 	realmName := fs.String("realm", "home", "realm name (written to config.json on the founding run)")
+	doorListen := fs.String("door-listen", "127.0.0.1:8080", "the MCP door's loopback listener (written to config.json on the founding run)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -134,6 +135,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	if err != nil {
 		return err
 	}
+	st.DoorListen = *doorListen
 	if err := st.Save(dir); err != nil {
 		return err
 	}
@@ -148,8 +150,14 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	}
 	fmt.Fprintf(out, "soulnode: realm %q founded at %s\n", st.Realm, dir)
 	fmt.Fprintf(out, "your access token (shown once, never stored):\n\n    %s\n\n", token)
-	fmt.Fprintf(out, "point a client at nats://%s with sentinel %s\n",
-		st.Listen, ceremony.SentinelPath(dir))
+	if st.DoorEnabled {
+		fmt.Fprintf(out, "point an MCP client at http://%s with that token as its bearer,\n", st.DoorListen)
+		fmt.Fprintf(out, "or a NATS client at nats://%s with sentinel %s\n",
+			st.Listen, ceremony.SentinelPath(dir))
+	} else {
+		fmt.Fprintf(out, "point a client at nats://%s with sentinel %s\n",
+			st.Listen, ceremony.SentinelPath(dir))
+	}
 	return nil
 }
 
@@ -189,6 +197,9 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	fmt.Fprintln(out, "soulnode: identity plane serving")
 	if st.MemoryEnabled {
 		fmt.Fprintln(out, "soulnode: memory plane serving")
+	}
+	if st.DoorEnabled {
+		fmt.Fprintf(out, "soulnode: front door serving %s\n", n.DoorURL())
 	}
 
 	sig := make(chan os.Signal, 1)

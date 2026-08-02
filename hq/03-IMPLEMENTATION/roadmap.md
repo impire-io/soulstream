@@ -67,14 +67,23 @@ External dependency, tracked openly: soulrealm has no tagged release yet
 (it pins soulstream v0.6.0 but is itself consumed at `main` until it
 tags); SoulNode pins it the moment it does.
 
-## Phase 2 — The front door (design → build) — gated
+## Phase 2 — The front door — ✅ local mode done 2026-08-02
 
-The MCP edge in-process: streamable HTTP, static-bearer admission through
-the callout, per-user pooled **loopback** connections, corpse eviction.
-Gate: soulstream's `remote-mcp-node` topic (the maintainer's open
-investigation — Bars 1–3 PASS there, Bar 4 in flight) and the public MCP
-surface it graduates into — the fourth upstream ask, deliberately held for
-that vehicle.
+**Gate met the same day**: upstream 018 landed and tagged (soulstream
+v0.7.0), its node module made consumable (soulstream journey 0010).
+
+- **The door plane.** ✅ **Done** ([episode
+  0006](../04-JOURNEY/0006-the-door-opens.md);
+  `specs/004-the-front-door/`). Measured: MCP client + founding token →
+  session, tools, realm-admitted `whoami`; garbage refused; the door
+  custodies nothing (state dir untouched); disabled arm identical to
+  Phase 1. Fourth pseudo-version pin tracked (`soulstream/node`,
+  untagged).
+- **Public mode — named, upstream-gated**: the OAuth resource-metadata
+  story needs an external authorization server (soulfold is upstream's
+  intended AS); `planes.door` grows `public_url`/`auth_issuer`
+  additively when it exists. HTTPS today is deployment fronting
+  (`tailscale serve` before the loopback door).
 
 ## Phase 3 — The tailnet inside — gated
 

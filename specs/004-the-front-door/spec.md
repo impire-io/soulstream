@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-the-front-door`
 **Created**: 2026-08-02
-**Status**: Draft
+**Status**: Implemented (landed 2026-08-02 — journey 0006)
 **Input**: User description: "Phase 2 (design 0001 §8, roadmap): the MCP door plane — soulstream's remote node (landed upstream as 018, v0.7.0, module made consumable) runs inside `soulnode up`: streamable HTTP in, bearer passthrough to the realm's own admission, one pooled connection per admitted principal, the public tool surface out. Local mode, static bearers — the token `init` printed is the badge."
 
 ## User Scenarios & Testing *(mandatory)*

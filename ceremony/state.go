@@ -53,11 +53,13 @@ type config struct {
 	Realm  string `json:"realm"`
 	Planes struct {
 		Memory planeConfig `json:"memory"`
+		Door   planeConfig `json:"door"`
 	} `json:"planes"`
 }
 
 type planeConfig struct {
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
+	Listen  string `json:"listen,omitempty"`
 }
 
 func (p planeConfig) enabled() bool { return p.Enabled == nil || *p.Enabled }
@@ -109,8 +111,11 @@ func (s *State) Save(dir string) error {
 	var c config
 	c.Listen = s.Listen
 	c.Realm = s.Realm
-	enabled := s.MemoryEnabled
-	c.Planes.Memory.Enabled = &enabled
+	memEnabled := s.MemoryEnabled
+	c.Planes.Memory.Enabled = &memEnabled
+	doorEnabled := s.DoorEnabled
+	c.Planes.Door.Enabled = &doorEnabled
+	c.Planes.Door.Listen = s.DoorListen
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -189,6 +194,11 @@ func Load(dir string) (*State, error) {
 	s.Listen = cfg.Listen
 	s.Realm = cfg.Realm
 	s.MemoryEnabled = cfg.Planes.Memory.enabled()
+	s.DoorEnabled = cfg.Planes.Door.enabled()
+	s.DoorListen = cfg.Planes.Door.Listen
+	if s.DoorListen == "" {
+		s.DoorListen = "127.0.0.1:8080"
+	}
 
 	seeds := []struct {
 		rel   string
@@ -320,6 +330,15 @@ func Verify(dir string) (*State, error) {
 	}
 	if s.Realm == "" {
 		return nil, fmt.Errorf("ceremony: damaged %s: realm name missing", fileConfig)
+	}
+	if s.DoorEnabled {
+		dhost, _, err := net.SplitHostPort(s.DoorListen)
+		if err != nil {
+			return nil, fmt.Errorf("ceremony: damaged %s: door listen %q: %w", fileConfig, s.DoorListen, err)
+		}
+		if ip := net.ParseIP(dhost); dhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
+			return nil, fmt.Errorf("ceremony: %s door listen %q is not loopback", fileConfig, s.DoorListen)
+		}
 	}
 	return s, nil
 }

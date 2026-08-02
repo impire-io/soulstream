@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/nats-io/nats.go"
 
 	siclient "github.com/impire-io/soulidentity/client"
@@ -78,6 +80,9 @@ func TestM11Gate(t *testing.T) {
 
 	// init's founding half (the cmd drives exactly this path).
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err == nil {
+		st.DoorListen = "127.0.0.1:0"
+	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -176,6 +181,9 @@ func TestM11Gate(t *testing.T) {
 func TestM12Memory(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err == nil {
+		st.DoorListen = "127.0.0.1:0"
+	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -336,6 +344,9 @@ func TestM13AgentRuns(t *testing.T) {
 
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err == nil {
+		st.DoorListen = "127.0.0.1:0"
+	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -432,11 +443,128 @@ func TestM13AgentRuns(t *testing.T) {
 	}
 }
 
+// bearerRT stamps Authorization on every request — the hosted client's
+// behavior, upstream's own dial pattern.
+type bearerRT struct{ bearer string }
+
+func (b bearerRT) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.Header.Set("Authorization", "Bearer "+b.bearer)
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+// TestFrontDoor is design 0001 §8 as landed: an MCP client with the
+// founding token forms a session at the door, the tool surface is
+// there, and whoami names the persona the REALM admitted; a garbage
+// bearer cannot form a session; the door custodies nothing new.
+func TestFrontDoor(t *testing.T) {
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	st.DoorListen = "127.0.0.1:0"
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	audit := &syncBuffer{}
+	n, err := Start(Config{StateDir: dir, State: st, AuditWriter: audit})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer n.Stop()
+	token, err := Found(n, st, dir)
+	if err != nil {
+		t.Fatalf("found: %v", err)
+	}
+	if n.DoorURL() == "" {
+		t.Fatal("door enabled but no URL")
+	}
+
+	// Inventory snapshot: the door must add nothing to the state dir.
+	before := stateDirFiles(t, dir)
+
+	dial := func(bearer string) (*mcp.ClientSession, error) {
+		client := mcp.NewClient(&mcp.Implementation{Name: "soulnode-test", Version: "0.0.1"}, nil)
+		transport := &mcp.StreamableClientTransport{
+			Endpoint:   n.DoorURL(),
+			HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		return client.Connect(ctx, transport, nil)
+	}
+
+	// The owner's badge opens the door; whoami is the realm's answer.
+	sess, err := dial(token)
+	if err != nil {
+		t.Fatalf("mcp connect with founding token: %v (audit: %s)", err, audit.String())
+	}
+	defer func() { _ = sess.Close() }()
+	ctx := context.Background()
+	tools, err := sess.ListTools(ctx, nil)
+	if err != nil || len(tools.Tools) == 0 {
+		t.Fatalf("tools list: %v (%d tools)", err, len(tools.Tools))
+	}
+	res, err := sess.CallTool(ctx, &mcp.CallToolParams{Name: "soulstream_whoami"})
+	if err != nil || res.IsError {
+		t.Fatalf("whoami: %v (isError %v)", err, res != nil && res.IsError)
+	}
+	var whoami strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := c.(*mcp.TextContent); ok {
+			whoami.WriteString(tc.Text)
+		}
+	}
+	if !strings.Contains(whoami.String(), ceremony.FoundingPersona) {
+		t.Fatalf("whoami does not name the owner persona: %s", whoami.String())
+	}
+
+	// A garbage badge cannot form a session.
+	if badSess, err := dial("sit_" + strings.Repeat("00", 32)); err == nil {
+		_ = badSess.Close()
+		t.Fatal("garbage bearer formed an MCP session")
+	}
+
+	// Custody: nothing new on disk.
+	after := stateDirFiles(t, dir)
+	if len(after) != len(before) {
+		t.Fatalf("the door changed the state dir: %d files -> %d", len(before), len(after))
+	}
+}
+
+// stateDirFiles lists the persisted founding files (jetstream and archive
+// working data excluded — they are the planes' own stores).
+func stateDirFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	var files []string
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		if d.IsDir() {
+			if rel == "jetstream" || rel == "archive" || rel == "scratch" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		files = append(files, rel)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	return files
+}
+
 // TestMemoryDisabled is SC-004: the plane block honored — admission works
 // exactly as M1.1, and no archive directory is created.
 func TestMemoryDisabled(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err == nil {
+		st.DoorListen = "127.0.0.1:0"
+	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}

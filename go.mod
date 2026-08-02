@@ -4,8 +4,10 @@ go 1.26.2
 
 require (
 	github.com/impire-io/soulrealm v0.0.0-20260802090420-3fee11f5eeae
-	github.com/impire-io/soulstream v0.6.0
+	github.com/impire-io/soulstream v0.7.0
 	github.com/impire-io/soulstream-archivist v0.1.1-0.20260801091613-643bb771cd5d
+	github.com/impire-io/soulstream/node v0.0.0-20260802095947-2919303706f9
+	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/nats-io/jwt/v2 v2.8.2
 	github.com/nats-io/nats-server/v2 v2.14.3
 	github.com/nats-io/nats.go v1.52.0
@@ -13,9 +15,13 @@ require (
 )
 
 require (
+	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gowebpki/jcs v1.0.1 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/synadia-io/orbit.go/natscontext v0.1.3 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/net v0.57.0 // indirect
 )
 

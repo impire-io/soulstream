@@ -26,16 +26,20 @@ Owning your realm should cost one binary and one command.
 
 ```sh
 soulnode init      # founds a realm in ~0.15s — your token, printed once
-soulnode up        # operator-mode server + identity + memory, loopback only
+soulnode up        # server + identity + memory + the MCP door, loopback only
 soulnode workload start echo.json   # a declared agent runs, attributed
 ```
 
+Then point an MCP client (Claude Code, a desktop client) at
+`http://127.0.0.1:8080` with the printed token as its bearer — the
+session's `whoami` is the persona the *realm* admitted, never what the
+client claims ([journey 0006](hq/04-JOURNEY/0006-the-door-opens.md)).
 Admission is the full ecosystem shape (sentinel + token through auth
-callout, server-asserted personas), memory is the archivist keeping every
-op and answering with citations, and workloads run with minted
-TTL-bounded credentials under real enforcement. Everything is proven
-end-to-end in `make test`. Phase 2 (the MCP front door) is gated on
-soulstream's `018-remote-mcp-node` cycle, in flight upstream.
+callout), memory is the archivist keeping every op and answering with
+citations, and workloads run with minted TTL-bounded credentials under
+real enforcement. Everything is proven end-to-end in `make test`. Public
+(OAuth) mode waits on soulfold upstream; HTTPS today is `tailscale
+serve` in front of the loopback door.
 
 The founding bets, held with recorded reversal conditions:
 
