@@ -3,7 +3,7 @@ module github.com/impire-io/soulnode
 go 1.26.2
 
 require (
-	github.com/impire-io/soulfold v0.1.2
+	github.com/impire-io/soulfold v0.2.0
 	github.com/impire-io/soulrealm v0.1.0
 	github.com/impire-io/soulstream v0.7.0
 	github.com/impire-io/soulstream-archivist v0.2.0

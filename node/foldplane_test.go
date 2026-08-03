@@ -112,8 +112,15 @@ func TestFoldedRealm(t *testing.T) {
 		t.Fatalf("the door advertises %v, want the bundled fold %s", md.AuthorizationServers, n.FoldURL())
 	}
 
-	// --- The browser: DCR, then a passkey sign-in at the bundled fold.
-	token := foldSignIn(t, n.FoldURL(), ceremony.FoundingPersona)
+	// --- The founding invite (soulfold M3: enrollment requires one;
+	// the seam delivered it, the founding output prints it once).
+	if n.FoldInvite() == "" {
+		t.Fatal("the fold plane delivered no founding invite")
+	}
+
+	// --- The browser: DCR, then a passkey ENROLLMENT at the bundled
+	// fold against the founding invite.
+	token := foldSignIn(t, n.FoldURL(), ceremony.FoundingPersona, n.FoldInvite())
 
 	// --- The bearer opens the door; whoami names the fold user.
 	dial := func(bearer string) (*mcp.ClientSession, error) {
@@ -163,9 +170,9 @@ func TestFoldedRealm(t *testing.T) {
 }
 
 // foldSignIn is the scripted browser against the bundled fold: DCR →
-// authorize → passkey ceremony (first touch enrolls) → callback → code
-// → token.
-func foldSignIn(t *testing.T, issuer, username string) string {
+// authorize → passkey ceremony (a non-empty invite enrolls) →
+// callback → code → token.
+func foldSignIn(t *testing.T, issuer, username, invite string) string {
 	t.Helper()
 	auth, err := authtest.New("127.0.0.1", issuer)
 	if err != nil {
@@ -229,7 +236,7 @@ func foldSignIn(t *testing.T, issuer, username string) string {
 	authReqID := aResp.Request.URL.Query().Get("authRequestID")
 	csrf := extractAttr(t, string(page), "csrf")
 
-	cq := url.Values{"authRequestID": {authReqID}, "csrf": {csrf}, "username": {username}}
+	cq := url.Values{"authRequestID": {authReqID}, "csrf": {csrf}, "username": {username}, "invite": {invite}}
 	beginResp, err := httpc.Post(issuer+"/login/begin?"+cq.Encode(), "", nil)
 	if err != nil {
 		t.Fatal(err)
