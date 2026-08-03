@@ -36,26 +36,14 @@ jobs:
         with:
           version: latest
 
-  # The remote node lives in its own module (node/) and imports the PRIVATE
-  # github.com/impire-io/soulidentity module, which Actions' default
-  # GITHUB_TOKEN cannot read. This job is fully wired but DORMANT until the
-  # credential exists, so it never fails a build before then:
-  #
-  #   1. Create a read-only credential for the soulidentity repo — a
-  #      fine-grained PAT (Contents: read on impire-io/soulidentity) or a
-  #      deploy key — and store it as the repo/org secret
-  #      SOULIDENTITY_READ_TOKEN.
-  #   2. Set the repository variable NODE_CI_ENABLED to "true".
-  #
-  # Until NODE_CI_ENABLED is "true" this job is skipped (green, not red).
-  # Locally the node module needs no credential — the soulstream dep is a
-  # relative `replace => ../` and soulidentity is already fetched.
+  # The remote node lives in its own module (node/). It was dormant while
+  # soulidentity was private; the whole impire-io stack is public since
+  # 2026-08-03, so no credential exists here. GOPRIVATE keeps the fetches
+  # direct (freshly pushed tags, no module-proxy lag); the soulstream dep
+  # is a relative `replace => ../`.
   node:
     runs-on: ubuntu-latest
-    if: ${{ vars.NODE_CI_ENABLED == 'true' }}
     env:
-      # GOPRIVATE alone makes impire-io modules bypass the public proxy and
-      # checksum DB and fetch directly via git (using the credential below).
       GOPRIVATE: github.com/impire-io/*
     steps:
       - uses: actions/checkout@v4
@@ -63,14 +51,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: node/go.mod
-
-      - name: Authenticate to the private soulidentity module
-        run: |
-          git config --global \
-            url."https://x-access-token:${SOULIDENTITY_READ_TOKEN}@github.com/impire-io/".insteadOf \
-            "https://github.com/impire-io/"
-        env:
-          SOULIDENTITY_READ_TOKEN: ${{ secrets.SOULIDENTITY_READ_TOKEN }}
 
       - name: gofmt
         working-directory: node

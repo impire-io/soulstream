@@ -10,7 +10,7 @@ go 1.26.2
 // the discipline soulrealm and the e2e modules already live by.
 
 require (
-	github.com/impire-io/soulidentity v0.0.0-20260802073850-5eaf52cf9c8d
+	github.com/impire-io/soulidentity v0.1.0
 	github.com/impire-io/soulstream v0.7.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/nats-io/jwt/v2 v2.8.2
