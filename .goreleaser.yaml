@@ -1,0 +1,50 @@
+version: 2
+
+project_name: soulnode
+
+builds:
+  - id: soulnode
+    main: ./cmd/soulnode
+    binary: soulnode
+    env:
+      - CGO_ENABLED=0
+    # No windows: the founding ceremony refuses filesystems that cannot
+    # hold 0700/0600 modes (owner-only custody is load-bearing), so a
+    # windows binary would refuse at init — honest scope, not an
+    # oversight. Revisit with a measured windows custody story.
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/impire-io/soulnode/internal/version.Version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+# One archive per platform.
+archives:
+  - id: soulnode
+    ids: [soulnode]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs"
+      - "^test"
+      - "^chore"
+
+release:
+  github:
+    owner: impire-io
+    name: soulnode
+  draft: false
+  prerelease: auto
