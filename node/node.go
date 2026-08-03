@@ -71,9 +71,13 @@ type Node struct {
 
 	// The fold plane (nil when disabled): the bundled OIDC provider
 	// through soulfold's public embed seam, storing on this node's
-	// JetStream under its own bucket prefix.
-	foldErr chan error
-	foldURL string
+	// JetStream under its own bucket prefix. foldInvite holds the
+	// owner's founding enrollment invite when this start minted one
+	// (soulfold M3: enrollment requires an invite; the fold's seam
+	// delivers it here and the founding output prints it once).
+	foldErr    chan error
+	foldURL    string
+	foldInvite string
 
 	ops *client.Client
 	url string
@@ -84,6 +88,11 @@ func (n *Node) DoorURL() string { return n.doorURL }
 
 // FoldURL is the bundled fold's issuer URL ("" when disabled).
 func (n *Node) FoldURL() string { return n.foldURL }
+
+// FoldInvite is the owner's founding enrollment invite when this start
+// minted one ("" otherwise). Single-use, digest-stored on the fold's
+// side — print once, never persist.
+func (n *Node) FoldInvite() string { return n.foldInvite }
 
 // URL is the client URL of the embedded server's loopback listener.
 func (n *Node) URL() string { return n.url }
@@ -268,9 +277,10 @@ func (n *Node) startFold(ctx context.Context, cfg Config) error {
 			SeedUsers: []foldembed.SeedUser{{
 				Username:    ceremony.FoundingPersona,
 				DisplayName: ceremony.FoundingPersona,
-				Roles:       []string{"realm"},
+				Roles:       []string{"admin", "realm"},
 			}},
-			Ready: func(addr string) { ready <- addr },
+			InviteSink: func(_, token string) { n.foldInvite = token },
+			Ready:      func(addr string) { ready <- addr },
 		})
 	}()
 	select {

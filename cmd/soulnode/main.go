@@ -150,6 +150,9 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	}
 	fmt.Fprintf(out, "soulnode: realm %q founded at %s\n", st.Realm, dir)
 	fmt.Fprintf(out, "your access token (shown once, never stored):\n\n    %s\n\n", token)
+	if invite := n.FoldInvite(); invite != "" {
+		fmt.Fprintf(out, "your passkey enrollment invite (single use, shown once):\n\n    %s/login/?invite=%s\n\n", n.FoldURL(), invite)
+	}
 	if st.DoorEnabled {
 		fmt.Fprintf(out, "point an MCP client at http://%s with that token as its bearer,\n", st.DoorListen)
 		fmt.Fprintf(out, "or a NATS client at nats://%s with sentinel %s\n",
@@ -200,6 +203,12 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	}
 	if st.DoorEnabled {
 		fmt.Fprintf(out, "soulnode: front door serving %s\n", n.DoorURL())
+	}
+	if st.FoldEnabled {
+		fmt.Fprintf(out, "soulnode: fold serving %s\n", n.FoldURL())
+		if invite := n.FoldInvite(); invite != "" {
+			fmt.Fprintf(out, "soulnode: your passkey enrollment invite (single use, shown once):\n\n    %s/login/?invite=%s\n\n", n.FoldURL(), invite)
+		}
 	}
 
 	sig := make(chan os.Signal, 1)
