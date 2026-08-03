@@ -23,9 +23,11 @@ prototype's forged-hint DoS. All 5 stories measured on an in-process rig
 (soulidentity `embed.Run` + operator-mode callout + OIDC AS stand-in).
 GOTCHA banked: node-authored content verifies from soulidentity
 `keys.public`, NOT the soulstream profile registry (node publishes no
-profile). CI/release wired but DORMANT until `NODE_CI_ENABLED` +
-`SOULIDENTITY_READ_TOKEN` exist (node fetches the private soulidentity
-module); core release unaffected. `byon-setup`+`probe` carried best-effort
+profile). CI/release AWAKE since 2026-08-03: the whole impire-io stack
+went public, so the `NODE_CI_ENABLED` gate + credential step were
+removed rather than provisioned; node pins soulidentity v0.1.0; the
+node-release job proves itself on the next `v*` tag; core release
+unaffected. `byon-setup`+`probe` carried best-effort
 (spec Q2). For details: [specs/018-remote-mcp-node/plan.md](specs/018-remote-mcp-node/plan.md)
 (spec+Clarifications, research R1–R11, contracts/{library,authorization-server,http}.md,
 data-model, quickstart, episode `../soul-hq/04-JOURNEY/0047-soulstream-remote-mcp-node-built.md`).
