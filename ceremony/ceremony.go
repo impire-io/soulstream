@@ -123,8 +123,15 @@ func Generate(listen, realm string) (*State, error) {
 	if realm == "" {
 		return nil, fmt.Errorf("ceremony: realm name required")
 	}
+	// The bundled experience is on by default: the fold gives the realm a
+	// sign-in and an admin console out of the box, so `init && up` lands
+	// a person at a passkey prompt with nothing else to install. The
+	// issuer host is localhost — WebAuthn's RP-ID rule refuses a bare IP.
+	// Turn the plane off by setting planes.fold.enabled=false in config.
 	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true,
-		DoorEnabled: true, DoorListen: "127.0.0.1:8080"}
+		DoorEnabled: true, DoorListen: "127.0.0.1:8080",
+		FoldEnabled: true, FoldListen: "127.0.0.1:8378",
+		FoldIssuer: "http://localhost:8378", FoldAudience: "soulnode-" + realm}
 
 	// 1. The operator — the trust root.
 	opKP, err := nkeys.CreateOperator()
