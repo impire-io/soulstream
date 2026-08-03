@@ -55,6 +55,7 @@ func TestFoldedRealm(t *testing.T) {
 	}
 	foldAddr := ln.Addr().String()
 	_ = ln.Close()
+	_, foldPort, _ := net.SplitHostPort(foldAddr)
 
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
@@ -65,8 +66,10 @@ func TestFoldedRealm(t *testing.T) {
 	st.DoorPublicURL = "https://door.example.test"
 	st.FoldEnabled = true
 	st.FoldListen = foldAddr
-	// DoorAuthIssuer, DoorAuthAudience, FoldIssuer, FoldAudience stay
-	// empty: the default wiring is under test.
+	// Clear the issuer/audience so the derived defaults (localhost host,
+	// the fold's own port) drive them — that is the wiring under test.
+	st.FoldIssuer = ""
+	st.FoldAudience = ""
 	if err := st.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -74,8 +77,8 @@ func TestFoldedRealm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if loaded.FoldIssuer != "http://"+foldAddr {
-		t.Fatalf("fold issuer defaulted to %q", loaded.FoldIssuer)
+	if loaded.FoldIssuer != "http://localhost:"+foldPort {
+		t.Fatalf("fold issuer defaulted to %q, want http://localhost:%s", loaded.FoldIssuer, foldPort)
 	}
 	if loaded.DoorAuthIssuer != loaded.FoldIssuer || loaded.DoorAuthAudience != "soulnode-home" {
 		t.Fatalf("the default wiring did not point the door at the bundled fold: issuer=%q audience=%q",
@@ -174,7 +177,9 @@ func TestFoldedRealm(t *testing.T) {
 // callback → code → token.
 func foldSignIn(t *testing.T, issuer, username, invite string) string {
 	t.Helper()
-	auth, err := authtest.New("127.0.0.1", issuer)
+	// The RP id is the issuer host — localhost since the fold default
+	// (WebAuthn refuses a bare IP).
+	auth, err := authtest.New("localhost", issuer)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,7 +24,8 @@ import (
 const usage = `soulnode — your realm in one binary
 
 Usage:
-  soulnode init [--state DIR] [--listen ADDR] [--realm NAME] [--door-listen ADDR]
+  soulnode init [--state DIR] [--listen ADDR] [--realm NAME]
+                [--door-listen ADDR] [--fold-listen ADDR]
                                                 found a realm (prints your token ONCE)
   soulnode up   [--state DIR]                   run it until interrupted
   soulnode workload start <declaration.json> [--state DIR]
@@ -87,6 +89,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	listen := fs.String("listen", "127.0.0.1:4222", "loopback listener (written to config.json on the founding run)")
 	realmName := fs.String("realm", "home", "realm name (written to config.json on the founding run)")
 	doorListen := fs.String("door-listen", "127.0.0.1:8080", "the MCP door's loopback listener (written to config.json on the founding run)")
+	foldListen := fs.String("fold-listen", "127.0.0.1:8378", "the bundled fold's loopback listener — sign-in and the admin console (written to config.json)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -136,6 +139,13 @@ func cmdInit(args []string, out, errw io.Writer) error {
 		return err
 	}
 	st.DoorListen = *doorListen
+	st.FoldListen = *foldListen
+	// Keep the issuer's port in step with the chosen listener (host stays
+	// localhost — WebAuthn refuses a bare IP); a public deployment sets
+	// planes.fold.issuer to its fronted name in config afterward.
+	if _, port, err := net.SplitHostPort(*foldListen); err == nil {
+		st.FoldIssuer = "http://localhost:" + port
+	}
 	if err := st.Save(dir); err != nil {
 		return err
 	}
@@ -151,8 +161,9 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	fmt.Fprintf(out, "soulnode: realm %q founded at %s\n", st.Realm, dir)
 	fmt.Fprintf(out, "your access token (shown once, never stored):\n\n    %s\n\n", token)
 	if invite := n.FoldInvite(); invite != "" {
-		fmt.Fprintf(out, "your passkey enrollment invite (single use, shown once):\n\n    %s/login/?invite=%s\n\n", n.FoldURL(), invite)
+		fmt.Fprintf(out, "your passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
 	}
+	fmt.Fprintln(out, "run `soulnode up` to serve — it prints the door, sign-in, and admin-console URLs.")
 	if st.DoorEnabled {
 		fmt.Fprintf(out, "point an MCP client at http://%s with that token as its bearer,\n", st.DoorListen)
 		fmt.Fprintf(out, "or a NATS client at nats://%s with sentinel %s\n",
@@ -201,13 +212,10 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	if st.MemoryEnabled {
 		fmt.Fprintln(out, "soulnode: memory plane serving")
 	}
-	if st.DoorEnabled {
-		fmt.Fprintf(out, "soulnode: front door serving %s\n", n.DoorURL())
-	}
+	printEndpoints(out, n, st)
 	if st.FoldEnabled {
-		fmt.Fprintf(out, "soulnode: fold serving %s\n", n.FoldURL())
 		if invite := n.FoldInvite(); invite != "" {
-			fmt.Fprintf(out, "soulnode: your passkey enrollment invite (single use, shown once):\n\n    %s/login/?invite=%s\n\n", n.FoldURL(), invite)
+			fmt.Fprintf(out, "soulnode: passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
 		}
 	}
 
@@ -217,6 +225,28 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	fmt.Fprintln(out, "soulnode: draining")
 	n.Stop()
 	return nil
+}
+
+// printEndpoints logs every URL a person or client needs, once the node
+// is up: the MCP door, the fold's sign-in, and the admin console. The
+// door and the fold are separate services on separate loopback ports;
+// in public mode each needs its own fronted route (a shared hostname
+// would have the door's catch-all swallow the fold), so this names both
+// public URLs when set.
+func printEndpoints(out io.Writer, n *node.Node, st *ceremony.State) {
+	if st.DoorEnabled {
+		fmt.Fprintf(out, "soulnode: MCP door        %s\n", n.DoorURL())
+		if st.DoorPublicURL != "" {
+			fmt.Fprintf(out, "soulnode:   public door   %s (front this to the door port)\n", st.DoorPublicURL)
+		}
+	}
+	if st.FoldEnabled {
+		fmt.Fprintf(out, "soulnode: sign-in (fold)  %s/login/\n", n.FoldURL())
+		fmt.Fprintf(out, "soulnode: admin console   %s/admin\n", n.FoldURL())
+		if st.DoorPublicURL != "" {
+			fmt.Fprintf(out, "soulnode:   public fold   %s (a DISTINCT route from the door)\n", st.FoldIssuer)
+		}
+	}
 }
 
 func cmdWorkload(args []string, out, errw io.Writer) error {

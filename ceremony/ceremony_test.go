@@ -166,3 +166,48 @@ func generateForTest(t *testing.T) *State {
 	t.Helper()
 	return generate(t)
 }
+
+// TestFoldWiring covers the fold plane's defaults and guards (D25 /
+// soulnode fold URLs): the bundled fold is on by default with a
+// localhost issuer (WebAuthn refuses a bare IP), and the two footguns
+// refuse at load — a bare-IP issuer and a fold/door listener collision.
+func TestFoldWiring(t *testing.T) {
+	// Default: fold enabled, localhost issuer, distinct port from the door.
+	s := generate(t)
+	if !s.FoldEnabled || s.FoldIssuer != "http://localhost:8378" {
+		t.Fatalf("fold default: enabled=%v issuer=%q", s.FoldEnabled, s.FoldIssuer)
+	}
+	dir := t.TempDir()
+	if err := s.Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Verify(dir)
+	if err != nil {
+		t.Fatalf("verify default fold config: %v", err)
+	}
+	if loaded.FoldIssuer != "http://localhost:8378" || loaded.FoldAudience != "soulnode-home" {
+		t.Fatalf("fold roundtrip: issuer=%q audience=%q", loaded.FoldIssuer, loaded.FoldAudience)
+	}
+
+	// A bare-IP issuer refuses (WebAuthn RP-id rule).
+	badIP := generate(t)
+	badIP.FoldIssuer = "http://127.0.0.1:8378"
+	d2 := t.TempDir()
+	if err := badIP.Save(d2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(d2); err == nil {
+		t.Fatal("a bare-IP fold issuer was accepted")
+	}
+
+	// A fold/door listener collision refuses.
+	clash := generate(t)
+	clash.FoldListen = "127.0.0.1:8080" // == the door default
+	d3 := t.TempDir()
+	if err := clash.Save(d3); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(d3); err == nil {
+		t.Fatal("a fold/door listener collision was accepted")
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -237,14 +238,22 @@ func Load(dir string) (*State, error) {
 		}
 		s.FoldIssuer = f.Issuer
 		if s.FoldIssuer == "" {
-			s.FoldIssuer = "http://" + s.FoldListen
+			// The issuer host is WebAuthn's RP ID, and a browser refuses
+			// a bare IP there — so the local default is localhost (a
+			// WebAuthn secure-context name that still resolves to the
+			// loopback bind), never 127.0.0.1. A public deployment sets
+			// planes.fold.issuer to its fronted name.
+			_, port, _ := net.SplitHostPort(s.FoldListen)
+			s.FoldIssuer = "http://localhost:" + port
 		}
 		s.FoldAudience = f.Audience
 		if s.FoldAudience == "" {
 			s.FoldAudience = "soulnode-" + s.Realm
 		}
 		// The default wiring (soulfold M5's distribution story): public
-		// door mode with no AS named points at the bundled fold.
+		// door mode with no AS named points at the bundled fold. In
+		// public mode planes.fold.issuer must be the fronted fold URL,
+		// so the browser the door sends a user to is actually reachable.
 		if s.DoorPublicURL != "" && s.DoorAuthIssuer == "" {
 			s.DoorAuthIssuer = s.FoldIssuer
 			s.DoorAuthAudience = s.FoldAudience
@@ -425,6 +434,24 @@ func Verify(dir string) (*State, error) {
 		}
 		if ip := net.ParseIP(fhost); fhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
 			return nil, fmt.Errorf("ceremony: %s fold listen %q is not loopback", fileConfig, s.FoldListen)
+		}
+		// The fold and the door are distinct services on distinct
+		// listeners; a shared address would have them fight for the same
+		// port (and, fronted, the same public route). Refuse it by name —
+		// except the ephemeral :0, which resolves to different real ports.
+		if _, fport, err := net.SplitHostPort(s.FoldListen); err == nil && fport != "0" &&
+			s.DoorEnabled && s.FoldListen == s.DoorListen {
+			return nil, fmt.Errorf("ceremony: %s planes.fold.listen and planes.door.listen are both %q — they are separate services and need separate addresses", fileConfig, s.FoldListen)
+		}
+		// The issuer host becomes WebAuthn's RP ID; a browser refuses a
+		// bare IP there. Catch the footgun at load, not at first
+		// enrolment.
+		iss, err := url.Parse(s.FoldIssuer)
+		if err != nil || iss.Hostname() == "" {
+			return nil, fmt.Errorf("ceremony: %s planes.fold.issuer %q is not a URL", fileConfig, s.FoldIssuer)
+		}
+		if h := iss.Hostname(); h != "localhost" && net.ParseIP(h) != nil {
+			return nil, fmt.Errorf("ceremony: %s planes.fold.issuer host %q is a bare IP — WebAuthn refuses it as a relying-party id; use localhost or a real hostname", fileConfig, h)
 		}
 	}
 	return s, nil
