@@ -217,6 +217,10 @@ external NATS is needed to run the suite.
 
 ## License
 
-Soulstream is open source under the [MIT License](./LICENSE) — Copyright (c) 2026
-Daan Gerits. This matches the protocol's stance: the substrate is the product,
-run it yourself.
+Soulstream is [fair-code](https://faircode.io) licensed under the
+[Sustainable Use License](./LICENSE) — Copyright (c) 2026 Daan Gerits. Free to
+use, modify, and self-host for internal or non-commercial use; offering it to
+others as a paid product or service requires an agreement — see
+[impire.io/license](https://impire.io/license/). Versions released before this
+change remain MIT. This matches the protocol's stance: the substrate is the
+product, run it yourself.
