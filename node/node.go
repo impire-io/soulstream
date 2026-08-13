@@ -23,6 +23,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	foldembed "github.com/impire-io/soulfold/embed"
+	helmembed "github.com/impire-io/soulhelm/embed"
 	"github.com/impire-io/soulidentity/client"
 	"github.com/impire-io/soulidentity/embed"
 	"github.com/impire-io/soulstream-archivist/archive"
@@ -79,6 +80,12 @@ type Node struct {
 	foldURL    string
 	foldInvite string
 
+	// The helm plane (soulhelm — the human cockpit) through soulhelm's
+	// public embed seam: observe and act, sessions signing in against
+	// the deployment's AS through the identity plane's OIDC lane.
+	helmErr chan error
+	helmURL string
+
 	ops *client.Client
 	url string
 }
@@ -93,6 +100,9 @@ func (n *Node) FoldURL() string { return n.foldURL }
 // minted one ("" otherwise). Single-use, digest-stored on the fold's
 // side — print once, never persist.
 func (n *Node) FoldInvite() string { return n.foldInvite }
+
+// HelmURL is the helm plane's HTTP endpoint ("" when disabled).
+func (n *Node) HelmURL() string { return n.helmURL }
 
 // URL is the client URL of the embedded server's loopback listener.
 func (n *Node) URL() string { return n.url }
@@ -207,6 +217,7 @@ func Start(cfg Config) (*Node, error) {
 		}
 	}
 
+	sessionIssuer, sessionAudience := st.SessionIssuer()
 	go func() {
 		n.planes <- embed.Run(ctx, embed.Options{
 			Conn:        n.ncService,
@@ -215,11 +226,12 @@ func Start(cfg Config) (*Node, error) {
 			SurfaceKey:  string(st.SurfaceSeed),
 			CalloutKey:  string(st.CalloutSeed),
 			AuthAccount: st.AuthPub,
-			// Public door mode brings the OIDC lane: browser users hold
-			// tokens from the deployment's external AS; the callout
-			// validates them against exactly this issuer and audience.
-			OIDCIssuer:   st.DoorAuthIssuer,
-			OIDCAudience: st.DoorAuthAudience,
+			// The OIDC lane: on for public door mode (external AS) and
+			// for the helm plane (the bundled fold by default) — browser
+			// users hold tokens the callout validates against exactly
+			// this issuer and audience.
+			OIDCIssuer:   sessionIssuer,
+			OIDCAudience: sessionAudience,
 			Logger:       logger,
 		})
 	}()
@@ -252,7 +264,55 @@ func Start(cfg Config) (*Node, error) {
 			return fail(err)
 		}
 	}
+	if st.HelmEnabled {
+		if err := n.startHelm(ctx, cfg); err != nil {
+			return fail(err)
+		}
+	}
 	return n, nil
+}
+
+// startHelm runs the human cockpit (soulhelm's public embed seam) —
+// composition, not invention: the helm reads through the node's ops
+// lane, and every session opens its own admission through the identity
+// plane's OIDC lane (which the ceremony wires whenever the helm is on).
+// It starts last: it discovers the sign-in issuer at startup, so the
+// fold (or external AS) must already answer.
+func (n *Node) startHelm(ctx context.Context, cfg Config) error {
+	st := cfg.State
+	helmIssuer, _ := st.SessionIssuer()
+	if helmIssuer == "" {
+		// Loud, never silent: with no resolvable sign-in issuer (an
+		// ephemeral fold listener) the surface cannot authenticate
+		// anyone, so it does not serve.
+		n.audit.Warn("helm plane skipped: no resolvable sign-in issuer")
+		return nil
+	}
+	n.helmErr = make(chan error, 1)
+	ready := make(chan string, 1)
+	go func() {
+		n.helmErr <- helmembed.Run(ctx, helmembed.Options{
+			Listen:       st.HelmListen,
+			NATSURL:      n.url,
+			CredsPath:    ceremony.UserCredsPath(cfg.StateDir, "ops"),
+			CredsUser:    "ops",
+			SentinelPath: ceremony.SentinelPath(cfg.StateDir),
+			Realm:        st.Realm,
+			Account:      st.RealmPub,
+			Issuer:       helmIssuer,
+			Ready:        func(addr string) { ready <- addr },
+		})
+	}()
+	select {
+	case addr := <-ready:
+		n.helmURL = "http://" + addr
+		return nil
+	case err := <-n.helmErr:
+		n.helmErr = nil
+		return fmt.Errorf("node: helm plane failed to start: %w", err)
+	case <-time.After(20 * time.Second):
+		return errors.New("node: helm plane did not become ready")
+	}
 }
 
 // startFold runs the bundled OIDC provider (soulfold's public embed
@@ -425,6 +485,15 @@ func (n *Node) Stop() {
 			case err := <-n.foldErr: // the fold rides the same ctx
 				if err != nil && !errors.Is(err, context.Canceled) {
 					n.audit.Error("fold plane exited", "err", err)
+				}
+			case <-time.After(10 * time.Second):
+			}
+		}
+		if n.helmErr != nil {
+			select {
+			case err := <-n.helmErr: // the helm rides the same ctx
+				if err != nil && !errors.Is(err, context.Canceled) {
+					n.audit.Error("helm plane exited", "err", err)
 				}
 			case <-time.After(10 * time.Second):
 			}

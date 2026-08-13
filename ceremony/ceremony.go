@@ -11,6 +11,7 @@ package ceremony
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nats-io/jwt/v2"
@@ -64,6 +65,12 @@ type State struct {
 	FoldIssuer   string
 	FoldAudience string
 
+	// The helm plane (soulhelm — the human cockpit): a loopback HTTP
+	// surface, sessions signing in against the deployment's AS (the
+	// bundled fold by default). On by default beside the fold.
+	HelmEnabled bool
+	HelmListen  string
+
 	OperatorSeed []byte
 	OperatorPub  string
 
@@ -114,6 +121,25 @@ type State struct {
 // chafes on it, not before.
 const FoundingPersona = "owner"
 
+// SessionIssuer resolves the OIDC authorization server the identity
+// plane's callout lane validates and the helm sends sign-ins to: an
+// explicit external AS (public door mode) wins; otherwise the bundled
+// fold when the helm needs one. Empty means the lane stays off.
+func (s *State) SessionIssuer() (issuer, audience string) {
+	if s.DoorAuthIssuer != "" {
+		return s.DoorAuthIssuer, s.DoorAuthAudience
+	}
+	if s.HelmEnabled && s.FoldEnabled {
+		// An ephemeral fold listener (:0) yields an issuer no browser
+		// or validator can reach; sessions are a real-port feature.
+		if strings.HasSuffix(s.FoldIssuer, ":0") {
+			return "", ""
+		}
+		return s.FoldIssuer, s.FoldAudience
+	}
+	return "", ""
+}
+
 // Generate runs the whole founding ceremony in memory (design 0001 §4,
 // steps 1–6): no prompts, no external binaries, no I/O.
 func Generate(listen, realm string) (*State, error) {
@@ -131,7 +157,8 @@ func Generate(listen, realm string) (*State, error) {
 	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true,
 		DoorEnabled: true, DoorListen: "127.0.0.1:8080",
 		FoldEnabled: true, FoldListen: "127.0.0.1:8378",
-		FoldIssuer: "http://localhost:8378", FoldAudience: "soulnode-" + realm}
+		FoldIssuer: "http://localhost:8378", FoldAudience: "soulnode-" + realm,
+		HelmEnabled: true, HelmListen: "127.0.0.1:8500"}
 
 	// 1. The operator — the trust root.
 	opKP, err := nkeys.CreateOperator()
