@@ -7,7 +7,7 @@ package node
 // token — and the bearer admits an MCP session through the realm's own
 // callout, persona named by the token's subject. The founding-token
 // lane coexists untouched; the AS is the upstream contract's stand-in
-// (rigtest), because the door is AS-agnostic by design — soulfold is
+// (rigtest), because the door is AS-agnostic by design — soulstream-idp is
 // the intended default, not a dependency.
 
 import (
@@ -24,13 +24,13 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/impire-io/soulstream/node/rigtest"
+	"github.com/impire-io/soulstream-mcp/rigtest"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
 func TestPublicDoor(t *testing.T) {
-	as, err := rigtest.NewASStub("soulnode-door")
+	as, err := rigtest.NewASStub("soulstream-door")
 	if err != nil {
 		t.Fatalf("as stub: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestPublicDoor(t *testing.T) {
 
 	// --- The bearer opens the door; whoami names the token's subject.
 	dial := func(bearer string) (*mcp.ClientSession, error) {
-		client := mcp.NewClient(&mcp.Implementation{Name: "soulnode-public-test", Version: "0.0.1"}, nil)
+		client := mcp.NewClient(&mcp.Implementation{Name: "soulstream-public-test", Version: "0.0.1"}, nil)
 		transport := &mcp.StreamableClientTransport{
 			Endpoint:   n.DoorURL(),
 			HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},

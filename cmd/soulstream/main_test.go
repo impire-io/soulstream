@@ -80,7 +80,7 @@ func TestWorkloadRefusals(t *testing.T) {
 		{"node-down",
 			[]string{"workload", "start", "--state", dir,
 				write("ok.json", `{"role":"agent","lifecycle":"service","persona":"x","topic":"t","artifact":"file:///bin/sh"}`)},
-			"soulnode up"},
+			"soulstream up"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -9,10 +9,10 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/impire-io/soulidentity/client"
-	"github.com/impire-io/soulstream/realm"
+	"github.com/impire-io/soulstream-core/realm"
+	"github.com/impire-io/soulstream-identity/client"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
 // Found performs the founding administrative acts on a freshly started

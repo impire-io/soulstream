@@ -1,4 +1,4 @@
-// Command soulnode is the single-binary distribution of the Soulstream
+// Command soulstream is the single-binary distribution of the Soulstream
 // ecosystem: `init` founds a realm into a state directory (the whole
 // ceremony, zero manual steps — constitution V), `up` runs it (embedded
 // operator-mode server + the identity plane, everything on ordinary
@@ -16,23 +16,23 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/impire-io/soulnode/ceremony"
-	"github.com/impire-io/soulnode/internal/version"
-	"github.com/impire-io/soulnode/node"
+	"github.com/impire-io/soulstream/ceremony"
+	"github.com/impire-io/soulstream/internal/version"
+	"github.com/impire-io/soulstream/node"
 )
 
-const usage = `soulnode — your realm in one binary
+const usage = `soulstream — your realm in one binary
 
 Usage:
-  soulnode init [--state DIR] [--listen ADDR] [--realm NAME]
+  soulstream init [--state DIR] [--listen ADDR] [--realm NAME]
                 [--door-listen ADDR] [--fold-listen ADDR]
                                                 found a realm (prints your token ONCE)
-  soulnode up   [--state DIR]                   run it until interrupted
-  soulnode workload start <declaration.json> [--state DIR]
+  soulstream up   [--state DIR]                   run it until interrupted
+  soulstream workload start <declaration.json> [--state DIR]
                                                 run one declared workload (node must be up)
-  soulnode version
+  soulstream version
 
-State dir: --state, else $SOULNODE_STATE, else <user config dir>/soulnode.
+State dir: --state, else $SOULNODE_STATE, else <user config dir>/soulstream.
 `
 
 func main() {
@@ -57,11 +57,11 @@ func run(args []string, out, errw io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprint(out, usage)
 	default:
-		fmt.Fprintf(errw, "soulnode: unknown command %q\n\n%s", args[0], usage)
+		fmt.Fprintf(errw, "soulstream: unknown command %q\n\n%s", args[0], usage)
 		return 2
 	}
 	if err != nil {
-		fmt.Fprintln(errw, "soulnode:", err)
+		fmt.Fprintln(errw, "soulstream:", err)
 		return 1
 	}
 	return 0
@@ -79,7 +79,7 @@ func stateDir(flagVal string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("no state dir: %w (set --state or SOULNODE_STATE)", err)
 	}
-	return filepath.Join(base, "soulnode"), nil
+	return filepath.Join(base, "soulstream"), nil
 }
 
 func cmdInit(args []string, out, errw io.Writer) error {
@@ -90,7 +90,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	realmName := fs.String("realm", "home", "realm name (written to config.json on the founding run)")
 	doorListen := fs.String("door-listen", "127.0.0.1:8080", "the MCP door's loopback listener (written to config.json on the founding run)")
 	foldListen := fs.String("fold-listen", "127.0.0.1:8378", "the bundled fold's loopback listener — sign-in and the admin console (written to config.json)")
-	helmListen := fs.String("helm-listen", "127.0.0.1:8500", "the helm's loopback listener — the human cockpit (written to config.json)")
+	helmListen := fs.String("shell-listen", "127.0.0.1:8500", "the shell's loopback listener — the human cockpit (written to config.json)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 		if realmSet && *realmName != st.Realm {
 			return fmt.Errorf("state at %s is realm %q — the name is fixed at founding", dir, st.Realm)
 		}
-		fmt.Fprintf(out, "soulnode: state at %s verified — %d artifacts, realm %q, listener %s\n",
+		fmt.Fprintf(out, "soulstream: state at %s verified — %d artifacts, realm %q, listener %s\n",
 			dir, ceremony.ArtifactCount(), st.Realm, st.Listen)
 		return nil
 	}
@@ -160,12 +160,12 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "soulnode: realm %q founded at %s\n", st.Realm, dir)
+	fmt.Fprintf(out, "soulstream: realm %q founded at %s\n", st.Realm, dir)
 	fmt.Fprintf(out, "your access token (shown once, never stored):\n\n    %s\n\n", token)
 	if invite := n.FoldInvite(); invite != "" {
 		fmt.Fprintf(out, "your passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
 	}
-	fmt.Fprintln(out, "run `soulnode up` to serve — it prints the door, sign-in, and admin-console URLs.")
+	fmt.Fprintln(out, "run `soulstream up` to serve — it prints the door, sign-in, and admin-console URLs.")
 	if st.DoorEnabled {
 		fmt.Fprintf(out, "point an MCP client at http://%s with that token as its bearer,\n", st.DoorListen)
 		fmt.Fprintf(out, "or a NATS client at nats://%s with sentinel %s\n",
@@ -194,7 +194,7 @@ func cmdUp(args []string, out, errw io.Writer) error {
 		return err
 	}
 	if empty {
-		return fmt.Errorf("state at %s is not initialized — run `soulnode init` first", dir)
+		return fmt.Errorf("state at %s is not initialized — run `soulstream init` first", dir)
 	}
 	st, err := ceremony.Verify(dir)
 	if err != nil {
@@ -208,23 +208,23 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "soulnode: state %s (realm %q)\n", dir, st.Realm)
-	fmt.Fprintf(out, "soulnode: listening on nats://%s (loopback)\n", st.Listen)
-	fmt.Fprintln(out, "soulnode: identity plane serving")
+	fmt.Fprintf(out, "soulstream: state %s (realm %q)\n", dir, st.Realm)
+	fmt.Fprintf(out, "soulstream: listening on nats://%s (loopback)\n", st.Listen)
+	fmt.Fprintln(out, "soulstream: identity plane serving")
 	if st.MemoryEnabled {
-		fmt.Fprintln(out, "soulnode: memory plane serving")
+		fmt.Fprintln(out, "soulstream: memory plane serving")
 	}
 	printEndpoints(out, n, st)
 	if st.FoldEnabled {
 		if invite := n.FoldInvite(); invite != "" {
-			fmt.Fprintf(out, "soulnode: passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
+			fmt.Fprintf(out, "soulstream: passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
 		}
 	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	<-sig
-	fmt.Fprintln(out, "soulnode: draining")
+	fmt.Fprintln(out, "soulstream: draining")
 	n.Stop()
 	return nil
 }
@@ -237,20 +237,20 @@ func cmdUp(args []string, out, errw io.Writer) error {
 // public URLs when set.
 func printEndpoints(out io.Writer, n *node.Node, st *ceremony.State) {
 	if st.DoorEnabled {
-		fmt.Fprintf(out, "soulnode: MCP door        %s\n", n.DoorURL())
+		fmt.Fprintf(out, "soulstream: MCP door        %s\n", n.DoorURL())
 		if st.DoorPublicURL != "" {
-			fmt.Fprintf(out, "soulnode:   public door   %s (front this to the door port)\n", st.DoorPublicURL)
+			fmt.Fprintf(out, "soulstream:   public door   %s (front this to the door port)\n", st.DoorPublicURL)
 		}
 	}
 	if st.FoldEnabled {
-		fmt.Fprintf(out, "soulnode: sign-in (fold)  %s/login/\n", n.FoldURL())
-		fmt.Fprintf(out, "soulnode: admin console   %s/admin\n", n.FoldURL())
+		fmt.Fprintf(out, "soulstream: sign-in (fold)  %s/login/\n", n.FoldURL())
+		fmt.Fprintf(out, "soulstream: admin console   %s/admin\n", n.FoldURL())
 		if st.DoorPublicURL != "" {
-			fmt.Fprintf(out, "soulnode:   public fold   %s (a DISTINCT route from the door)\n", st.FoldIssuer)
+			fmt.Fprintf(out, "soulstream:   public fold   %s (a DISTINCT route from the door)\n", st.FoldIssuer)
 		}
 	}
 	if st.HelmEnabled {
-		fmt.Fprintf(out, "soulnode: helm console    %s\n", n.HelmURL())
+		fmt.Fprintf(out, "soulstream: shell console    %s\n", n.HelmURL())
 	}
 }
 
@@ -281,11 +281,11 @@ func cmdWorkload(args []string, out, errw io.Writer) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	fmt.Fprintf(out, "soulnode: launching workload from %s\n", fs.Arg(0))
+	fmt.Fprintf(out, "soulstream: launching workload from %s\n", fs.Arg(0))
 	if err := node.RunWorkload(ctx, node.Config{StateDir: dir, State: st, AuditWriter: errw},
 		"nats://"+st.Listen, fs.Arg(0)); err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "soulnode: workload finished (terminal work op recorded)")
+	fmt.Fprintln(out, "soulstream: workload finished (terminal work op recorded)")
 	return nil
 }

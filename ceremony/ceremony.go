@@ -17,7 +17,7 @@ import (
 	"github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nkeys"
 
-	"github.com/impire-io/soulidentity/client"
+	"github.com/impire-io/soulstream-identity/client"
 )
 
 // State is the founding ceremony in memory: the parsed form of every
@@ -53,19 +53,19 @@ type State struct {
 	DoorAuthIssuer   string
 	DoorAuthAudience string
 
-	// The fold plane (soulfold M5's bundled story, opt-in): the
+	// The fold plane (soulstream-idp M5's bundled story, opt-in): the
 	// deployment's own passkey-first OIDC provider in-process, storing
 	// on the node's JetStream under its own bucket prefix, seal seed
 	// under <state>/fold/. FoldIssuer's host is WebAuthn's one-way door
 	// at first enrollment — public deployments set it to the fronted
 	// name before anyone enrolls. FoldAudience defaults to
-	// "soulnode-<realm>".
+	// "soulstream-<realm>".
 	FoldEnabled  bool
 	FoldListen   string
 	FoldIssuer   string
 	FoldAudience string
 
-	// The helm plane (soulhelm — the human cockpit): a loopback HTTP
+	// The shell plane (soulstream-shell — the human cockpit): a loopback HTTP
 	// surface, sessions signing in against the deployment's AS (the
 	// bundled fold by default). On by default beside the fold.
 	HelmEnabled bool
@@ -93,7 +93,7 @@ type State struct {
 	// The workload minting key: a PLAIN signing key beside the scoped
 	// one — the runtime's minter embeds per-workload permissions in the
 	// user JWTs it signs, and a scoped key would reject them (measured
-	// upstream, soulrealm journey 0010).
+	// upstream, soulstream-workloads journey 0010).
 	WorkloadSigningSeed []byte
 	WorkloadSigningPub  string
 
@@ -122,9 +122,9 @@ type State struct {
 const FoundingPersona = "owner"
 
 // SessionIssuer resolves the OIDC authorization server the identity
-// plane's callout lane validates and the helm sends sign-ins to: an
+// plane's callout lane validates and the shell sends sign-ins to: an
 // explicit external AS (public door mode) wins; otherwise the bundled
-// fold when the helm needs one. Empty means the lane stays off.
+// fold when the shell needs one. Empty means the lane stays off.
 func (s *State) SessionIssuer() (issuer, audience string) {
 	if s.DoorAuthIssuer != "" {
 		return s.DoorAuthIssuer, s.DoorAuthAudience
@@ -157,7 +157,7 @@ func Generate(listen, realm string) (*State, error) {
 	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true,
 		DoorEnabled: true, DoorListen: "127.0.0.1:8080",
 		FoldEnabled: true, FoldListen: "127.0.0.1:8378",
-		FoldIssuer: "http://localhost:8378", FoldAudience: "soulnode-" + realm,
+		FoldIssuer: "http://localhost:8378", FoldAudience: "soulstream-" + realm,
 		HelmEnabled: true, HelmListen: "127.0.0.1:8500"}
 
 	// 1. The operator — the trust root.
@@ -262,7 +262,7 @@ func Generate(listen, realm string) (*State, error) {
 		return nil, err
 	}
 	issuerClaims := jwt.NewUserClaims(issuerUserPub)
-	issuerClaims.Name = "soulidentity-issuer"
+	issuerClaims.Name = "soulstream-identity-issuer"
 	issuerJWT, err := issuerClaims.Encode(authKP)
 	if err != nil {
 		return nil, fmt.Errorf("ceremony: issuer user: %w", err)

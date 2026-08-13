@@ -168,7 +168,7 @@ func generateForTest(t *testing.T) *State {
 }
 
 // TestFoldWiring covers the fold plane's defaults and guards (D25 /
-// soulnode fold URLs): the bundled fold is on by default with a
+// soulstream fold URLs): the bundled fold is on by default with a
 // localhost issuer (WebAuthn refuses a bare IP), and the two footguns
 // refuse at load — a bare-IP issuer and a fold/door listener collision.
 func TestFoldWiring(t *testing.T) {
@@ -185,7 +185,7 @@ func TestFoldWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify default fold config: %v", err)
 	}
-	if loaded.FoldIssuer != "http://localhost:8378" || loaded.FoldAudience != "soulnode-home" {
+	if loaded.FoldIssuer != "http://localhost:8378" || loaded.FoldAudience != "soulstream-home" {
 		t.Fatalf("fold roundtrip: issuer=%q audience=%q", loaded.FoldIssuer, loaded.FoldAudience)
 	}
 

@@ -17,7 +17,7 @@ non-negotiables.
    was built, what was refuted, and why things are the way they are.
 3. `../soul-../soul-hq/03-IMPLEMENTATION/ROADMAP.md` — the live plan: phases, milestones, and
    the research gate each depends on.
-4. `../soul-hq/02-DESIGN/soulnode/README.md` — the design map; 0001 (the composition) is
+4. `../soul-hq/02-DESIGN/soulstream/README.md` — the design map; 0001 (the composition) is
    the one to read before touching code.
 
 ## Non-negotiables (constitution articles, in brief)
@@ -31,7 +31,7 @@ non-negotiables.
   with auth-callout admission exactly as hosted; no local-only auth lane.
 - **One process, planes by configuration** (III): enabled planes in one
   process on ordinary loopback NATS connections; repointing or disabling
-  a plane is configuration. Workloads outside via soulrealm's backends.
+  a plane is configuration. Workloads outside via soulstream-workloads's backends.
 - **The working agreement** (anti-drift): load-bearing claims carry an
   evidence class (`[measured]` / `[mechanism-argument]` / `[judgment]`, only
   measured closes a debate); direction decisions record their reversal

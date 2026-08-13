@@ -11,25 +11,25 @@ the ecosystem's internals; that is the point of the product.
 There is no packaged release yet — build from the repo (Go 1.26+):
 
 ```sh
-git clone git@github.com:impire-io/soulnode.git
-cd soulnode && make build
-./bin/soulnode version
+git clone git@github.com:impire-io/soulstream.git
+cd soulstream && make build
+./bin/soulstream version
 ```
 
 ## 2. Found your realm
 
 ```sh
-soulnode init
+soulstream init
 ```
 
 One command, no questions asked. It generates everything your realm
 stands on — the trust root, the accounts, the admission machinery, the
 sealing keys — into a state directory (default: your OS config dir,
-`soulnode/`), boots the node once to perform the founding acts, and ends
+`soulstream/`), boots the node once to perform the founding acts, and ends
 with the only secret you will ever be shown:
 
 ```
-soulnode: realm "home" founded at /Users/you/Library/Application Support/soulnode
+soulstream: realm "home" founded at /Users/you/Library/Application Support/soulstream
 your access token (shown once, never stored):
 
     sit_4f2a…
@@ -40,7 +40,7 @@ or a NATS client at nats://127.0.0.1:4222 with sentinel …/sentinel.creds
 
 **Save the token in your password manager now.** It is shown exactly
 once; the node keeps only its fingerprint. (Lose it and, for today, you
-found a fresh realm — a `soulnode token` command for minting more is an
+found a fresh realm — a `soulstream token` command for minting more is an
 obvious next feature, not yet built.)
 
 Defaults you can change at founding time (they are written into the
@@ -55,26 +55,26 @@ regenerates, never mints a second token.
 ## 3. Run it
 
 ```sh
-soulnode up
+soulstream up
 ```
 
 ```
-soulnode: state /Users/you/…/soulnode (realm "home")
-soulnode: listening on nats://127.0.0.1:4222 (loopback)
-soulnode: identity plane serving
-soulnode: memory plane serving
-soulnode: front door serving http://127.0.0.1:8080
+soulstream: state /Users/you/…/soulstream (realm "home")
+soulstream: listening on nats://127.0.0.1:4222 (loopback)
+soulstream: identity plane serving
+soulstream: memory plane serving
+soulstream: front door serving http://127.0.0.1:8080
 ```
 
 Everything binds loopback only — nothing is reachable from outside the
 machine unless you deliberately front it (step 6). `Ctrl-C` drains and
-exits; `soulnode up` again resumes the same realm. The audit log
+exits; `soulstream up` again resumes the same realm. The audit log
 (admissions, refusals) goes to stderr.
 
 ## 4. Connect Claude
 
 ```sh
-claude mcp add --transport http soulnode http://127.0.0.1:8080 \
+claude mcp add --transport http soulstream http://127.0.0.1:8080 \
   --header "Authorization: Bearer sit_4f2a…"
 ```
 
@@ -110,7 +110,7 @@ returns it):
 ```
 
 ```sh
-soulnode workload start echo.json
+soulstream workload start echo.json
 ```
 
 The agent's turn appears on the topic attributed to *its* persona, its
@@ -135,7 +135,7 @@ keys and no per-user state.
 
 The state directory **is** the realm: keys, configuration, the message
 store, the archive. Back it up by copying it (node stopped); move to a
-new machine by copying it there and running `soulnode up`. Secrets are
+new machine by copying it there and running `soulstream up`. Secrets are
 owner-only on disk (`0700`/`0600`) — `init` refuses filesystems that
 cannot hold that.
 
@@ -144,7 +144,7 @@ cannot hold that.
 - **Minting more tokens / personas for other people** — the identity
   plane supports it; the CLI surface doesn't yet.
 - **Public HTTPS mode with real OAuth** — waits on the ecosystem's
-  authorization server (soulfold); today the answer is fronting (step 6).
+  authorization server (soulstream-idp); today the answer is fronting (step 6).
 - **Bring-your-own NATS and remote planes** — the configuration shape is
   built for it; the ceremony split ships behind its own design pass.
 

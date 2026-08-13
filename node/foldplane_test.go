@@ -1,11 +1,11 @@
 package node
 
 // The folded-realm gate (spec 006): the single-binary story complete —
-// `planes.fold` runs the bundled OIDC provider through soulfold's
+// `planes.fold` runs the bundled OIDC provider through soulstream-idp's
 // public embed seam, public door mode defaults its AS at the bundled
 // fold, and a browser user's passkey sign-in becomes an MCP session at
 // the door with zero external services. The virtual authenticator is
-// soulfold's public authtest; everything else is the walk any hosted
+// soulstream-idp's public authtest; everything else is the walk any hosted
 // client performs.
 
 import (
@@ -24,9 +24,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/impire-io/soulfold/authtest"
+	"github.com/impire-io/soulstream-idp/authtest"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
 // sha256Sum is the PKCE S256 challenge of a verifier.
@@ -80,7 +80,7 @@ func TestFoldedRealm(t *testing.T) {
 	if loaded.FoldIssuer != "http://localhost:"+foldPort {
 		t.Fatalf("fold issuer defaulted to %q, want http://localhost:%s", loaded.FoldIssuer, foldPort)
 	}
-	if loaded.DoorAuthIssuer != loaded.FoldIssuer || loaded.DoorAuthAudience != "soulnode-home" {
+	if loaded.DoorAuthIssuer != loaded.FoldIssuer || loaded.DoorAuthAudience != "soulstream-home" {
 		t.Fatalf("the default wiring did not point the door at the bundled fold: issuer=%q audience=%q",
 			loaded.DoorAuthIssuer, loaded.DoorAuthAudience)
 	}
@@ -115,7 +115,7 @@ func TestFoldedRealm(t *testing.T) {
 		t.Fatalf("the door advertises %v, want the bundled fold %s", md.AuthorizationServers, n.FoldURL())
 	}
 
-	// --- The founding invite (soulfold M3: enrollment requires one;
+	// --- The founding invite (soulstream-idp M3: enrollment requires one;
 	// the seam delivered it, the founding output prints it once).
 	if n.FoldInvite() == "" {
 		t.Fatal("the fold plane delivered no founding invite")

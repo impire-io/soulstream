@@ -3,7 +3,7 @@
 **Read [`../soul-hq/`](../soul-hq/README.md) first.** Everything about how this project is run
 lives there: the vision and constitution ([`../soul-hq/00-GENESIS/`](../soul-hq/00-GENESIS/README.md)),
 active research ([`../soul-hq/01-RESEARCH/`](../soul-hq/01-RESEARCH/README.md)), designs
-([`../soul-hq/02-DESIGN/soulnode/`](../soul-hq/02-DESIGN/soulnode/README.md)), the roadmap
+([`../soul-hq/02-DESIGN/soulstream/`](../soul-hq/02-DESIGN/soulstream/README.md)), the roadmap
 ([`../soul-hq/03-IMPLEMENTATION/`](../soul-hq/03-IMPLEMENTATION/README.md)), and the honest log
 ([`../soul-hq/04-JOURNEY/`](../soul-hq/04-JOURNEY/README.md)).
 
@@ -11,9 +11,9 @@ active research ([`../soul-hq/01-RESEARCH/`](../soul-hq/01-RESEARCH/README.md)),
 
 SoulNode is the **single-binary distribution** of the Soulstream ecosystem:
 embedded NATS (operator mode, JetStream), the SoulIdentity identity plane,
-the archivist, the soulrealm runtime, and an MCP front door in one process —
-`soulnode init && soulnode up` on a machine the user owns. Soulstream is the
-record, soulrealm is the room, SoulIdentity is the name; SoulNode is the
+the archivist, the soulstream-workloads runtime, and an MCP front door in one process —
+`soulstream init && soulstream up` on a machine the user owns. Soulstream is the
+record, soulstream-workloads is the room, SoulIdentity is the name; SoulNode is the
 house.
 
 ## Status
@@ -24,8 +24,8 @@ runs server + identity + memory + the MCP door on loopback; `workload
 start` runs a declared agent under enforcement. An MCP client with the
 founding token gets the full tool surface with realm-admitted identity.
 All measured green in `make test`. Standing exception: four
-pseudo-version pins await upstream tags (soulidentity, archivist,
-soulrealm, soulstream/node). Public door mode waits on soulfold
+pseudo-version pins await upstream tags (soulstream-identity, archivist,
+soulstream-workloads, soulstream/node). Public door mode waits on soulstream-idp
 upstream; Phase 3 (tsnet) keeps its measurement gate.
 
 <!-- SPECKIT START -->
@@ -46,12 +46,12 @@ and quickstart live beside it).
 - **One process, planes by configuration** (constitution III): enabled
   planes in one process, each on an ordinary loopback NATS connection;
   repointing or disabling a plane is configuration, never a different
-  build. Workloads run outside, through soulrealm's backends.
+  build. Workloads run outside, through soulstream-workloads's backends.
 - **Explore → Plan → Code → Commit.** Research goes through `01-RESEARCH/`
   and never through spec-kit; implementation always goes through spec-kit.
 - **Quality gate:** `make fmt && make test && make lint` — all green, nothing
   skipped, before any "done" (constitution VI; the hq structural lint rides the soul-hq gate).
-- Go module `github.com/impire-io/soulnode`; connect to external NATS via
+- Go module `github.com/impire-io/soulstream`; connect to external NATS via
   `orbit.go/natscontext`, modern `nats.go/jetstream` API; never `nats.ws`.
 - Sign every commit. Never commit `.claude/settings.local.json`.
 - **The journey duty:** every landed feature, concluded investigation, or

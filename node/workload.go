@@ -9,15 +9,15 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/impire-io/soulidentity/client"
-	"github.com/impire-io/soulrealm/backend/native"
-	"github.com/impire-io/soulrealm/declaration"
-	"github.com/impire-io/soulrealm/minter"
-	"github.com/impire-io/soulrealm/runner"
-	"github.com/impire-io/soulstream/realm"
-	"github.com/impire-io/soulstream/topic"
+	"github.com/impire-io/soulstream-core/realm"
+	"github.com/impire-io/soulstream-core/topic"
+	"github.com/impire-io/soulstream-identity/client"
+	"github.com/impire-io/soulstream-workloads/backend/native"
+	"github.com/impire-io/soulstream-workloads/declaration"
+	"github.com/impire-io/soulstream-workloads/minter"
+	"github.com/impire-io/soulstream-workloads/runner"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
 // workloadCredTTL bounds a workload's minted credential — long enough for
@@ -54,11 +54,11 @@ func RunWorkload(ctx context.Context, cfg Config, url, declPath string) error {
 
 	nc, err := nats.Connect(url,
 		nats.UserCredentials(ceremony.UserCredsPath(cfg.StateDir, "runner")),
-		nats.Name("soulnode-runner"),
+		nats.Name("soulstream-runner"),
 		nats.RetryOnFailedConnect(false), nats.MaxReconnects(0),
 		nats.Timeout(3*time.Second))
 	if err != nil {
-		return fmt.Errorf("node: cannot reach the node at %s — is `soulnode up` running? (%w)", url, err)
+		return fmt.Errorf("node: cannot reach the node at %s — is `soulstream up` running? (%w)", url, err)
 	}
 	// The runner is a persona like everyone else: lifecycle ops are
 	// attributed to it, its signing key vault-held (research R3).

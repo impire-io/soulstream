@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
-// TestHelmPlane proves the composition: `planes.helm` runs soulhelm
+// TestHelmPlane proves the composition: `planes.shell` runs soulstream-shell
 // through its public embed seam on the node's own lanes, the surface is
 // closed until sign-in, and the disabled arm stays byte-identical to a
-// helm-less node. The full human ceremony (passkey, session, act,
-// custody scan) is soulhelm's own consumer-position gate — this test
+// shell-less node. The full human ceremony (passkey, session, act,
+// custody scan) is soulstream-shell's own consumer-position gate — this test
 // holds the node's side of the contract.
 func TestHelmPlane(t *testing.T) {
 	dir := t.TempDir()
@@ -40,7 +40,7 @@ func TestHelmPlane(t *testing.T) {
 	}
 
 	if n.HelmURL() == "" {
-		t.Fatal("helm plane enabled but HelmURL is empty")
+		t.Fatal("shell plane enabled but HelmURL is empty")
 	}
 	resp, err := http.Get(n.HelmURL() + "/")
 	if err != nil {
@@ -49,7 +49,7 @@ func TestHelmPlane(t *testing.T) {
 	page, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK || !strings.Contains(string(page), "Sign in") {
-		t.Fatalf("helm front page: %d %s", resp.StatusCode, page)
+		t.Fatalf("shell front page: %d %s", resp.StatusCode, page)
 	}
 	if strings.Contains(string(page), "Sign out") {
 		t.Fatal("unauthenticated visitor holds a session")
@@ -64,7 +64,7 @@ func TestHelmPlane(t *testing.T) {
 	}
 }
 
-// TestHelmDisabled: the disabled arm runs no helm and answers no URL.
+// TestHelmDisabled: the disabled arm runs no shell and answers no URL.
 func TestHelmDisabled(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
@@ -83,7 +83,7 @@ func TestHelmDisabled(t *testing.T) {
 	}
 	defer n.Stop()
 	if n.HelmURL() != "" {
-		t.Fatalf("disabled helm answers %q", n.HelmURL())
+		t.Fatalf("disabled shell answers %q", n.HelmURL())
 	}
 }
 

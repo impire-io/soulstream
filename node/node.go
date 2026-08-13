@@ -1,8 +1,8 @@
 // Package node composes a SoulNode: the embedded operator-mode NATS
 // server (loopback listener, JetStream on the state directory) and the
-// identity plane (soulidentity's public embed surface), each plane on an
+// identity plane (soulstream-identity's public embed surface), each plane on an
 // ordinary NATS connection — never an in-process transport (constitution
-// III). ceremony generates what this package boots; cmd/soulnode owns
+// III). ceremony generates what this package boots; cmd/soulstream owns
 // flags and signals.
 package node
 
@@ -22,17 +22,17 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	foldembed "github.com/impire-io/soulfold/embed"
-	helmembed "github.com/impire-io/soulhelm/embed"
-	"github.com/impire-io/soulidentity/client"
-	"github.com/impire-io/soulidentity/embed"
 	"github.com/impire-io/soulstream-archivist/archive"
 	"github.com/impire-io/soulstream-archivist/keeper"
-	door "github.com/impire-io/soulstream/node"
-	"github.com/impire-io/soulstream/realm"
-	"github.com/impire-io/soulstream/topic"
+	"github.com/impire-io/soulstream-core/realm"
+	"github.com/impire-io/soulstream-core/topic"
+	"github.com/impire-io/soulstream-identity/client"
+	"github.com/impire-io/soulstream-identity/embed"
+	foldembed "github.com/impire-io/soulstream-idp/embed"
+	door "github.com/impire-io/soulstream-mcp"
+	helmembed "github.com/impire-io/soulstream-shell/embed"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
 // Config describes a composition to start. State is a verified ceremony;
@@ -71,16 +71,16 @@ type Node struct {
 	doorURL  string
 
 	// The fold plane (nil when disabled): the bundled OIDC provider
-	// through soulfold's public embed seam, storing on this node's
+	// through soulstream-idp's public embed seam, storing on this node's
 	// JetStream under its own bucket prefix. foldInvite holds the
 	// owner's founding enrollment invite when this start minted one
-	// (soulfold M3: enrollment requires an invite; the fold's seam
+	// (soulstream-idp M3: enrollment requires an invite; the fold's seam
 	// delivers it here and the founding output prints it once).
 	foldErr    chan error
 	foldURL    string
 	foldInvite string
 
-	// The helm plane (soulhelm — the human cockpit) through soulhelm's
+	// The shell plane (soulstream-shell — the human cockpit) through soulstream-shell's
 	// public embed seam: observe and act, sessions signing in against
 	// the deployment's AS through the identity plane's OIDC lane.
 	helmErr chan error
@@ -101,7 +101,7 @@ func (n *Node) FoldURL() string { return n.foldURL }
 // side — print once, never persist.
 func (n *Node) FoldInvite() string { return n.foldInvite }
 
-// HelmURL is the helm plane's HTTP endpoint ("" when disabled).
+// HelmURL is the shell plane's HTTP endpoint ("" when disabled).
 func (n *Node) HelmURL() string { return n.helmURL }
 
 // URL is the client URL of the embedded server's loopback listener.
@@ -187,7 +187,7 @@ func Start(cfg Config) (*Node, error) {
 	connect := func(name string) (*nats.Conn, error) {
 		nc, err := nats.Connect(n.url,
 			nats.UserCredentials(ceremony.UserCredsPath(cfg.StateDir, name)),
-			nats.Name("soulnode-"+name))
+			nats.Name("soulstream-"+name))
 		if err != nil {
 			return nil, fmt.Errorf("node: %s connection: %w", name, err)
 		}
@@ -227,7 +227,7 @@ func Start(cfg Config) (*Node, error) {
 			CalloutKey:  string(st.CalloutSeed),
 			AuthAccount: st.AuthPub,
 			// The OIDC lane: on for public door mode (external AS) and
-			// for the helm plane (the bundled fold by default) — browser
+			// for the shell plane (the bundled fold by default) — browser
 			// users hold tokens the callout validates against exactly
 			// this issuer and audience.
 			OIDCIssuer:   sessionIssuer,
@@ -272,10 +272,10 @@ func Start(cfg Config) (*Node, error) {
 	return n, nil
 }
 
-// startHelm runs the human cockpit (soulhelm's public embed seam) —
-// composition, not invention: the helm reads through the node's ops
+// startHelm runs the human cockpit (soulstream-shell's public embed seam) —
+// composition, not invention: the shell reads through the node's ops
 // lane, and every session opens its own admission through the identity
-// plane's OIDC lane (which the ceremony wires whenever the helm is on).
+// plane's OIDC lane (which the ceremony wires whenever the shell is on).
 // It starts last: it discovers the sign-in issuer at startup, so the
 // fold (or external AS) must already answer.
 func (n *Node) startHelm(ctx context.Context, cfg Config) error {
@@ -285,7 +285,7 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 		// Loud, never silent: with no resolvable sign-in issuer (an
 		// ephemeral fold listener) the surface cannot authenticate
 		// anyone, so it does not serve.
-		n.audit.Warn("helm plane skipped: no resolvable sign-in issuer")
+		n.audit.Warn("shell plane skipped: no resolvable sign-in issuer")
 		return nil
 	}
 	n.helmErr = make(chan error, 1)
@@ -309,13 +309,13 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 		return nil
 	case err := <-n.helmErr:
 		n.helmErr = nil
-		return fmt.Errorf("node: helm plane failed to start: %w", err)
+		return fmt.Errorf("node: shell plane failed to start: %w", err)
 	case <-time.After(20 * time.Second):
-		return errors.New("node: helm plane did not become ready")
+		return errors.New("node: shell plane did not become ready")
 	}
 }
 
-// startFold runs the bundled OIDC provider (soulfold's public embed
+// startFold runs the bundled OIDC provider (soulstream-idp's public embed
 // seam): the fold's buckets live on this node's JetStream over its own
 // bypass-lane connection, the seal seed under <state>/fold/, DCR on
 // (hosted clients register themselves), the deployment audience fixed,
@@ -413,7 +413,7 @@ func (n *Node) startMemory(ctx context.Context, cfg Config) error {
 
 	ncArch, err := nats.Connect(n.url,
 		nats.UserCredentials(ceremony.UserCredsPath(cfg.StateDir, "archivist")),
-		nats.Name("soulnode-archivist"))
+		nats.Name("soulstream-archivist"))
 	if err != nil {
 		return fmt.Errorf("node: memory plane: archivist connection: %w", err)
 	}
@@ -491,9 +491,9 @@ func (n *Node) Stop() {
 		}
 		if n.helmErr != nil {
 			select {
-			case err := <-n.helmErr: // the helm rides the same ctx
+			case err := <-n.helmErr: // the shell rides the same ctx
 				if err != nil && !errors.Is(err, context.Canceled) {
-					n.audit.Error("helm plane exited", "err", err)
+					n.audit.Error("shell plane exited", "err", err)
 				}
 			case <-time.After(10 * time.Second):
 			}

@@ -16,12 +16,12 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/nats-io/nats.go"
 
-	siclient "github.com/impire-io/soulidentity/client"
 	"github.com/impire-io/soulstream-archivist/archive"
-	"github.com/impire-io/soulstream/realm"
-	"github.com/impire-io/soulstream/topic"
+	"github.com/impire-io/soulstream-core/realm"
+	"github.com/impire-io/soulstream-core/topic"
+	siclient "github.com/impire-io/soulstream-identity/client"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
 type syncBuffer struct {
@@ -330,14 +330,14 @@ func TestM12Memory(t *testing.T) {
 
 // TestM13AgentRuns is design 0001 §9-M1.3: upstream's own agent-echo,
 // declared and launched through the runtime plane, posts a turn as its
-// persona while its lifecycle lands as work ops — soulrealm's founding
+// persona while its lifecycle lands as work ops — soulstream-workloads's founding
 // proof, re-run inside the composition.
 func TestM13AgentRuns(t *testing.T) {
 	// The artifact is upstream's reference agent, built from the module
 	// cache (research R4).
 	agentPath := filepath.Join(t.TempDir(), "agent-echo")
 	build := exec.Command("go", "build", "-o", agentPath,
-		"github.com/impire-io/soulrealm/cmd/agent-echo")
+		"github.com/impire-io/soulstream-workloads/cmd/agent-echo")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build agent-echo: %v\n%s", err, out)
 	}
@@ -484,7 +484,7 @@ func TestFrontDoor(t *testing.T) {
 	before := stateDirFiles(t, dir)
 
 	dial := func(bearer string) (*mcp.ClientSession, error) {
-		client := mcp.NewClient(&mcp.Implementation{Name: "soulnode-test", Version: "0.0.1"}, nil)
+		client := mcp.NewClient(&mcp.Implementation{Name: "soulstream-test", Version: "0.0.1"}, nil)
 		transport := &mcp.StreamableClientTransport{
 			Endpoint:   n.DoorURL(),
 			HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},

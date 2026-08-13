@@ -2,7 +2,7 @@
 
 # Stamp the binary with a real version for local builds; releases set the tag.
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -X github.com/impire-io/soulnode/internal/version.Version=$(VERSION)
+LDFLAGS := -X github.com/impire-io/soulstream/internal/version.Version=$(VERSION)
 
 # Format all Go source (gofmt); golangci-lint's formatters also cover goimports.
 fmt:

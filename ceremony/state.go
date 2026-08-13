@@ -60,9 +60,9 @@ type config struct {
 		// disabled — state dirs founded before the fold plane existed
 		// must not sprout one on upgrade.
 		Fold *foldConfig `json:"fold,omitempty"`
-		// Helm is a pointer for the same reason: state dirs founded
-		// before the helm plane existed must not sprout one on upgrade.
-		Helm *helmConfig `json:"helm,omitempty"`
+		// Shell is a pointer for the same reason: state dirs founded
+		// before the shell plane existed must not sprout one on upgrade.
+		Shell *helmConfig `json:"shell,omitempty"`
 	} `json:"planes"`
 }
 
@@ -74,7 +74,7 @@ type foldConfig struct {
 	Audience string `json:"audience,omitempty"`
 }
 
-// helmConfig is the bundled human cockpit's block (soulhelm). The helm
+// helmConfig is the bundled human cockpit's block (soulstream-shell). The shell
 // has no issuer of its own: sessions sign in against the deployment's
 // AS — the bundled fold by default, or planes.door.auth_issuer.
 type helmConfig struct {
@@ -156,7 +156,7 @@ func (s *State) Save(dir string) error {
 	c.Planes.Fold = &foldConfig{Enabled: &foldEnabled, Listen: s.FoldListen,
 		Issuer: s.FoldIssuer, Audience: s.FoldAudience}
 	helmEnabled := s.HelmEnabled
-	c.Planes.Helm = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen}
+	c.Planes.Shell = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen}
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -261,9 +261,9 @@ func Load(dir string) (*State, error) {
 		}
 		s.FoldAudience = f.Audience
 		if s.FoldAudience == "" {
-			s.FoldAudience = "soulnode-" + s.Realm
+			s.FoldAudience = "soulstream-" + s.Realm
 		}
-		// The default wiring (soulfold M5's distribution story): public
+		// The default wiring (soulstream-idp M5's distribution story): public
 		// door mode with no AS named points at the bundled fold. In
 		// public mode planes.fold.issuer must be the fronted fold URL,
 		// so the browser the door sends a user to is actually reachable.
@@ -272,7 +272,7 @@ func Load(dir string) (*State, error) {
 			s.DoorAuthAudience = s.FoldAudience
 		}
 	}
-	if h := cfg.Planes.Helm; h != nil && (h.Enabled == nil || *h.Enabled) {
+	if h := cfg.Planes.Shell; h != nil && (h.Enabled == nil || *h.Enabled) {
 		s.HelmEnabled = true
 		s.HelmListen = h.Listen
 		if s.HelmListen == "" {
@@ -477,23 +477,23 @@ func Verify(dir string) (*State, error) {
 	if s.HelmEnabled {
 		hhost, hport, err := net.SplitHostPort(s.HelmListen)
 		if err != nil {
-			return nil, fmt.Errorf("ceremony: damaged %s: helm listen %q: %w", fileConfig, s.HelmListen, err)
+			return nil, fmt.Errorf("ceremony: damaged %s: shell listen %q: %w", fileConfig, s.HelmListen, err)
 		}
 		if ip := net.ParseIP(hhost); hhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
-			return nil, fmt.Errorf("ceremony: %s helm listen %q is not loopback", fileConfig, s.HelmListen)
+			return nil, fmt.Errorf("ceremony: %s shell listen %q is not loopback", fileConfig, s.HelmListen)
 		}
 		if hport != "0" {
 			if s.DoorEnabled && s.HelmListen == s.DoorListen {
-				return nil, fmt.Errorf("ceremony: %s planes.helm.listen and planes.door.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.door.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
 			}
 			if s.FoldEnabled && s.HelmListen == s.FoldListen {
-				return nil, fmt.Errorf("ceremony: %s planes.helm.listen and planes.fold.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.fold.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
 			}
 		}
 		// Sessions need a sign-in issuer: the bundled fold, or an
 		// external AS via planes.door.auth_issuer.
 		if s.DoorAuthIssuer == "" && !s.FoldEnabled {
-			return nil, fmt.Errorf("ceremony: %s enables the helm plane with no sign-in issuer — enable planes.fold or set planes.door.auth_issuer", fileConfig)
+			return nil, fmt.Errorf("ceremony: %s enables the shell plane with no sign-in issuer — enable planes.fold or set planes.door.auth_issuer", fileConfig)
 		}
 	}
 	return s, nil

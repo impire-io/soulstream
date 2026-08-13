@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/impire-io/soulnode/ceremony"
+	"github.com/impire-io/soulstream/ceremony"
 )
 
-// TestHelmWiring covers the helm plane's config contract: on by default
+// TestHelmWiring covers the shell plane's config contract: on by default
 // at founding, absent-block-means-disabled on old state dirs, loopback
 // and collision refusals, and the sign-in issuer requirement.
 func TestHelmWiring(t *testing.T) {
@@ -57,32 +57,32 @@ func TestHelmWiring(t *testing.T) {
 		return cfg["planes"].(map[string]any)
 	}
 
-	// A state dir founded before the helm existed must not sprout one.
-	rewrite(func(cfg map[string]any) { delete(planes(cfg), "helm") })
+	// A state dir founded before the shell existed must not sprout one.
+	rewrite(func(cfg map[string]any) { delete(planes(cfg), "shell") })
 	old, err := ceremony.Verify(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if old.HelmEnabled {
-		t.Fatal("absent planes.helm block must mean disabled")
+		t.Fatal("absent planes.shell block must mean disabled")
 	}
 
 	// A listener collision is refused by name.
 	rewrite(func(cfg map[string]any) {
-		planes(cfg)["helm"] = map[string]any{"enabled": true, "listen": "127.0.0.1:8378"}
+		planes(cfg)["shell"] = map[string]any{"enabled": true, "listen": "127.0.0.1:8378"}
 	})
 	if _, err := ceremony.Verify(dir); err == nil ||
-		!strings.Contains(err.Error(), "planes.helm.listen") {
-		t.Fatalf("fold/helm collision not refused: %v", err)
+		!strings.Contains(err.Error(), "planes.shell.listen") {
+		t.Fatalf("fold/shell collision not refused: %v", err)
 	}
 
-	// The helm without any sign-in issuer is refused by name.
+	// The shell without any sign-in issuer is refused by name.
 	rewrite(func(cfg map[string]any) {
-		planes(cfg)["helm"] = map[string]any{"enabled": true, "listen": "127.0.0.1:8500"}
+		planes(cfg)["shell"] = map[string]any{"enabled": true, "listen": "127.0.0.1:8500"}
 		planes(cfg)["fold"] = map[string]any{"enabled": false}
 	})
 	if _, err := ceremony.Verify(dir); err == nil ||
 		!strings.Contains(err.Error(), "sign-in issuer") {
-		t.Fatalf("issuer-less helm not refused: %v", err)
+		t.Fatalf("issuer-less shell not refused: %v", err)
 	}
 }
