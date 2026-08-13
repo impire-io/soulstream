@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	github.com/impire-io/soulfold v0.3.4
+	github.com/impire-io/soulhelm v0.1.0
 	github.com/impire-io/soulrealm v0.1.0
 	github.com/impire-io/soulstream v0.7.0
 	github.com/impire-io/soulstream-archivist v0.2.0

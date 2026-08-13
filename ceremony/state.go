@@ -60,6 +60,9 @@ type config struct {
 		// disabled — state dirs founded before the fold plane existed
 		// must not sprout one on upgrade.
 		Fold *foldConfig `json:"fold,omitempty"`
+		// Helm is a pointer for the same reason: state dirs founded
+		// before the helm plane existed must not sprout one on upgrade.
+		Helm *helmConfig `json:"helm,omitempty"`
 	} `json:"planes"`
 }
 
@@ -69,6 +72,14 @@ type foldConfig struct {
 	Listen   string `json:"listen,omitempty"`
 	Issuer   string `json:"issuer,omitempty"`
 	Audience string `json:"audience,omitempty"`
+}
+
+// helmConfig is the bundled human cockpit's block (soulhelm). The helm
+// has no issuer of its own: sessions sign in against the deployment's
+// AS — the bundled fold by default, or planes.door.auth_issuer.
+type helmConfig struct {
+	Enabled *bool  `json:"enabled,omitempty"`
+	Listen  string `json:"listen,omitempty"`
 }
 
 type planeConfig struct {
@@ -144,6 +155,8 @@ func (s *State) Save(dir string) error {
 	foldEnabled := s.FoldEnabled
 	c.Planes.Fold = &foldConfig{Enabled: &foldEnabled, Listen: s.FoldListen,
 		Issuer: s.FoldIssuer, Audience: s.FoldAudience}
+	helmEnabled := s.HelmEnabled
+	c.Planes.Helm = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen}
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -257,6 +270,13 @@ func Load(dir string) (*State, error) {
 		if s.DoorPublicURL != "" && s.DoorAuthIssuer == "" {
 			s.DoorAuthIssuer = s.FoldIssuer
 			s.DoorAuthAudience = s.FoldAudience
+		}
+	}
+	if h := cfg.Planes.Helm; h != nil && (h.Enabled == nil || *h.Enabled) {
+		s.HelmEnabled = true
+		s.HelmListen = h.Listen
+		if s.HelmListen == "" {
+			s.HelmListen = "127.0.0.1:8500"
 		}
 	}
 
@@ -452,6 +472,28 @@ func Verify(dir string) (*State, error) {
 		}
 		if h := iss.Hostname(); h != "localhost" && net.ParseIP(h) != nil {
 			return nil, fmt.Errorf("ceremony: %s planes.fold.issuer host %q is a bare IP — WebAuthn refuses it as a relying-party id; use localhost or a real hostname", fileConfig, h)
+		}
+	}
+	if s.HelmEnabled {
+		hhost, hport, err := net.SplitHostPort(s.HelmListen)
+		if err != nil {
+			return nil, fmt.Errorf("ceremony: damaged %s: helm listen %q: %w", fileConfig, s.HelmListen, err)
+		}
+		if ip := net.ParseIP(hhost); hhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
+			return nil, fmt.Errorf("ceremony: %s helm listen %q is not loopback", fileConfig, s.HelmListen)
+		}
+		if hport != "0" {
+			if s.DoorEnabled && s.HelmListen == s.DoorListen {
+				return nil, fmt.Errorf("ceremony: %s planes.helm.listen and planes.door.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+			}
+			if s.FoldEnabled && s.HelmListen == s.FoldListen {
+				return nil, fmt.Errorf("ceremony: %s planes.helm.listen and planes.fold.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+			}
+		}
+		// Sessions need a sign-in issuer: the bundled fold, or an
+		// external AS via planes.door.auth_issuer.
+		if s.DoorAuthIssuer == "" && !s.FoldEnabled {
+			return nil, fmt.Errorf("ceremony: %s enables the helm plane with no sign-in issuer — enable planes.fold or set planes.door.auth_issuer", fileConfig)
 		}
 	}
 	return s, nil

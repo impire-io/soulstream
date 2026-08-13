@@ -90,6 +90,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	realmName := fs.String("realm", "home", "realm name (written to config.json on the founding run)")
 	doorListen := fs.String("door-listen", "127.0.0.1:8080", "the MCP door's loopback listener (written to config.json on the founding run)")
 	foldListen := fs.String("fold-listen", "127.0.0.1:8378", "the bundled fold's loopback listener — sign-in and the admin console (written to config.json)")
+	helmListen := fs.String("helm-listen", "127.0.0.1:8500", "the helm's loopback listener — the human cockpit (written to config.json)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -146,6 +147,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	if _, port, err := net.SplitHostPort(*foldListen); err == nil {
 		st.FoldIssuer = "http://localhost:" + port
 	}
+	st.HelmListen = *helmListen
 	if err := st.Save(dir); err != nil {
 		return err
 	}
@@ -246,6 +248,9 @@ func printEndpoints(out io.Writer, n *node.Node, st *ceremony.State) {
 		if st.DoorPublicURL != "" {
 			fmt.Fprintf(out, "soulnode:   public fold   %s (a DISTINCT route from the door)\n", st.FoldIssuer)
 		}
+	}
+	if st.HelmEnabled {
+		fmt.Fprintf(out, "soulnode: helm console    %s\n", n.HelmURL())
 	}
 }
 
