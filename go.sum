@@ -56,6 +56,8 @@ github.com/impire-io/soulstream-idp v0.4.0 h1:+ChgC5hurzj/wG3HUUle+hJKMUmYcpw3m0
 github.com/impire-io/soulstream-idp v0.4.0/go.mod h1:58Vm9h3x9/I/elhaiVMKLhD4Yrzr7hL8xBmwh34WJIY=
 github.com/impire-io/soulstream-mcp v0.1.0 h1:mRiva+bhSertb1VKevhuec6WPKHPQbur83KIEss3Gwc=
 github.com/impire-io/soulstream-mcp v0.1.0/go.mod h1:7NzUwvEhPC2DUxoL7HOvrPRtr8joSiqiblsJixvseFI=
+github.com/impire-io/soulstream-shell v0.3.0 h1:xh6osIwaFfcpoKCIHvwqV+/BOgBWpnD3x6wGtrTxFd4=
+github.com/impire-io/soulstream-shell v0.3.0/go.mod h1:LkF49fV00JWd5APrRjbfhSvy73XAckCFyEhtCs9UoaM=
 github.com/impire-io/soulstream-workloads v0.2.0 h1:tu8HhLzQshZKW+AbUMbPDVVfOD8EWvBVwrl/ZAiJy7s=
 github.com/impire-io/soulstream-workloads v0.2.0/go.mod h1:5P7p3e0OSHPyORX5NyO9rIjurDASX/JK86pxa3iVTGk=
 github.com/klauspost/compress v1.19.1 h1:VsB4HPswih7mmZ8WleSFQ75c/Ui1M4trX5oAsJnhSlk=
