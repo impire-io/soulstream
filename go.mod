@@ -4,10 +4,10 @@ go 1.26.2
 
 require (
 	github.com/impire-io/soulstream-archivist v0.3.0
-	github.com/impire-io/soulstream-core v0.8.1
+	github.com/impire-io/soulstream-core v0.8.2
 	github.com/impire-io/soulstream-idp v0.4.0
 	github.com/impire-io/soulstream-mcp v0.1.0
-	github.com/impire-io/soulstream-shell v0.3.0
+	github.com/impire-io/soulstream-shell v0.4.0
 	github.com/impire-io/soulstream-workloads v0.2.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/nats-io/jwt/v2 v2.8.2
@@ -65,11 +65,3 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
-
-// TEMPORARY until soulstream-shell tags: the shell plane learns whether this
-// deployment issues agent credentials.
-replace github.com/impire-io/soulstream-shell => ../soulstream-shell
-
-// TEMPORARY until soulstream-core tags: the shell's agents surface hands an
-// agent the sentinel-and-token lane, which the record library grows.
-replace github.com/impire-io/soulstream-core => ../soulstream-core
