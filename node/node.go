@@ -306,7 +306,18 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 			// The shell's people-and-sign-in module reads exactly this to
 			// know whether it is part of this build.
 			AdminBase: st.AdminSurface(),
-			Ready:     func(addr string) { ready <- addr },
+			// What this deployment declares about issuing agent
+			// credentials: the address it tells an agent to dial, which
+			// for a node serving its own machine is the address this node
+			// answers on. Composed as this node's plane, the shell holds
+			// the node's own standing, which is what minting a credential
+			// in somebody else's name needs (design 0001 §4, class (b)) —
+			// so this node runs that surface and says where to reach it.
+			// A shell run beside a deployment rather than as its plane has
+			// no such standing, declares nothing here, and runs no agents
+			// surface at all.
+			AgentsDial: n.url,
+			Ready:      func(addr string) { ready <- addr },
 		})
 	}()
 	select {

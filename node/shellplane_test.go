@@ -62,6 +62,29 @@ func TestHelmPlane(t *testing.T) {
 	if live.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated /live = %d, want 401", live.StatusCode)
 	}
+
+	// The optional surfaces this node declares are the ones it runs. Both
+	// facts are asserted the same way and from outside: a module this
+	// deployment declared answers a visitor with no session by sending them
+	// to the front door, and one it did not declare is not there to answer —
+	// 404, like any path nobody claimed. What the surfaces then do is
+	// soulstream-shell's own gate to prove; what this test holds is that the
+	// declaration crossed the seam at all.
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	for _, path := range []string{"/agents", "/people"} {
+		resp, err := noRedirect.Get(n.HelmURL() + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("this node declares %s but the plane answers %d, want 302 — "+
+				"the declaration did not reach the module", path, resp.StatusCode)
+		}
+	}
 }
 
 // TestHelmDisabled: the disabled arm runs no shell and answers no URL.

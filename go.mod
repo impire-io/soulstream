@@ -65,3 +65,11 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
+
+// TEMPORARY until soulstream-shell tags: the shell plane learns whether this
+// deployment issues agent credentials.
+replace github.com/impire-io/soulstream-shell => ../soulstream-shell
+
+// TEMPORARY until soulstream-core tags: the shell's agents surface hands an
+// agent the sentinel-and-token lane, which the record library grows.
+replace github.com/impire-io/soulstream-core => ../soulstream-core
