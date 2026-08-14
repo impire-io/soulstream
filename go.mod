@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/impire-io/soulstream-archivist v0.3.0
-	github.com/impire-io/soulstream-core v0.8.0
+	github.com/impire-io/soulstream-core v0.8.1
 	github.com/impire-io/soulstream-idp v0.4.0
 	github.com/impire-io/soulstream-mcp v0.1.0
 	github.com/impire-io/soulstream-shell v0.2.0
@@ -65,3 +65,10 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
+
+// TEMPORARY until soulstream-shell tags the AdminBase option (the shell's
+// people-and-sign-in module reads it to learn whether this deployment runs
+// a sign-in plane of its own). Remove with the pin bump — which also
+// settles the soulstream-core bump to v0.8.1 above, pulled in because the
+// untagged shell already requires it.
+replace github.com/impire-io/soulstream-shell => ../soulstream-shell

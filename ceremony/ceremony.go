@@ -140,6 +140,26 @@ func (s *State) SessionIssuer() (issuer, audience string) {
 	return "", ""
 }
 
+// AdminSurface is where this deployment administers the people who can
+// sign in, "" when it administers them nowhere this node runs.
+//
+// It is the bundled fold's own surface, and only when that fold is also the
+// authorization server sessions actually sign in against: a deployment
+// pointed at an external AS holds its people there, so the fold's own
+// records — even with the plane still running — are not the people signing
+// in, and this node has no standing to administer the ones who are.
+//
+// Nothing here probes anything. Both facts are declared in config before
+// the node starts, which is what lets a plane's absence reach a consumer as
+// a fact rather than as a failed request.
+func (s *State) AdminSurface() string {
+	issuer, _ := s.SessionIssuer()
+	if s.FoldEnabled && issuer == s.FoldIssuer {
+		return s.FoldIssuer
+	}
+	return ""
+}
+
 // Generate runs the whole founding ceremony in memory (design 0001 §4,
 // steps 1–6): no prompts, no external binaries, no I/O.
 func Generate(listen, realm string) (*State, error) {

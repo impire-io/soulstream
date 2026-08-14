@@ -300,7 +300,13 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 			Realm:        st.Realm,
 			Account:      st.RealmPub,
 			Issuer:       helmIssuer,
-			Ready:        func(addr string) { ready <- addr },
+			// What this deployment declares about administering its own
+			// people: the bundled fold's surface, or nothing at all when
+			// the people signing in live on an AS this node does not run.
+			// The shell's people-and-sign-in module reads exactly this to
+			// know whether it is part of this build.
+			AdminBase: st.AdminSurface(),
+			Ready:     func(addr string) { ready <- addr },
 		})
 	}()
 	select {
