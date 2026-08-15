@@ -1,55 +1,64 @@
-# SoulNode
+# Soulstream
 
 *The whole Soulstream ecosystem in one binary, on a machine you own.*
 
 **New here? [The getting-started guide](docs/getting-started.md)** takes
-you from nothing to a realm your Claude talks to, in about five minutes.
+you from nothing to a realm with a passkey sign-in, a console, and your
+own AI assistant answering mentions — in about five minutes.
 
-[Soulstream](../soulstream) is the record — topics as shared workbenches,
-operations, baselines, personas. [Soulrealm](../soulstream-workloads) is the room — the
-runtime that launches a realm's agents and tools as workloads.
-[SoulIdentity](../soulstream-identity) is the name — the identity plane that mints,
-scopes, and admits every persona. Running them today means a NATS deployment,
-an identity ceremony, and three daemons.
+[soulstream-core](../soulstream-core) is the record — topics as shared
+workbenches, operations, baselines, personas.
+[soulstream-identity](../soulstream-identity) is the name — the identity
+plane that mints, scopes, and admits every persona.
+[soulstream-workloads](../soulstream-workloads) is the room — the runtime
+that launches agents and tools as workloads, and the wrapper that turns
+the assistant on your own machine into one.
+[soulstream-idp](../soulstream-idp) is the door for people — a
+passkey-first OpenID provider. Running them separately means a NATS
+deployment, an identity ceremony, and a handful of daemons.
 
-SoulNode is the house: one `soulstream` binary that embeds the NATS server
-(operator mode, JetStream), the identity plane, the archivist, the realm
-runtime, and an MCP front door — so `soulstream init && soulstream up` on a
-laptop or a home server gives you a working realm, and a Claude client
-connects to the URL it prints. The shape is not simplified to fit: a SoulNode
-runs the same operator-mode, auth-callout admission as any hosted deployment.
-Owning your realm should cost one binary and one command.
+**This repo is the house**: one `soulstream` binary that embeds the NATS
+server (operator mode, JetStream), the identity plane, the archivist, the
+passkey sign-in, the shell console, and an MCP front door — so
+`soulstream init && soulstream up` on a laptop or a home server gives you
+a working realm with every URL printed. The shape is not simplified to
+fit: it runs the same operator-mode, auth-callout admission as any hosted
+deployment. Owning your realm should cost one binary and one command.
 
 ## Status
 
-**Phase 1 is complete — the realm founds, runs, remembers, and executes**
-(journeys [0003](../soul-hq/04-JOURNEY/0042-soulstream-first-boot-is-real.md),
-[0004](../soul-hq/04-JOURNEY/0044-soulstream-the-realm-remembers.md),
-[0005](../soul-hq/04-JOURNEY/0045-soulstream-an-agent-runs.md), 2026-08-02):
+**Current pre-release: [v0.11.0-rc.2](https://github.com/impire-io/soulstream/releases)**
+(episode [0086](../soul-hq/04-JOURNEY/0086-soulstream-v0-11-0-rc-2.md)) —
+bundling core v0.8.4, workloads v0.3.0, shell v0.4.3, idp v0.4.1,
+archivist v0.3.0. What a person on this RC can do:
 
 ```sh
-soulstream init      # founds a realm in ~0.15s — your token, printed once
-soulstream up        # server + identity + memory + the MCP door, loopback only
-soulstream workload start echo.json   # a declared agent runs, attributed
+soulstream init      # founds a realm — your token and a passkey invite, printed once
+soulstream up        # server + identity + memory + sign-in + console + the MCP door
 ```
 
-Then point an MCP client (Claude Code, a desktop client) at
-`http://127.0.0.1:8080` with the printed token as its bearer — the
-session's `whoami` is the persona the *realm* admitted, never what the
-client claims ([journey 0006](../soul-hq/04-JOURNEY/0049-soulstream-the-door-opens.md)).
-Admission is the full ecosystem shape (sentinel + token through auth
-callout), memory is the archivist keeping every op and answering with
-citations, and workloads run with minted TTL-bounded credentials under
-real enforcement. Everything is proven end-to-end in `make test`. Public
-(OAuth) mode waits on soulstream-idp upstream; HTTPS today is `tailscale
-serve` in front of the loopback door.
+- **Sign in with a passkey** (no password exists anywhere in the system)
+  and land in the shell — the console where people read topics, post,
+  and manage the realm, including its agents.
+- **Connect an assistant** through the MCP door (`http://127.0.0.1:8080`
+  + your bearer token); its `whoami` is the persona the *realm*
+  admitted, never what the client claims.
+- **Give the assistant its own seat**: the shell's Agents screen mints a
+  revocable credential, countersigned by you, shown once — with set-up
+  folds for Claude Code, codex, and anything else that speaks MCP.
+- **Let it answer mentions**: `soulstream wrap --harness claude` on the
+  machine where your assistant is signed in. Mentions become answers —
+  even ones posted while the wrapper was off — every wake ending in
+  exactly one reply or the agent's own honest note that it couldn't.
+- **Run declared workloads** (`soulstream workload start echo.json`) with
+  minted, TTL-bounded credentials under real enforcement.
 
 The founding bets, held with recorded reversal conditions:
 
-- **Composition, not invention.** SoulNode wires the components' public,
-  tagged surfaces; domain logic lands upstream, never here.
-- **Same shape as any deployment.** No dev-mode auth fork — what SoulNode
-  proves locally holds hosted.
+- **Composition, not invention.** This repo wires the components'
+  public, tagged surfaces; domain logic lands upstream, never here.
+- **Same shape as any deployment.** No dev-mode auth fork — what proves
+  locally holds hosted.
 - **One process, planes by configuration.** Every enabled plane in the
   binary, each on an ordinary loopback NATS connection — repointable or
   removable by configuration alone; workloads always outside, through
@@ -72,7 +81,7 @@ each feature's spec-kit artifacts freeze under `specs/NNN-*/` as it lands.
 
 ## License
 
-SoulNode is [fair-code](https://faircode.io) licensed under the
+Soulstream is [fair-code](https://faircode.io) licensed under the
 [Sustainable Use License](LICENSE) — © 2026 Daan Gerits. Free to use, modify,
 and self-host for internal or non-commercial use; offering it to others as a
 paid product or service requires an agreement — see

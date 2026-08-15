@@ -1,14 +1,19 @@
-# Getting started with SoulNode
+# Getting started with Soulstream
 
-SoulNode puts a whole realm — record, identity, memory, and a door for
-your AI tools — in one binary on a machine you own. This guide takes you
-from nothing to a working realm your Claude can talk to, in about five
-minutes. Nothing here requires understanding NATS, key ceremonies, or
-the ecosystem's internals; that is the point of the product.
+Soulstream puts a whole realm — the shared record, identity, memory, a
+passkey sign-in, a console for people, and a door for your AI tools — in
+one binary on a machine you own. This guide takes you from nothing to a
+working realm with your own assistant answering mentions, in about five
+minutes. Nothing here requires understanding NATS, key ceremonies, or the
+ecosystem's internals; that is the point of the product.
 
 ## 1. Get the binary
 
-There is no packaged release yet — build from the repo (Go 1.26+):
+Download the archive for your platform from the
+[releases page](https://github.com/impire-io/soulstream/releases)
+(current pre-release: `v0.11.0-rc.2`; macOS and Linux, amd64 and arm64),
+unpack it, and put `soulstream` on your PATH. Or build from the repo
+(Go 1.26+):
 
 ```sh
 git clone git@github.com:impire-io/soulstream.git
@@ -25,8 +30,8 @@ soulstream init
 One command, no questions asked. It generates everything your realm
 stands on — the trust root, the accounts, the admission machinery, the
 sealing keys — into a state directory (default: your OS config dir,
-`soulstream/`), boots the node once to perform the founding acts, and ends
-with the only secret you will ever be shown:
+`soulstream/`), boots the node once to perform the founding acts, and
+ends with the two things you must keep:
 
 ```
 soulstream: realm "home" founded at /Users/you/Library/Application Support/soulstream
@@ -34,20 +39,21 @@ your access token (shown once, never stored):
 
     sit_4f2a…
 
-point an MCP client at http://127.0.0.1:8080 with that token as its bearer,
-or a NATS client at nats://127.0.0.1:4222 with sentinel …/sentinel.creds
+your passkey enrollment invite (single use, shown once):
+
+    http://localhost:8378/enroll?invite=sfi_…
 ```
 
-**Save the token in your password manager now.** It is shown exactly
-once; the node keeps only its fingerprint. (Lose it and, for today, you
-found a fresh realm — a `soulstream token` command for minting more is an
-obvious next feature, not yet built.)
+**Save the token in your password manager now** — it is shown exactly
+once; the node keeps only its fingerprint. The invite is how you enroll
+your passkey in step 4.
 
-Defaults you can change at founding time (they are written into the
-state directory's `config.json`, which is the configuration from then
-on): `--realm` (the realm's name, default `home`), `--listen` (the NATS
-listener, default `127.0.0.1:4222`), `--door-listen` (the MCP door,
-default `127.0.0.1:8080`), `--state` (where the realm lives).
+Defaults you can change at founding time (written into the state
+directory's `config.json`, which is the configuration from then on):
+`--realm` (default `home`), `--listen` (NATS, default `127.0.0.1:4222`),
+`--door-listen` (the MCP door, default `127.0.0.1:8080`),
+`--fold-listen` (sign-in), `--shell-listen` (the console), `--state`
+(where the realm lives).
 
 Running `init` again is always safe: it verifies and reports, never
 regenerates, never mints a second token.
@@ -63,15 +69,27 @@ soulstream: state /Users/you/…/soulstream (realm "home")
 soulstream: listening on nats://127.0.0.1:4222 (loopback)
 soulstream: identity plane serving
 soulstream: memory plane serving
-soulstream: front door serving http://127.0.0.1:8080
+soulstream: MCP door        http://127.0.0.1:8080
+soulstream: sign-in (fold)  http://localhost:8378/login/
+soulstream: admin console   http://localhost:8378/admin
+soulstream: shell console   http://127.0.0.1:8500
 ```
 
 Everything binds loopback only — nothing is reachable from outside the
-machine unless you deliberately front it (step 6). `Ctrl-C` drains and
+machine unless you deliberately front it (step 8). `Ctrl-C` drains and
 exits; `soulstream up` again resumes the same realm. The audit log
 (admissions, refusals) goes to stderr.
 
-## 4. Connect Claude
+## 4. Sign in with a passkey
+
+Open the enrollment invite from step 2, register a passkey, and you land
+in the **shell** — the console where people read topics, post turns, and
+manage the realm. No password exists anywhere in the system: not as a
+fallback, not behind a flag. (Lose all passkeys and the admin console is
+where a signed-in administrator re-invites; the last administrator
+cannot be locked out by design.)
+
+## 5. Connect your assistant
 
 ```sh
 claude mcp add --transport http soulstream http://127.0.0.1:8080 \
@@ -92,12 +110,45 @@ the same way. Then, in a session, try:
 A wrong or revoked token never gets a session, and you will see the
 refusal in the node's log.
 
-## 5. Run an agent
+## 6. Give your assistant a seat of its own
 
-Workloads are declared, then run — the runtime mints them a tight,
-short-lived credential of their own; they never see your keys. Create
-`echo.json` (use a topic path that exists — `soulstream_start_topic`
-returns it):
+Sessions through your token act as *you*. To let an assistant work as a
+persona of its own — its name on its work, revocable the moment you say
+so — open **Agents** in the shell and add one: a handle, a display name,
+and your own signature vouching for it. The screen answers with the
+agent's whole configuration, shown once, and says exactly where it goes:
+Claude Code takes it as its `.mcp.json`, codex takes the same values as
+TOML, and anything else that speaks MCP gets the shape in plain words.
+
+## 7. Let it answer mentions — the wrapper
+
+The step that makes an agent *addressable*: run the wrapper on the
+machine where your assistant is already signed in (your logins, your
+configuration — nothing to hand over):
+
+```sh
+export SOULSTREAM_URL=… SOULSTREAM_CREDS=… SOULSTREAM_TOKEN=… \
+       SOULSTREAM_REALM=… SOULSTREAM_PERSONA=…   # the block from step 6
+soulstream wrap --harness claude                  # or codex, or --template file.json
+```
+
+(The `wrap` verb runs the `soulstream-wrap` binary —
+`go install github.com/impire-io/soulstream-workloads/cmd/soulstream-wrap@latest`
+puts it beside the CLI.)
+
+Now a mention of the agent in any topic becomes an answer — including
+mentions posted while the wrapper was off; they are caught up from the
+agent's inbox when it starts. Every wake ends in exactly one outcome:
+the reply, or the agent's own note that it could not answer. Stop the
+wrapper any time — nothing is lost; take the credential away in the
+shell and it stops for good.
+
+## 8. Run a declared workload
+
+Beyond wrapping your own assistant, the runtime launches declared
+agents and tools as workloads — each minted a tight, short-lived
+credential of its own; they never see your keys. Create `echo.json`
+(use a topic path that exists — `soulstream_start_topic` returns it):
 
 ```json
 {
@@ -117,7 +168,7 @@ The agent's turn appears on the topic attributed to *its* persona, its
 lifecycle (opened, claimed, done) is realm activity like everything
 else, and the archivist remembers all of it.
 
-## 6. Reaching it from elsewhere (optional)
+## 9. Reaching it from elsewhere (optional)
 
 The door is plain HTTP on loopback. To reach it from your other devices,
 front it with something you already trust — the simplest being a
@@ -131,7 +182,7 @@ Your token remains the only secret: the sentinel file is deliberately
 public (it is a deny-all routing artifact), and the door itself holds no
 keys and no per-user state.
 
-## 7. Where everything lives
+## 10. Where everything lives
 
 The state directory **is** the realm: keys, configuration, the message
 store, the archive. Back it up by copying it (node stopped); move to a
@@ -141,12 +192,14 @@ cannot hold that.
 
 ## What's deliberately not here yet
 
-- **Minting more tokens / personas for other people** — the identity
-  plane supports it; the CLI surface doesn't yet.
-- **Public HTTPS mode with real OAuth** — waits on the ecosystem's
-  authorization server (soulstream-idp); today the answer is fronting (step 6).
+- **Public HTTPS mode with real OAuth end-to-end** — the passkey door
+  and OIDC lane run locally today; the fronted public-mode story ships
+  behind its own pass. Today's answer is fronting (step 9).
 - **Bring-your-own NATS and remote planes** — the configuration shape is
   built for it; the ceremony split ships behind its own design pass.
+- **Agents woken as isolated workloads** — the wrapper runs your
+  assistant where you are; running wraps behind the isolation backends
+  waits on a distributable-harness story, recorded in the design.
 
 The honest, complete history of what works and how it was proven lives
 in [`../soul-hq/04-JOURNEY/`](../soul-hq/04-JOURNEY/README.md).
