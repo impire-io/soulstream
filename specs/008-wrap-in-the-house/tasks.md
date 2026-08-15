@@ -11,5 +11,5 @@
   unknown preset, usage carries the verbs).
 - [x] T004 `docs/getting-started.md`: steps 6–7 become download-and-
   paste; no `go install` anywhere in the file.
-- [ ] T005 Gate green (`make check`); live SC-002 recorded; merge; hq
+- [x] T005 Gate green (`make check`); live SC-002 recorded; merge; hq
   episode/roadmap ride the arc's landing.
