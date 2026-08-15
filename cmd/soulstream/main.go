@@ -30,6 +30,12 @@ Usage:
   soulstream up   [--state DIR]                   run it until interrupted
   soulstream workload start <declaration.json> [--state DIR]
                                                 run one declared workload (node must be up)
+  soulstream wrap --harness claude|codex | --template FILE
+                                                run your agent here: mentions become answers.
+                                                Reads the five SOULSTREAM_* values from the
+                                                Agents screen's block; needs nothing else.
+  soulstream mcp                                the stdio tool door wrap launches from this
+                                                same binary (same five values; flags override)
   soulstream version
 
 State dir: --state, else $SOULNODE_STATE, else <user config dir>/soulstream.
@@ -52,6 +58,10 @@ func run(args []string, out, errw io.Writer) int {
 		err = cmdUp(args[1:], out, errw)
 	case "workload":
 		err = cmdWorkload(args[1:], out, errw)
+	case "wrap":
+		err = cmdWrap(args[1:], errw)
+	case "mcp":
+		err = cmdMCP(args[1:], errw)
 	case "version":
 		fmt.Fprintln(out, version.Version)
 	case "help", "-h", "--help":
