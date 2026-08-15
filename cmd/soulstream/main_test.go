@@ -104,3 +104,50 @@ func TestVersion(t *testing.T) {
 		t.Fatal("version printed nothing")
 	}
 }
+
+// The wrap and mcp verbs are the no-toolchain agent path (specs/008): the
+// lane is the five SOULSTREAM_* names the Agents screen mints, and every
+// refusal names the missing piece before anything dials.
+func TestWrapAndMCPRefusalsNameTheMissingPiece(t *testing.T) {
+	for _, k := range []string{"SOULSTREAM_URL", "SOULSTREAM_CREDS",
+		"SOULSTREAM_TOKEN", "SOULSTREAM_REALM", "SOULSTREAM_PERSONA"} {
+		t.Setenv(k, "")
+	}
+	refuse := func(t *testing.T, args []string, want string) {
+		t.Helper()
+		var out, errw bytes.Buffer
+		if code := run(args, &out, &errw); code != 1 {
+			t.Fatalf("%v exited %d, want 1 (out %s, err %s)", args, code, out.String(), errw.String())
+		}
+		if !strings.Contains(errw.String(), want) {
+			t.Fatalf("refusal does not name %q: %s", want, errw.String())
+		}
+	}
+
+	refuse(t, []string{"wrap", "--harness", "claude"}, "SOULSTREAM_PERSONA")
+	refuse(t, []string{"mcp"}, "SOULSTREAM_PERSONA")
+	t.Setenv("SOULSTREAM_PERSONA", "clerk")
+	refuse(t, []string{"wrap", "--harness", "claude"}, "SOULSTREAM_REALM")
+	t.Setenv("SOULSTREAM_REALM", "home")
+	refuse(t, []string{"wrap", "--harness", "claude"}, "SOULSTREAM_URL")
+
+	// A whole lane but no assistant: the refusal offers the two presets and
+	// the template escape, before anything connects.
+	t.Setenv("SOULSTREAM_URL", "nats://127.0.0.1:1")
+	refuse(t, []string{"wrap"}, "pick an assistant")
+	refuse(t, []string{"wrap", "--harness", "mystery"}, "claude, codex")
+}
+
+// The usage text carries the two verbs, so a person holding only the
+// binary can find the agent path.
+func TestUsageCarriesTheAgentPath(t *testing.T) {
+	var out, errw bytes.Buffer
+	if code := run([]string{"help"}, &out, &errw); code != 0 {
+		t.Fatalf("help exit %d", code)
+	}
+	for _, want := range []string{"soulstream wrap", "soulstream mcp", "SOULSTREAM_"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("usage does not carry %q:\n%s", want, out.String())
+		}
+	}
+}
