@@ -35,35 +35,35 @@ type State struct {
 	// block); the bundle default is true.
 	MemoryEnabled bool
 
-	// DoorEnabled and DoorListen are the MCP door plane (design §2's
+	// MCPEnabled and MCPListen are the MCP door plane (design §2's
 	// second block): a loopback HTTP listener, enabled by default.
-	DoorEnabled bool
-	DoorListen  string
+	MCPEnabled bool
+	MCPListen  string
 
 	// Public door mode (the roadmap's Phase-2 public clause, additive):
-	// DoorPublicURL is the door's advertised public address (the OAuth
+	// MCPPublicURL is the door's advertised public address (the OAuth
 	// resource identifier — deployment fronting such as `tailscale
-	// serve` carries HTTPS to the loopback listener); DoorAuthIssuer is
+	// serve` carries HTTPS to the loopback listener); MCPAuthIssuer is
 	// the external authorization server's issuer URL (the bundled fold
 	// when the fold plane runs and no issuer is set — the default
-	// wiring; the door stays AS-agnostic); DoorAuthAudience is the
+	// wiring; the door stays AS-agnostic); MCPAuthAudience is the
 	// deployment's fixed token audience the identity plane's OIDC lane
 	// validates. All three or none after defaulting.
-	DoorPublicURL    string
-	DoorAuthIssuer   string
-	DoorAuthAudience string
+	MCPPublicURL    string
+	MCPAuthIssuer   string
+	MCPAuthAudience string
 
 	// The fold plane (soulstream-idp M5's bundled story, opt-in): the
 	// deployment's own passkey-first OIDC provider in-process, storing
 	// on the node's JetStream under its own bucket prefix, seal seed
-	// under <state>/fold/. FoldIssuer's host is WebAuthn's one-way door
+	// under <state>/fold/. SignInIssuer's host is WebAuthn's one-way door
 	// at first enrollment — public deployments set it to the fronted
-	// name before anyone enrolls. FoldAudience defaults to
+	// name before anyone enrolls. SignInAudience defaults to
 	// "soulstream-<realm>".
-	FoldEnabled  bool
-	FoldListen   string
-	FoldIssuer   string
-	FoldAudience string
+	SignInEnabled  bool
+	SignInListen   string
+	SignInIssuer   string
+	SignInAudience string
 
 	// The shell plane (soulstream-shell — the human cockpit): a loopback HTTP
 	// surface, sessions signing in against the deployment's AS (the
@@ -113,7 +113,7 @@ type State struct {
 	OpsCreds       []byte
 	ArchivistCreds []byte
 	RunnerCreds    []byte
-	FoldCreds      []byte
+	SignInCreds    []byte
 }
 
 // FoundingPersona is the persona name the first access token represents:
@@ -126,16 +126,16 @@ const FoundingPersona = "owner"
 // explicit external AS (public door mode) wins; otherwise the bundled
 // fold when the shell needs one. Empty means the lane stays off.
 func (s *State) SessionIssuer() (issuer, audience string) {
-	if s.DoorAuthIssuer != "" {
-		return s.DoorAuthIssuer, s.DoorAuthAudience
+	if s.MCPAuthIssuer != "" {
+		return s.MCPAuthIssuer, s.MCPAuthAudience
 	}
-	if s.HelmEnabled && s.FoldEnabled {
+	if s.HelmEnabled && s.SignInEnabled {
 		// An ephemeral fold listener (:0) yields an issuer no browser
 		// or validator can reach; sessions are a real-port feature.
-		if strings.HasSuffix(s.FoldIssuer, ":0") {
+		if strings.HasSuffix(s.SignInIssuer, ":0") {
 			return "", ""
 		}
-		return s.FoldIssuer, s.FoldAudience
+		return s.SignInIssuer, s.SignInAudience
 	}
 	return "", ""
 }
@@ -154,8 +154,8 @@ func (s *State) SessionIssuer() (issuer, audience string) {
 // a fact rather than as a failed request.
 func (s *State) AdminSurface() string {
 	issuer, _ := s.SessionIssuer()
-	if s.FoldEnabled && issuer == s.FoldIssuer {
-		return s.FoldIssuer
+	if s.SignInEnabled && issuer == s.SignInIssuer {
+		return s.SignInIssuer
 	}
 	return ""
 }
@@ -175,9 +175,9 @@ func Generate(listen, realm string) (*State, error) {
 	// issuer host is localhost — WebAuthn's RP-ID rule refuses a bare IP.
 	// Turn the plane off by setting planes.fold.enabled=false in config.
 	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true,
-		DoorEnabled: true, DoorListen: "127.0.0.1:8080",
-		FoldEnabled: true, FoldListen: "127.0.0.1:8378",
-		FoldIssuer: "http://localhost:8378", FoldAudience: "soulstream-" + realm,
+		MCPEnabled: true, MCPListen: "127.0.0.1:8080",
+		SignInEnabled: true, SignInListen: "127.0.0.1:8378",
+		SignInIssuer: "http://localhost:8378", SignInAudience: "soulstream-" + realm,
 		HelmEnabled: true, HelmListen: "127.0.0.1:8500"}
 
 	// 1. The operator — the trust root.
@@ -278,7 +278,7 @@ func Generate(listen, realm string) (*State, error) {
 	if s.RunnerCreds, err = userCreds("runner", realmKP); err != nil {
 		return nil, err
 	}
-	if s.FoldCreds, err = userCreds("fold", realmKP); err != nil {
+	if s.SignInCreds, err = userCreds("signin", realmKP); err != nil {
 		return nil, err
 	}
 	issuerClaims := jwt.NewUserClaims(issuerUserPub)

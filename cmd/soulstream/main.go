@@ -25,7 +25,7 @@ const usage = `soulstream — your realm in one binary
 
 Usage:
   soulstream init [--state DIR] [--listen ADDR] [--realm NAME]
-                [--door-listen ADDR] [--fold-listen ADDR]
+                [--mcp-listen ADDR] [--signin-listen ADDR]
                                                 found a realm (prints your token ONCE)
   soulstream up   [--state DIR]                   run it until interrupted
   soulstream workload start <declaration.json> [--state DIR]
@@ -34,7 +34,7 @@ Usage:
                                                 run your agent here: mentions become answers.
                                                 Reads the five SOULSTREAM_* values from the
                                                 Agents screen's block; needs nothing else.
-  soulstream mcp                                the stdio tool door wrap launches from this
+  soulstream mcp                                the stdio MCP server wrap launches from this
                                                 same binary (same five values; flags override)
   soulstream version
 
@@ -98,11 +98,21 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	stateFlag := fs.String("state", "", "state directory")
 	listen := fs.String("listen", "127.0.0.1:4222", "loopback listener (written to config.json on the founding run)")
 	realmName := fs.String("realm", "home", "realm name (written to config.json on the founding run)")
-	doorListen := fs.String("door-listen", "127.0.0.1:8080", "the MCP door's loopback listener (written to config.json on the founding run)")
-	foldListen := fs.String("fold-listen", "127.0.0.1:8378", "the bundled fold's loopback listener — sign-in and the admin console (written to config.json)")
-	helmListen := fs.String("shell-listen", "127.0.0.1:8500", "the shell's loopback listener — the human cockpit (written to config.json)")
+	mcpListen := fs.String("mcp-listen", "127.0.0.1:8080", "the MCP endpoint's loopback listener (written to config.json on the founding run)")
+	signinListen := fs.String("signin-listen", "127.0.0.1:8378", "the sign-in service's loopback listener (written to config.json)")
+	helmListen := fs.String("shell-listen", "127.0.0.1:8500", "the shell console's loopback listener (written to config.json)")
+	// The byname-era spellings are accepted forever; only the functional
+	// ones appear in the usage text (design 0001 §2).
+	legacyMCP := fs.String("door-listen", "", "older spelling of --mcp-listen")
+	legacySignin := fs.String("fold-listen", "", "older spelling of --signin-listen")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *legacyMCP != "" {
+		mcpListen = legacyMCP
+	}
+	if *legacySignin != "" {
+		signinListen = legacySignin
 	}
 	listenSet, realmSet := false, false
 	fs.Visit(func(f *flag.Flag) {
@@ -149,13 +159,13 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	if err != nil {
 		return err
 	}
-	st.DoorListen = *doorListen
-	st.FoldListen = *foldListen
+	st.MCPListen = *mcpListen
+	st.SignInListen = *signinListen
 	// Keep the issuer's port in step with the chosen listener (host stays
 	// localhost — WebAuthn refuses a bare IP); a public deployment sets
 	// planes.fold.issuer to its fronted name in config afterward.
-	if _, port, err := net.SplitHostPort(*foldListen); err == nil {
-		st.FoldIssuer = "http://localhost:" + port
+	if _, port, err := net.SplitHostPort(*signinListen); err == nil {
+		st.SignInIssuer = "http://localhost:" + port
 	}
 	st.HelmListen = *helmListen
 	if err := st.Save(dir); err != nil {
@@ -173,11 +183,11 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	fmt.Fprintf(out, "soulstream: realm %q founded at %s\n", st.Realm, dir)
 	fmt.Fprintf(out, "your access token (shown once, never stored):\n\n    %s\n\n", token)
 	if invite := n.FoldInvite(); invite != "" {
-		fmt.Fprintf(out, "your passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
+		fmt.Fprintf(out, "your passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.SignInURL(), invite)
 	}
-	fmt.Fprintln(out, "run `soulstream up` to serve — it prints the door, sign-in, and admin-console URLs.")
-	if st.DoorEnabled {
-		fmt.Fprintf(out, "point an MCP client at http://%s with that token as its bearer,\n", st.DoorListen)
+	fmt.Fprintln(out, "run `soulstream up` to serve — it prints the MCP, sign-in, and shell URLs.")
+	if st.MCPEnabled {
+		fmt.Fprintf(out, "point an MCP client at http://%s with that token as its bearer,\n", st.MCPListen)
 		fmt.Fprintf(out, "or a NATS client at nats://%s with sentinel %s\n",
 			st.Listen, ceremony.SentinelPath(dir))
 	} else {
@@ -225,9 +235,9 @@ func cmdUp(args []string, out, errw io.Writer) error {
 		fmt.Fprintln(out, "soulstream: memory plane serving")
 	}
 	printEndpoints(out, n, st)
-	if st.FoldEnabled {
+	if st.SignInEnabled {
 		if invite := n.FoldInvite(); invite != "" {
-			fmt.Fprintf(out, "soulstream: passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.FoldURL(), invite)
+			fmt.Fprintf(out, "soulstream: passkey enrollment invite (single use, shown once):\n\n    %s/enroll?invite=%s\n\n", n.SignInURL(), invite)
 		}
 	}
 
@@ -240,23 +250,23 @@ func cmdUp(args []string, out, errw io.Writer) error {
 }
 
 // printEndpoints logs every URL a person or client needs, once the node
-// is up: the MCP door, the fold's sign-in, and the admin console. The
-// door and the fold are separate services on separate loopback ports;
-// in public mode each needs its own fronted route (a shared hostname
-// would have the door's catch-all swallow the fold), so this names both
-// public URLs when set.
+// is up: the MCP endpoint for assistants, the sign-in page, and the
+// shell console. The MCP endpoint and the sign-in service are separate
+// services on separate loopback ports; in public mode each needs its own
+// fronted route (a shared hostname would have the MCP catch-all swallow
+// the sign-in pages), so this names both public URLs when set.
+// Administration lives in the shell console — nothing else is printed.
 func printEndpoints(out io.Writer, n *node.Node, st *ceremony.State) {
-	if st.DoorEnabled {
-		fmt.Fprintf(out, "soulstream: MCP door        %s\n", n.DoorURL())
-		if st.DoorPublicURL != "" {
-			fmt.Fprintf(out, "soulstream:   public door   %s (front this to the door port)\n", st.DoorPublicURL)
+	if st.MCPEnabled {
+		fmt.Fprintf(out, "soulstream: MCP (assistants) %s\n", n.MCPURL())
+		if st.MCPPublicURL != "" {
+			fmt.Fprintf(out, "soulstream:   public MCP URL %s (front this to the MCP port)\n", st.MCPPublicURL)
 		}
 	}
-	if st.FoldEnabled {
-		fmt.Fprintf(out, "soulstream: sign-in (fold)  %s/login/\n", n.FoldURL())
-		fmt.Fprintf(out, "soulstream: admin console   %s/admin\n", n.FoldURL())
-		if st.DoorPublicURL != "" {
-			fmt.Fprintf(out, "soulstream:   public fold   %s (a DISTINCT route from the door)\n", st.FoldIssuer)
+	if st.SignInEnabled {
+		fmt.Fprintf(out, "soulstream: sign-in          %s/login/\n", n.SignInURL())
+		if st.MCPPublicURL != "" {
+			fmt.Fprintf(out, "soulstream:   public sign-in %s (a DISTINCT route from the MCP URL)\n", st.SignInIssuer)
 		}
 	}
 	if st.HelmEnabled {

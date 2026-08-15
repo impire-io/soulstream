@@ -1,7 +1,7 @@
 # Getting started with Soulstream
 
 Soulstream puts a whole realm — the shared record, identity, memory, a
-passkey sign-in, a console for people, and a door for your AI tools — in
+passkey sign-in, a console for people, and an MCP endpoint for your AI tools — in
 one binary on a machine you own. This guide takes you from nothing to a
 working realm with your own assistant answering mentions, in about five
 minutes. Nothing here requires understanding NATS, key ceremonies, or the
@@ -51,8 +51,8 @@ your passkey in step 4.
 Defaults you can change at founding time (written into the state
 directory's `config.json`, which is the configuration from then on):
 `--realm` (default `home`), `--listen` (NATS, default `127.0.0.1:4222`),
-`--door-listen` (the MCP door, default `127.0.0.1:8080`),
-`--fold-listen` (sign-in), `--shell-listen` (the console), `--state`
+`--mcp-listen` (the MCP endpoint, default `127.0.0.1:8080`),
+`--signin-listen` (sign-in), `--shell-listen` (the console), `--state`
 (where the realm lives).
 
 Running `init` again is always safe: it verifies and reports, never
@@ -69,10 +69,9 @@ soulstream: state /Users/you/…/soulstream (realm "home")
 soulstream: listening on nats://127.0.0.1:4222 (loopback)
 soulstream: identity plane serving
 soulstream: memory plane serving
-soulstream: MCP door        http://127.0.0.1:8080
-soulstream: sign-in (fold)  http://localhost:8378/login/
-soulstream: admin console   http://localhost:8378/admin
-soulstream: shell console   http://127.0.0.1:8500
+soulstream: MCP (assistants) http://127.0.0.1:8080
+soulstream: sign-in          http://localhost:8378/login/
+soulstream: shell console    http://127.0.0.1:8500
 ```
 
 Everything binds loopback only — nothing is reachable from outside the
@@ -132,10 +131,10 @@ soulstream wrap --harness claude    # or codex, or --template file.json
 
 with the agent's identity in its environment. The `soulstream` binary
 you downloaded in step 1 is everything the block needs — the wrapper
-and the MCP tool door it launches (`soulstream mcp`) live inside it, so
+and the MCP server it launches (`soulstream mcp`) live inside it, so
 a different machine only needs the same one-file download. Prefer the
-hard way, or an assistant nobody wrote a preset for? The screen's folds
-carry the raw MCP configuration too.
+hard way, or an assistant nobody wrote a preset for? The screen's
+collapsed sections carry the raw MCP configuration too.
 
 Now a mention of the agent in any topic becomes an answer — including
 mentions posted while the wrapper was off; they are caught up from the
@@ -171,7 +170,7 @@ else, and the archivist remembers all of it.
 
 ## 9. Reaching it from elsewhere (optional)
 
-The door is plain HTTP on loopback. To reach it from your other devices,
+The MCP endpoint is plain HTTP on loopback. To reach it from your other devices,
 front it with something you already trust — the simplest being a
 tailnet:
 
@@ -180,7 +179,7 @@ tailscale serve 8080
 ```
 
 Your token remains the only secret: the sentinel file is deliberately
-public (it is a deny-all routing artifact), and the door itself holds no
+public (it is a deny-all routing artifact), and the endpoint itself holds no
 keys and no per-user state.
 
 ## 10. Where everything lives
@@ -193,7 +192,7 @@ cannot hold that.
 
 ## What's deliberately not here yet
 
-- **Public HTTPS mode with real OAuth end-to-end** — the passkey door
+- **Public HTTPS mode with real OAuth end-to-end** — the passkey sign-in
   and OIDC lane run locally today; the fronted public-mode story ships
   behind its own pass. Today's answer is fronting (step 9).
 - **Bring-your-own NATS and remote planes** — the configuration shape is

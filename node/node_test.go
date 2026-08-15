@@ -81,7 +81,7 @@ func TestM11Gate(t *testing.T) {
 	// init's founding half (the cmd drives exactly this path).
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err == nil {
-		st.DoorListen = "127.0.0.1:0"
+		st.MCPListen = "127.0.0.1:0"
 	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
@@ -182,7 +182,7 @@ func TestM12Memory(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err == nil {
-		st.DoorListen = "127.0.0.1:0"
+		st.MCPListen = "127.0.0.1:0"
 	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
@@ -345,7 +345,7 @@ func TestM13AgentRuns(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err == nil {
-		st.DoorListen = "127.0.0.1:0"
+		st.MCPListen = "127.0.0.1:0"
 	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)
@@ -462,7 +462,7 @@ func TestFrontDoor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	st.DoorListen = "127.0.0.1:0"
+	st.MCPListen = "127.0.0.1:0"
 	if err := st.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -476,7 +476,7 @@ func TestFrontDoor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("found: %v", err)
 	}
-	if n.DoorURL() == "" {
+	if n.MCPURL() == "" {
 		t.Fatal("door enabled but no URL")
 	}
 
@@ -486,7 +486,7 @@ func TestFrontDoor(t *testing.T) {
 	dial := func(bearer string) (*mcp.ClientSession, error) {
 		client := mcp.NewClient(&mcp.Implementation{Name: "soulstream-test", Version: "0.0.1"}, nil)
 		transport := &mcp.StreamableClientTransport{
-			Endpoint:   n.DoorURL(),
+			Endpoint:   n.MCPURL(),
 			HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -563,7 +563,7 @@ func TestMemoryDisabled(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err == nil {
-		st.DoorListen = "127.0.0.1:0"
+		st.MCPListen = "127.0.0.1:0"
 	}
 	if err != nil {
 		t.Fatalf("generate: %v", err)

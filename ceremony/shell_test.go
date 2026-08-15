@@ -21,7 +21,7 @@ func TestHelmWiring(t *testing.T) {
 	if !st.HelmEnabled || st.HelmListen != "127.0.0.1:8500" {
 		t.Fatalf("founding defaults: enabled=%v listen=%q", st.HelmEnabled, st.HelmListen)
 	}
-	if iss, aud := st.SessionIssuer(); iss != st.FoldIssuer || aud != st.FoldAudience {
+	if iss, aud := st.SessionIssuer(); iss != st.SignInIssuer || aud != st.SignInAudience {
 		t.Fatalf("session issuer = %q/%q, want the bundled fold", iss, aud)
 	}
 
@@ -79,7 +79,7 @@ func TestHelmWiring(t *testing.T) {
 	// The shell without any sign-in issuer is refused by name.
 	rewrite(func(cfg map[string]any) {
 		planes(cfg)["shell"] = map[string]any{"enabled": true, "listen": "127.0.0.1:8500"}
-		planes(cfg)["fold"] = map[string]any{"enabled": false}
+		planes(cfg)["signin"] = map[string]any{"enabled": false}
 	})
 	if _, err := ceremony.Verify(dir); err == nil ||
 		!strings.Contains(err.Error(), "sign-in issuer") {
@@ -98,17 +98,17 @@ func TestAdminSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := st.AdminSurface(); got != st.FoldIssuer {
-		t.Fatalf("bundled: admin surface = %q, want the fold's own %q", got, st.FoldIssuer)
+	if got := st.AdminSurface(); got != st.SignInIssuer {
+		t.Fatalf("bundled: admin surface = %q, want the fold's own %q", got, st.SignInIssuer)
 	}
 
 	// The external-IdP shape: the plane is off and sessions ride an AS
 	// this node does not run. There is nobody here to administer.
 	ext := *st
-	ext.FoldEnabled = false
-	ext.DoorPublicURL = "http://node.example:8080"
-	ext.DoorAuthIssuer = "http://as.example"
-	ext.DoorAuthAudience = "soulstream-home"
+	ext.SignInEnabled = false
+	ext.MCPPublicURL = "http://node.example:8080"
+	ext.MCPAuthIssuer = "http://as.example"
+	ext.MCPAuthAudience = "soulstream-home"
 	if got := ext.AdminSurface(); got != "" {
 		t.Fatalf("external AS: admin surface = %q, want none", got)
 	}
@@ -117,9 +117,9 @@ func TestAdminSurface(t *testing.T) {
 	// somewhere else. The fold's own records are not the people signing
 	// in, so this node has no standing to administer them either.
 	both := *st
-	both.DoorPublicURL = "http://node.example:8080"
-	both.DoorAuthIssuer = "http://as.example"
-	both.DoorAuthAudience = "soulstream-home"
+	both.MCPPublicURL = "http://node.example:8080"
+	both.MCPAuthIssuer = "http://as.example"
+	both.MCPAuthAudience = "soulstream-home"
 	if got := both.AdminSurface(); got != "" {
 		t.Fatalf("fold beside an external AS: admin surface = %q, want none", got)
 	}
@@ -127,7 +127,7 @@ func TestAdminSurface(t *testing.T) {
 	// An ephemeral fold listener resolves to no issuer at all, and an
 	// unreachable issuer is not a surface to administer through.
 	eph := *st
-	eph.FoldIssuer = "http://localhost:0"
+	eph.SignInIssuer = "http://localhost:0"
 	if got := eph.AdminSurface(); got != "" {
 		t.Fatalf("ephemeral fold: admin surface = %q, want none", got)
 	}

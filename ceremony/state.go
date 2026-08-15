@@ -38,7 +38,10 @@ const (
 	fileOpsCreds        = "users/ops.creds"
 	fileArchivistCreds  = "users/archivist.creds"
 	fileRunnerCreds     = "users/runner.creds"
-	fileFoldCreds       = "users/fold.creds"
+	fileSignInCreds     = "users/signin.creds"
+	// fileLegacySignInCreds is the byname-era spelling, read forever: a
+	// founded realm's artifacts are never rewritten (design 0001 §2).
+	fileLegacySignInCreds = "users/fold.creds"
 )
 
 // ErrIncomplete marks a state directory whose keys exist but whose
@@ -55,19 +58,26 @@ type config struct {
 	Realm  string `json:"realm"`
 	Planes struct {
 		Memory planeConfig `json:"memory"`
-		Door   planeConfig `json:"door"`
-		// Fold is a pointer on purpose: the block's absence means
-		// disabled — state dirs founded before the fold plane existed
-		// must not sprout one on upgrade.
-		Fold *foldConfig `json:"fold,omitempty"`
+		// MCP is the assistants' endpoint, named by function; Door is the
+		// same block under its byname-era key, read forever so a founded
+		// realm's config never stops working (design 0001 §2). Both
+		// absent means enabled — the plane is on by default.
+		MCP  *planeConfig `json:"mcp,omitempty"`
+		Door *planeConfig `json:"door,omitempty"`
+		// SignIn is the bundled sign-in service, named by function; Fold
+		// is its byname-era key, read forever. Pointers on purpose: the
+		// block's absence means disabled — state dirs founded before the
+		// plane existed must not sprout one on upgrade.
+		SignIn *signinConfig `json:"signin,omitempty"`
+		Fold   *signinConfig `json:"fold,omitempty"`
 		// Shell is a pointer for the same reason: state dirs founded
 		// before the shell plane existed must not sprout one on upgrade.
 		Shell *helmConfig `json:"shell,omitempty"`
 	} `json:"planes"`
 }
 
-// foldConfig is the bundled OIDC provider's block (opt-in).
-type foldConfig struct {
+// signinConfig is the bundled sign-in service's block (opt-in).
+type signinConfig struct {
 	Enabled  *bool  `json:"enabled,omitempty"`
 	Listen   string `json:"listen,omitempty"`
 	Issuer   string `json:"issuer,omitempty"`
@@ -76,7 +86,7 @@ type foldConfig struct {
 
 // helmConfig is the bundled human cockpit's block (soulstream-shell). The shell
 // has no issuer of its own: sessions sign in against the deployment's
-// AS — the bundled fold by default, or planes.door.auth_issuer.
+// AS — the bundled sign-in service by default, or planes.mcp.auth_issuer.
 type helmConfig struct {
 	Enabled *bool  `json:"enabled,omitempty"`
 	Listen  string `json:"listen,omitempty"`
@@ -86,7 +96,7 @@ type planeConfig struct {
 	Enabled *bool  `json:"enabled,omitempty"`
 	Listen  string `json:"listen,omitempty"`
 
-	// Door only (contracts/config.md, the public-mode addendum): the
+	// MCP only (contracts/config.md, the public-mode addendum): the
 	// advertised public address, the external AS's issuer URL, and the
 	// deployment's fixed token audience. All three or none.
 	PublicURL    string `json:"public_url,omitempty"`
@@ -94,7 +104,8 @@ type planeConfig struct {
 	AuthAudience string `json:"auth_audience,omitempty"`
 }
 
-func (p planeConfig) enabled() bool { return p.Enabled == nil || *p.Enabled }
+// enabled is nil-safe: an absent block is an enabled plane (design §2).
+func (p *planeConfig) enabled() bool { return p == nil || p.Enabled == nil || *p.Enabled }
 
 // secretFiles maps relative path → the State field's bytes, for Save and
 // Load symmetry. JWTs and creds are secrets-adjacent and get 0600 too.
@@ -118,7 +129,7 @@ func (s *State) files() map[string][]byte {
 		fileOpsCreds:        s.OpsCreds,
 		fileArchivistCreds:  s.ArchivistCreds,
 		fileRunnerCreds:     s.RunnerCreds,
-		fileFoldCreds:       s.FoldCreds,
+		fileSignInCreds:     s.SignInCreds,
 	}
 }
 
@@ -146,15 +157,13 @@ func (s *State) Save(dir string) error {
 	c.Realm = s.Realm
 	memEnabled := s.MemoryEnabled
 	c.Planes.Memory.Enabled = &memEnabled
-	doorEnabled := s.DoorEnabled
-	c.Planes.Door.Enabled = &doorEnabled
-	c.Planes.Door.Listen = s.DoorListen
-	c.Planes.Door.PublicURL = s.DoorPublicURL
-	c.Planes.Door.AuthIssuer = s.DoorAuthIssuer
-	c.Planes.Door.AuthAudience = s.DoorAuthAudience
-	foldEnabled := s.FoldEnabled
-	c.Planes.Fold = &foldConfig{Enabled: &foldEnabled, Listen: s.FoldListen,
-		Issuer: s.FoldIssuer, Audience: s.FoldAudience}
+	mcpEnabled := s.MCPEnabled
+	c.Planes.MCP = &planeConfig{Enabled: &mcpEnabled, Listen: s.MCPListen,
+		PublicURL: s.MCPPublicURL, AuthIssuer: s.MCPAuthIssuer,
+		AuthAudience: s.MCPAuthAudience}
+	signinEnabled := s.SignInEnabled
+	c.Planes.SignIn = &signinConfig{Enabled: &signinEnabled, Listen: s.SignInListen,
+		Issuer: s.SignInIssuer, Audience: s.SignInAudience}
 	helmEnabled := s.HelmEnabled
 	c.Planes.Shell = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen}
 	cfg, err := json.MarshalIndent(c, "", "  ")
@@ -235,41 +244,51 @@ func Load(dir string) (*State, error) {
 	s.Listen = cfg.Listen
 	s.Realm = cfg.Realm
 	s.MemoryEnabled = cfg.Planes.Memory.enabled()
-	s.DoorEnabled = cfg.Planes.Door.enabled()
-	s.DoorListen = cfg.Planes.Door.Listen
-	if s.DoorListen == "" {
-		s.DoorListen = "127.0.0.1:8080"
+	mcpBlock := cfg.Planes.MCP
+	if mcpBlock == nil {
+		mcpBlock = cfg.Planes.Door
 	}
-	s.DoorPublicURL = cfg.Planes.Door.PublicURL
-	s.DoorAuthIssuer = cfg.Planes.Door.AuthIssuer
-	s.DoorAuthAudience = cfg.Planes.Door.AuthAudience
-	if f := cfg.Planes.Fold; f != nil && (f.Enabled == nil || *f.Enabled) {
-		s.FoldEnabled = true
-		s.FoldListen = f.Listen
-		if s.FoldListen == "" {
-			s.FoldListen = "127.0.0.1:8378"
+	s.MCPEnabled = mcpBlock.enabled()
+	if mcpBlock != nil {
+		s.MCPListen = mcpBlock.Listen
+		s.MCPPublicURL = mcpBlock.PublicURL
+		s.MCPAuthIssuer = mcpBlock.AuthIssuer
+		s.MCPAuthAudience = mcpBlock.AuthAudience
+	}
+	if s.MCPListen == "" {
+		s.MCPListen = "127.0.0.1:8080"
+	}
+	signinBlock := cfg.Planes.SignIn
+	if signinBlock == nil {
+		signinBlock = cfg.Planes.Fold
+	}
+	if f := signinBlock; f != nil && (f.Enabled == nil || *f.Enabled) {
+		s.SignInEnabled = true
+		s.SignInListen = f.Listen
+		if s.SignInListen == "" {
+			s.SignInListen = "127.0.0.1:8378"
 		}
-		s.FoldIssuer = f.Issuer
-		if s.FoldIssuer == "" {
+		s.SignInIssuer = f.Issuer
+		if s.SignInIssuer == "" {
 			// The issuer host is WebAuthn's RP ID, and a browser refuses
 			// a bare IP there — so the local default is localhost (a
 			// WebAuthn secure-context name that still resolves to the
 			// loopback bind), never 127.0.0.1. A public deployment sets
-			// planes.fold.issuer to its fronted name.
-			_, port, _ := net.SplitHostPort(s.FoldListen)
-			s.FoldIssuer = "http://localhost:" + port
+			// planes.signin.issuer to its fronted name.
+			_, port, _ := net.SplitHostPort(s.SignInListen)
+			s.SignInIssuer = "http://localhost:" + port
 		}
-		s.FoldAudience = f.Audience
-		if s.FoldAudience == "" {
-			s.FoldAudience = "soulstream-" + s.Realm
+		s.SignInAudience = f.Audience
+		if s.SignInAudience == "" {
+			s.SignInAudience = "soulstream-" + s.Realm
 		}
 		// The default wiring (soulstream-idp M5's distribution story): public
 		// door mode with no AS named points at the bundled fold. In
-		// public mode planes.fold.issuer must be the fronted fold URL,
-		// so the browser the door sends a user to is actually reachable.
-		if s.DoorPublicURL != "" && s.DoorAuthIssuer == "" {
-			s.DoorAuthIssuer = s.FoldIssuer
-			s.DoorAuthAudience = s.FoldAudience
+		// public mode planes.signin.issuer must be the fronted sign-in URL,
+		// so the browser the MCP endpoint sends a user to is actually reachable.
+		if s.MCPPublicURL != "" && s.MCPAuthIssuer == "" {
+			s.MCPAuthIssuer = s.SignInIssuer
+			s.MCPAuthAudience = s.SignInAudience
 		}
 	}
 	if h := cfg.Planes.Shell; h != nil && (h.Enabled == nil || *h.Enabled) {
@@ -360,16 +379,23 @@ func Load(dir string) (*State, error) {
 		}
 		*cf.dst = data
 	}
-	// The fold's creds are required only when its plane is enabled: a
-	// state dir founded before the fold plane existed loads fine with
-	// the plane off, and enabling it there is a named refusal.
-	if data, err := os.ReadFile(filepath.Join(dir, fileFoldCreds)); err == nil {
+	// The sign-in plane's creds are required only when it is enabled: a
+	// state dir founded before the plane existed loads fine with it off,
+	// and enabling it there is a named refusal. The legacy filename is
+	// read forever — a founded realm's artifacts are never rewritten.
+	signinRel := fileSignInCreds
+	data, err := os.ReadFile(filepath.Join(dir, signinRel))
+	if err != nil {
+		signinRel = fileLegacySignInCreds
+		data, err = os.ReadFile(filepath.Join(dir, signinRel))
+	}
+	if err == nil {
 		if _, err := jwt.ParseDecoratedJWT(data); err != nil {
-			return nil, fmt.Errorf("ceremony: damaged %s: %w", fileFoldCreds, err)
+			return nil, fmt.Errorf("ceremony: damaged %s: %w", signinRel, err)
 		}
-		s.FoldCreds = data
-	} else if s.FoldEnabled {
-		return nil, fmt.Errorf("ceremony: planes.fold is enabled but %s is missing — this realm was founded before the fold plane existed; disable the plane or re-init a fresh realm", fileFoldCreds)
+		s.SignInCreds = data
+	} else if s.SignInEnabled {
+		return nil, fmt.Errorf("ceremony: planes.signin is enabled but %s is missing — this realm was founded before the sign-in plane existed; disable the plane or re-init a fresh realm", fileSignInCreds)
 	}
 	return s, nil
 }
@@ -422,56 +448,56 @@ func Verify(dir string) (*State, error) {
 	if s.Realm == "" {
 		return nil, fmt.Errorf("ceremony: damaged %s: realm name missing", fileConfig)
 	}
-	if s.DoorEnabled {
-		dhost, _, err := net.SplitHostPort(s.DoorListen)
+	if s.MCPEnabled {
+		dhost, _, err := net.SplitHostPort(s.MCPListen)
 		if err != nil {
-			return nil, fmt.Errorf("ceremony: damaged %s: door listen %q: %w", fileConfig, s.DoorListen, err)
+			return nil, fmt.Errorf("ceremony: damaged %s: door listen %q: %w", fileConfig, s.MCPListen, err)
 		}
 		if ip := net.ParseIP(dhost); dhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
-			return nil, fmt.Errorf("ceremony: %s door listen %q is not loopback", fileConfig, s.DoorListen)
+			return nil, fmt.Errorf("ceremony: %s door listen %q is not loopback", fileConfig, s.MCPListen)
 		}
 	}
-	// Public mode is a package deal: the door needs the advertised URL
+	// Public mode is a package deal: the MCP endpoint needs the advertised URL
 	// and the AS; the identity plane's OIDC lane needs the AS and the
 	// audience. A partial declaration is a config error, never a
 	// silently absent OAuth story.
 	publicFields := 0
-	for _, f := range []string{s.DoorPublicURL, s.DoorAuthIssuer, s.DoorAuthAudience} {
+	for _, f := range []string{s.MCPPublicURL, s.MCPAuthIssuer, s.MCPAuthAudience} {
 		if f != "" {
 			publicFields++
 		}
 	}
 	if publicFields != 0 && publicFields != 3 {
-		return nil, fmt.Errorf("ceremony: %s public door mode needs all of planes.door.public_url, auth_issuer, auth_audience (or none)", fileConfig)
+		return nil, fmt.Errorf("ceremony: %s public MCP mode needs all of planes.mcp.public_url, auth_issuer, auth_audience (or none)", fileConfig)
 	}
-	if publicFields == 3 && !s.DoorEnabled {
-		return nil, fmt.Errorf("ceremony: %s declares public door mode with the door disabled", fileConfig)
+	if publicFields == 3 && !s.MCPEnabled {
+		return nil, fmt.Errorf("ceremony: %s declares public MCP mode with the MCP plane disabled", fileConfig)
 	}
-	if s.FoldEnabled {
-		fhost, _, err := net.SplitHostPort(s.FoldListen)
+	if s.SignInEnabled {
+		fhost, _, err := net.SplitHostPort(s.SignInListen)
 		if err != nil {
-			return nil, fmt.Errorf("ceremony: damaged %s: fold listen %q: %w", fileConfig, s.FoldListen, err)
+			return nil, fmt.Errorf("ceremony: damaged %s: fold listen %q: %w", fileConfig, s.SignInListen, err)
 		}
 		if ip := net.ParseIP(fhost); fhost != "localhost" && (ip == nil || !ip.IsLoopback()) {
-			return nil, fmt.Errorf("ceremony: %s fold listen %q is not loopback", fileConfig, s.FoldListen)
+			return nil, fmt.Errorf("ceremony: %s fold listen %q is not loopback", fileConfig, s.SignInListen)
 		}
-		// The fold and the door are distinct services on distinct
+		// The sign-in service and the MCP endpoint are distinct services on distinct
 		// listeners; a shared address would have them fight for the same
 		// port (and, fronted, the same public route). Refuse it by name —
 		// except the ephemeral :0, which resolves to different real ports.
-		if _, fport, err := net.SplitHostPort(s.FoldListen); err == nil && fport != "0" &&
-			s.DoorEnabled && s.FoldListen == s.DoorListen {
-			return nil, fmt.Errorf("ceremony: %s planes.fold.listen and planes.door.listen are both %q — they are separate services and need separate addresses", fileConfig, s.FoldListen)
+		if _, fport, err := net.SplitHostPort(s.SignInListen); err == nil && fport != "0" &&
+			s.MCPEnabled && s.SignInListen == s.MCPListen {
+			return nil, fmt.Errorf("ceremony: %s planes.signin.listen and planes.mcp.listen are both %q — they are separate services and need separate addresses", fileConfig, s.SignInListen)
 		}
 		// The issuer host becomes WebAuthn's RP ID; a browser refuses a
 		// bare IP there. Catch the footgun at load, not at first
 		// enrolment.
-		iss, err := url.Parse(s.FoldIssuer)
+		iss, err := url.Parse(s.SignInIssuer)
 		if err != nil || iss.Hostname() == "" {
-			return nil, fmt.Errorf("ceremony: %s planes.fold.issuer %q is not a URL", fileConfig, s.FoldIssuer)
+			return nil, fmt.Errorf("ceremony: %s planes.signin.issuer %q is not a URL", fileConfig, s.SignInIssuer)
 		}
 		if h := iss.Hostname(); h != "localhost" && net.ParseIP(h) != nil {
-			return nil, fmt.Errorf("ceremony: %s planes.fold.issuer host %q is a bare IP — WebAuthn refuses it as a relying-party id; use localhost or a real hostname", fileConfig, h)
+			return nil, fmt.Errorf("ceremony: %s planes.signin.issuer host %q is a bare IP — WebAuthn refuses it as a relying-party id; use localhost or a real hostname", fileConfig, h)
 		}
 	}
 	if s.HelmEnabled {
@@ -483,17 +509,17 @@ func Verify(dir string) (*State, error) {
 			return nil, fmt.Errorf("ceremony: %s shell listen %q is not loopback", fileConfig, s.HelmListen)
 		}
 		if hport != "0" {
-			if s.DoorEnabled && s.HelmListen == s.DoorListen {
-				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.door.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+			if s.MCPEnabled && s.HelmListen == s.MCPListen {
+				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.mcp.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
 			}
-			if s.FoldEnabled && s.HelmListen == s.FoldListen {
-				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.fold.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+			if s.SignInEnabled && s.HelmListen == s.SignInListen {
+				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.signin.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
 			}
 		}
 		// Sessions need a sign-in issuer: the bundled fold, or an
-		// external AS via planes.door.auth_issuer.
-		if s.DoorAuthIssuer == "" && !s.FoldEnabled {
-			return nil, fmt.Errorf("ceremony: %s enables the shell plane with no sign-in issuer — enable planes.fold or set planes.door.auth_issuer", fileConfig)
+		// external AS via planes.mcp.auth_issuer.
+		if s.MCPAuthIssuer == "" && !s.SignInEnabled {
+			return nil, fmt.Errorf("ceremony: %s enables the shell plane with no sign-in issuer — enable planes.signin or set planes.mcp.auth_issuer", fileConfig)
 		}
 	}
 	return s, nil

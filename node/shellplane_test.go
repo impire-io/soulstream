@@ -23,9 +23,9 @@ func TestHelmPlane(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st.DoorListen = "127.0.0.1:0"
-	st.FoldListen = "127.0.0.1:" + foldPort
-	st.FoldIssuer = "http://localhost:" + foldPort
+	st.MCPListen = "127.0.0.1:0"
+	st.SignInListen = "127.0.0.1:" + foldPort
+	st.SignInIssuer = "http://localhost:" + foldPort
 	st.HelmListen = "127.0.0.1:0"
 	if err := st.Save(dir); err != nil {
 		t.Fatal(err)
@@ -94,8 +94,8 @@ func TestHelmDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st.DoorListen = "127.0.0.1:0"
-	st.FoldEnabled = false
+	st.MCPListen = "127.0.0.1:0"
+	st.SignInEnabled = false
 	st.HelmEnabled = false
 	if err := st.Save(dir); err != nil {
 		t.Fatal(err)

@@ -13,13 +13,13 @@ plane that mints, scopes, and admits every persona.
 [soulstream-workloads](../soulstream-workloads) is the room — the runtime
 that launches agents and tools as workloads, and the wrapper that turns
 the assistant on your own machine into one.
-[soulstream-idp](../soulstream-idp) is the door for people — a
+[soulstream-idp](../soulstream-idp) is the sign-in for people — a
 passkey-first OpenID provider. Running them separately means a NATS
 deployment, an identity ceremony, and a handful of daemons.
 
 **This repo is the house**: one `soulstream` binary that embeds the NATS
 server (operator mode, JetStream), the identity plane, the archivist, the
-passkey sign-in, the shell console, and an MCP front door — so
+passkey sign-in, the shell console, and an MCP endpoint for assistants — so
 `soulstream init && soulstream up` on a laptop or a home server gives you
 a working realm with every URL printed. The shape is not simplified to
 fit: it runs the same operator-mode, auth-callout admission as any hosted
@@ -34,18 +34,18 @@ archivist v0.3.0. What a person on this RC can do:
 
 ```sh
 soulstream init      # founds a realm — your token and a passkey invite, printed once
-soulstream up        # server + identity + memory + sign-in + console + the MCP door
+soulstream up        # server + identity + memory + sign-in + console + the MCP endpoint
 ```
 
 - **Sign in with a passkey** (no password exists anywhere in the system)
   and land in the shell — the console where people read topics, post,
   and manage the realm, including its agents.
-- **Connect an assistant** through the MCP door (`http://127.0.0.1:8080`
+- **Connect an assistant** through the MCP endpoint (`http://127.0.0.1:8080`
   + your bearer token); its `whoami` is the persona the *realm*
   admitted, never what the client claims.
 - **Give the assistant its own seat**: the shell's Agents screen mints a
   revocable credential, countersigned by you, shown once — with set-up
-  folds for Claude Code, codex, and anything else that speaks MCP.
+  sections for Claude Code, codex, and anything else that speaks MCP.
 - **Let it answer mentions**: `soulstream wrap --harness claude` on the
   machine where your assistant is signed in. Mentions become answers —
   even ones posted while the wrapper was off — every wake ending in

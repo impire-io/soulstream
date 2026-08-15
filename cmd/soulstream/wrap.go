@@ -1,6 +1,6 @@
 // The no-toolchain agent path (design soulstream/0002): the same binary
 // that runs the realm answers `wrap` — the personal wrapper of workloads
-// design 0004 — and provides the stdio tool door it points the harness at
+// design 0004 — and provides the stdio MCP server it points the harness at
 // (`mcp`). Both verbs are thin mains over libraries go.mod already pins,
 // and both read the same lane: the five SOULSTREAM_* names the Agents
 // screen mints. Nothing here reads a config file, because a config file
@@ -56,7 +56,7 @@ func checkLane(lane wrap.Lane) error {
 // cmdWrap runs one agent where you are: it wraps the assistant already
 // installed (and signed in) on this machine so mentions of the agent's
 // persona become invocations, and every wake leaves exactly one outcome in
-// the topic. The harness's tool door is this same executable (`mcp` below)
+// the topic. The harness reaches its tools through this same executable (`mcp` below)
 // — no second binary exists anywhere in the path.
 func cmdWrap(args []string, errw io.Writer) error {
 	fs := flag.NewFlagSet("wrap", flag.ContinueOnError)
@@ -77,7 +77,7 @@ func cmdWrap(args []string, errw io.Writer) error {
 	}
 	exe, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("finding my own executable for the tool door: %w", err)
+		return fmt.Errorf("finding my own executable for the MCP server: %w", err)
 	}
 	lane.MCPCommandLoc = exe
 	lane.MCPArgs = []string{"mcp"}
@@ -131,7 +131,7 @@ func cmdWrap(args []string, errw io.Writer) error {
 	return nil
 }
 
-// cmdMCP is the stdio tool door out of this binary: the realm's MCP tools
+// cmdMCP is the stdio MCP server out of this binary: the realm's tools
 // served to whatever assistant launched it. Environment-only on purpose —
 // no context files, no keystores; an agent with no signing key speaks
 // unsigned, and this verb does not pretend otherwise.
