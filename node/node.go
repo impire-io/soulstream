@@ -90,11 +90,11 @@ type Node struct {
 	url string
 }
 
-// DoorURL is the door plane's HTTP endpoint ("" when disabled).
-func (n *Node) DoorURL() string { return n.doorURL }
+// MCPURL is the door plane's HTTP endpoint ("" when disabled).
+func (n *Node) MCPURL() string { return n.doorURL }
 
-// FoldURL is the bundled fold's issuer URL ("" when disabled).
-func (n *Node) FoldURL() string { return n.foldURL }
+// SignInURL is the bundled fold's issuer URL ("" when disabled).
+func (n *Node) SignInURL() string { return n.foldURL }
 
 // FoldInvite is the owner's founding enrollment invite when this start
 // minted one ("" otherwise). Single-use, digest-stored on the fold's
@@ -211,7 +211,7 @@ func Start(cfg Config) (*Node, error) {
 	// bundled default that issuer IS the fold. The fold itself needs
 	// only its bypass-lane connection — the server verifies it
 	// natively, no callout in the path.
-	if st.FoldEnabled {
+	if st.SignInEnabled {
 		if err := n.startFold(ctx, cfg); err != nil {
 			return fail(err)
 		}
@@ -259,7 +259,7 @@ func Start(cfg Config) (*Node, error) {
 			return fail(err)
 		}
 	}
-	if st.DoorEnabled {
+	if st.MCPEnabled {
 		if err := n.startDoor(cfg); err != nil {
 			return fail(err)
 		}
@@ -342,15 +342,32 @@ func (n *Node) startFold(ctx context.Context, cfg Config) error {
 	st := cfg.State
 	n.foldErr = make(chan error, 1)
 	ready := make(chan string, 1)
+	// A founded realm's artifacts are never rewritten (design 0001 §2):
+	// the plane's state subdir and creds keep their byname-era names on
+	// realms that founded with them, and take the functional names fresh.
+	planeDir := filepath.Join(cfg.StateDir, "signin")
+	if fileExists(filepath.Join(cfg.StateDir, "fold")) {
+		planeDir = filepath.Join(cfg.StateDir, "fold")
+	}
+	planeCreds := ceremony.UserCredsPath(cfg.StateDir, "signin")
+	if !fileExists(planeCreds) {
+		if legacy := ceremony.UserCredsPath(cfg.StateDir, "fold"); fileExists(legacy) {
+			planeCreds = legacy
+		}
+	}
 	go func() {
 		n.foldErr <- foldembed.Run(ctx, foldembed.Options{
-			Issuer:        st.FoldIssuer,
-			Listen:        st.FoldListen,
-			StateDir:      filepath.Join(cfg.StateDir, "fold"),
+			Issuer:        st.SignInIssuer,
+			Listen:        st.SignInListen,
+			StateDir:      planeDir,
 			NATSURL:       n.url,
-			NATSCreds:     ceremony.UserCredsPath(cfg.StateDir, "fold"),
-			TokenAudience: st.FoldAudience,
+			NATSCreds:     planeCreds,
+			TokenAudience: st.SignInAudience,
 			EnableDCR:     true,
+			// The console is the standalone deployment's surface (idp
+			// design D31): here the shell is the console, and /admin
+			// answers like any path nobody claimed.
+			DisableAdminConsole: true,
 			SeedUsers: []foldembed.SeedUser{{
 				Username:    ceremony.FoundingPersona,
 				DisplayName: ceremony.FoundingPersona,
@@ -362,13 +379,13 @@ func (n *Node) startFold(ctx context.Context, cfg Config) error {
 	}()
 	select {
 	case <-ready:
-		n.foldURL = st.FoldIssuer
+		n.foldURL = st.SignInIssuer
 		return nil
 	case err := <-n.foldErr:
 		n.foldErr = nil
-		return fmt.Errorf("node: fold plane failed to start: %w", err)
+		return fmt.Errorf("node: sign-in plane failed to start: %w", err)
 	case <-time.After(15 * time.Second):
-		return errors.New("node: fold plane did not become ready")
+		return errors.New("node: sign-in plane did not become ready")
 	}
 }
 
@@ -378,28 +395,33 @@ func (n *Node) startFold(ctx context.Context, cfg Config) error {
 // nothing — it reads only the public sentinel. SoulNode holds the
 // listener so a bind conflict is a named refusal and tests get real
 // ports.
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
 func (n *Node) startDoor(cfg Config) error {
 	st := cfg.State
-	l, err := net.Listen("tcp", st.DoorListen)
+	l, err := net.Listen("tcp", st.MCPListen)
 	if err != nil {
-		return fmt.Errorf("node: door cannot listen on %s (change planes.door.listen in %s): %w",
-			st.DoorListen, filepath.Join(cfg.StateDir, "config.json"), err)
+		return fmt.Errorf("node: the MCP endpoint cannot listen on %s (change planes.mcp.listen in %s): %w",
+			st.MCPListen, filepath.Join(cfg.StateDir, "config.json"), err)
 	}
 	d, err := door.New(door.Config{
-		Listen:       st.DoorListen,
+		Listen:       st.MCPListen,
 		Realm:        st.Realm,
 		NATSURL:      n.url,
 		SentinelPath: ceremony.SentinelPath(cfg.StateDir),
 		// Public mode (upstream's own switch): the advertised resource
 		// identifier and the AS the resource metadata names. HTTPS is
 		// deployment fronting before the loopback listener.
-		PublicURL:  st.DoorPublicURL,
-		AuthIssuer: st.DoorAuthIssuer,
+		PublicURL:  st.MCPPublicURL,
+		AuthIssuer: st.MCPAuthIssuer,
 		Logger:     n.audit,
 	})
 	if err != nil {
 		_ = l.Close()
-		return fmt.Errorf("node: door: %w", err)
+		return fmt.Errorf("node: mcp: %w", err)
 	}
 	n.doorNode = d
 	n.doorURL = "http://" + l.Addr().String()
@@ -486,7 +508,7 @@ func (n *Node) Stop() {
 		select {
 		case err := <-n.doorErr:
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				n.audit.Error("door plane exited", "err", err)
+				n.audit.Error("mcp plane exited", "err", err)
 			}
 		case <-time.After(5 * time.Second):
 		}
@@ -501,7 +523,7 @@ func (n *Node) Stop() {
 			select {
 			case err := <-n.foldErr: // the fold rides the same ctx
 				if err != nil && !errors.Is(err, context.Canceled) {
-					n.audit.Error("fold plane exited", "err", err)
+					n.audit.Error("sign-in plane exited", "err", err)
 				}
 			case <-time.After(10 * time.Second):
 			}

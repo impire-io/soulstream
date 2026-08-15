@@ -41,10 +41,10 @@ func TestPublicDoor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	st.DoorListen = "127.0.0.1:0"
-	st.DoorPublicURL = "https://door.example.test" // the advertised name; fronting carries it
-	st.DoorAuthIssuer = as.Issuer()
-	st.DoorAuthAudience = as.Audience()
+	st.MCPListen = "127.0.0.1:0"
+	st.MCPPublicURL = "https://door.example.test" // the advertised name; fronting carries it
+	st.MCPAuthIssuer = as.Issuer()
+	st.MCPAuthAudience = as.Audience()
 	if err := st.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -53,8 +53,8 @@ func TestPublicDoor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if loaded.DoorPublicURL != st.DoorPublicURL || loaded.DoorAuthIssuer != st.DoorAuthIssuer ||
-		loaded.DoorAuthAudience != st.DoorAuthAudience {
+	if loaded.MCPPublicURL != st.MCPPublicURL || loaded.MCPAuthIssuer != st.MCPAuthIssuer ||
+		loaded.MCPAuthAudience != st.MCPAuthAudience {
 		t.Fatalf("public door config did not survive the round-trip: %+v", loaded)
 	}
 
@@ -71,7 +71,7 @@ func TestPublicDoor(t *testing.T) {
 
 	// --- The discovery walk, knowing only the door's URL.
 	httpc := http.DefaultClient
-	cold, err := httpc.Get(n.DoorURL())
+	cold, err := httpc.Get(n.MCPURL())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestPublicDoor(t *testing.T) {
 	if cold.StatusCode != http.StatusUnauthorized || !strings.Contains(wwwAuth, "resource_metadata=") {
 		t.Fatalf("cold request: want 401 naming resource_metadata, got %d %q", cold.StatusCode, wwwAuth)
 	}
-	mdResp, err := httpc.Get(n.DoorURL() + "/.well-known/oauth-protected-resource")
+	mdResp, err := httpc.Get(n.MCPURL() + "/.well-known/oauth-protected-resource")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,8 +93,8 @@ func TestPublicDoor(t *testing.T) {
 		t.Fatalf("resource metadata: %v", err)
 	}
 	_ = mdResp.Body.Close()
-	if md.Resource != st.DoorPublicURL {
-		t.Fatalf("advertised resource %q, want %q", md.Resource, st.DoorPublicURL)
+	if md.Resource != st.MCPPublicURL {
+		t.Fatalf("advertised resource %q, want %q", md.Resource, st.MCPPublicURL)
 	}
 	if len(md.AuthorizationServers) != 1 || md.AuthorizationServers[0] != as.Issuer() {
 		t.Fatalf("advertised AS %v, want [%s]", md.AuthorizationServers, as.Issuer())
@@ -108,7 +108,7 @@ func TestPublicDoor(t *testing.T) {
 	dial := func(bearer string) (*mcp.ClientSession, error) {
 		client := mcp.NewClient(&mcp.Implementation{Name: "soulstream-public-test", Version: "0.0.1"}, nil)
 		transport := &mcp.StreamableClientTransport{
-			Endpoint:   n.DoorURL(),
+			Endpoint:   n.MCPURL(),
 			HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

@@ -174,8 +174,8 @@ func generateForTest(t *testing.T) *State {
 func TestFoldWiring(t *testing.T) {
 	// Default: fold enabled, localhost issuer, distinct port from the door.
 	s := generate(t)
-	if !s.FoldEnabled || s.FoldIssuer != "http://localhost:8378" {
-		t.Fatalf("fold default: enabled=%v issuer=%q", s.FoldEnabled, s.FoldIssuer)
+	if !s.SignInEnabled || s.SignInIssuer != "http://localhost:8378" {
+		t.Fatalf("fold default: enabled=%v issuer=%q", s.SignInEnabled, s.SignInIssuer)
 	}
 	dir := t.TempDir()
 	if err := s.Save(dir); err != nil {
@@ -185,13 +185,13 @@ func TestFoldWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify default fold config: %v", err)
 	}
-	if loaded.FoldIssuer != "http://localhost:8378" || loaded.FoldAudience != "soulstream-home" {
-		t.Fatalf("fold roundtrip: issuer=%q audience=%q", loaded.FoldIssuer, loaded.FoldAudience)
+	if loaded.SignInIssuer != "http://localhost:8378" || loaded.SignInAudience != "soulstream-home" {
+		t.Fatalf("fold roundtrip: issuer=%q audience=%q", loaded.SignInIssuer, loaded.SignInAudience)
 	}
 
 	// A bare-IP issuer refuses (WebAuthn RP-id rule).
 	badIP := generate(t)
-	badIP.FoldIssuer = "http://127.0.0.1:8378"
+	badIP.SignInIssuer = "http://127.0.0.1:8378"
 	d2 := t.TempDir()
 	if err := badIP.Save(d2); err != nil {
 		t.Fatal(err)
@@ -202,7 +202,7 @@ func TestFoldWiring(t *testing.T) {
 
 	// A fold/door listener collision refuses.
 	clash := generate(t)
-	clash.FoldListen = "127.0.0.1:8080" // == the door default
+	clash.SignInListen = "127.0.0.1:8080" // == the door default
 	d3 := t.TempDir()
 	if err := clash.Save(d3); err != nil {
 		t.Fatal(err)

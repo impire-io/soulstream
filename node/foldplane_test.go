@@ -62,14 +62,14 @@ func TestFoldedRealm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	st.DoorListen = "127.0.0.1:0"
-	st.DoorPublicURL = "https://door.example.test"
-	st.FoldEnabled = true
-	st.FoldListen = foldAddr
+	st.MCPListen = "127.0.0.1:0"
+	st.MCPPublicURL = "https://door.example.test"
+	st.SignInEnabled = true
+	st.SignInListen = foldAddr
 	// Clear the issuer/audience so the derived defaults (localhost host,
 	// the fold's own port) drive them — that is the wiring under test.
-	st.FoldIssuer = ""
-	st.FoldAudience = ""
+	st.SignInIssuer = ""
+	st.SignInAudience = ""
 	if err := st.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -77,12 +77,12 @@ func TestFoldedRealm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if loaded.FoldIssuer != "http://localhost:"+foldPort {
-		t.Fatalf("fold issuer defaulted to %q, want http://localhost:%s", loaded.FoldIssuer, foldPort)
+	if loaded.SignInIssuer != "http://localhost:"+foldPort {
+		t.Fatalf("fold issuer defaulted to %q, want http://localhost:%s", loaded.SignInIssuer, foldPort)
 	}
-	if loaded.DoorAuthIssuer != loaded.FoldIssuer || loaded.DoorAuthAudience != "soulstream-home" {
+	if loaded.MCPAuthIssuer != loaded.SignInIssuer || loaded.MCPAuthAudience != "soulstream-home" {
 		t.Fatalf("the default wiring did not point the door at the bundled fold: issuer=%q audience=%q",
-			loaded.DoorAuthIssuer, loaded.DoorAuthAudience)
+			loaded.MCPAuthIssuer, loaded.MCPAuthAudience)
 	}
 
 	audit := &syncBuffer{}
@@ -95,12 +95,12 @@ func TestFoldedRealm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("found: %v", err)
 	}
-	if n.FoldURL() == "" {
+	if n.SignInURL() == "" {
 		t.Fatal("fold enabled but no URL")
 	}
 
 	// --- The hosted client's discovery walk from the door alone.
-	mdResp, err := http.Get(n.DoorURL() + "/.well-known/oauth-protected-resource")
+	mdResp, err := http.Get(n.MCPURL() + "/.well-known/oauth-protected-resource")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,8 +111,8 @@ func TestFoldedRealm(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = mdResp.Body.Close()
-	if len(md.AuthorizationServers) != 1 || md.AuthorizationServers[0] != n.FoldURL() {
-		t.Fatalf("the door advertises %v, want the bundled fold %s", md.AuthorizationServers, n.FoldURL())
+	if len(md.AuthorizationServers) != 1 || md.AuthorizationServers[0] != n.SignInURL() {
+		t.Fatalf("the door advertises %v, want the bundled fold %s", md.AuthorizationServers, n.SignInURL())
 	}
 
 	// --- The founding invite (soulstream-idp M3: enrollment requires one;
@@ -123,13 +123,13 @@ func TestFoldedRealm(t *testing.T) {
 
 	// --- The browser: DCR, then a passkey ENROLLMENT at the bundled
 	// fold against the founding invite.
-	token := foldSignIn(t, n.FoldURL(), ceremony.FoundingPersona, n.FoldInvite())
+	token := foldSignIn(t, n.SignInURL(), ceremony.FoundingPersona, n.FoldInvite())
 
 	// --- The bearer opens the door; whoami names the fold user.
 	dial := func(bearer string) (*mcp.ClientSession, error) {
 		client := mcp.NewClient(&mcp.Implementation{Name: "folded-realm-test", Version: "0.0.1"}, nil)
 		transport := &mcp.StreamableClientTransport{
-			Endpoint:   n.DoorURL(),
+			Endpoint:   n.MCPURL(),
 			HTTPClient: &http.Client{Transport: bearerRT{bearer: bearer}},
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -242,6 +242,18 @@ func foldSignIn(t *testing.T, issuer, username, invite string) string {
 	csrf := extractAttr(t, string(page), "csrf")
 
 	cq := url.Values{"authRequestID": {authReqID}, "csrf": {csrf}, "username": {username}, "invite": {invite}}
+	// The console is the standalone deployment's surface (idp design
+	// D31): the bundled sign-in plane serves the admin API, never the
+	// HTML console — /admin answers like any path nobody claimed.
+	if adminResp, err := httpc.Get(issuer + "/admin/"); err != nil {
+		t.Fatal(err)
+	} else {
+		_ = adminResp.Body.Close()
+		if adminResp.StatusCode != http.StatusNotFound {
+			t.Fatalf("/admin/ on the bundled sign-in plane answered %d, want 404", adminResp.StatusCode)
+		}
+	}
+
 	beginResp, err := httpc.Post(issuer+"/login/begin?"+cq.Encode(), "", nil)
 	if err != nil {
 		t.Fatal(err)
