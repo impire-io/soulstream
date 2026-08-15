@@ -4,11 +4,11 @@ go 1.26.2
 
 require (
 	github.com/impire-io/soulstream-archivist v0.3.0
-	github.com/impire-io/soulstream-core v0.8.2
+	github.com/impire-io/soulstream-core v0.8.4
 	github.com/impire-io/soulstream-idp v0.4.1
 	github.com/impire-io/soulstream-mcp v0.1.0
-	github.com/impire-io/soulstream-shell v0.4.2
-	github.com/impire-io/soulstream-workloads v0.2.0
+	github.com/impire-io/soulstream-shell v0.4.3
+	github.com/impire-io/soulstream-workloads v0.3.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/nats-io/jwt/v2 v2.8.2
 	github.com/nats-io/nats-server/v2 v2.14.4
