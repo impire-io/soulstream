@@ -33,6 +33,7 @@ bundling core v0.8.4, workloads v0.4.0, shell v0.6.0, idp v0.5.0,
 archivist v0.3.0. What a person on this RC can do:
 
 ```sh
+brew install impire-io/tap/soulstream   # or grab the release archive
 soulstream init      # founds a realm — your token and a passkey invite, printed once
 soulstream up        # server + identity + memory + sign-in + console + the MCP endpoint
 ```

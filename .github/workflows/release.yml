@@ -33,3 +33,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Fine-grained PAT, contents read/write on impire-io/homebrew-tap
+          # only — the brew formula push crosses repos, which the default
+          # token cannot.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

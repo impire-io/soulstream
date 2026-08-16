@@ -48,3 +48,30 @@ release:
     name: soulstream
   draft: false
   prerelease: auto
+
+# The Homebrew tap: `brew install impire-io/tap/soulstream`. The formula
+# is pushed to impire-io/homebrew-tap on every release — RCs included,
+# deliberately: pre-v1 the candidates ARE the releases, and the tap is
+# the one-command install path (no Go toolchain, nothing edited).
+# Needs the HOMEBREW_TAP_TOKEN repo secret (fine-grained PAT, contents
+# read/write on the tap repo) — the workflow passes it through.
+brews:
+  - name: soulstream
+    ids: [soulstream]
+    repository:
+      owner: impire-io
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/impire-io/soulstream
+    description: "Your realm in one binary — the Soulstream node"
+    skip_upload: false
+    commit_msg_template: "brew: soulstream {{ .Tag }}"
+    commit_author:
+      name: soulstream-release
+      email: noreply@impire.io
+    install: |
+      bin.install "soulstream"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/soulstream version")
