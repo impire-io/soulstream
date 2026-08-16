@@ -71,6 +71,23 @@ type State struct {
 	HelmEnabled bool
 	HelmListen  string
 
+	// BYO NATS (design 0003): BYOFlavour "" is the embedded server; the
+	// two flavours found on a substrate soulstream does not run. BYOURL
+	// is the substrate's client URL — the one URL every plane dials. In
+	// BYO mode the operator, SYS, and account master material below is
+	// absent by construction: it never existed on this side of the
+	// boundary. AuthPub and RealmPub are the two public keys the account
+	// half hands back.
+	BYOFlavour    string
+	BYOURL        string
+	SynadiaSystem string
+
+	// The issuer user's own keypair (self-hosted BYO): its public key is
+	// declared to auth_users by the kit before its creds can exist, so
+	// the seed outlives phase 1 on disk.
+	IssuerUserSeed []byte
+	IssuerUserPub  string
+
 	OperatorSeed []byte
 	OperatorPub  string
 
@@ -169,16 +186,8 @@ func Generate(listen, realm string) (*State, error) {
 	if realm == "" {
 		return nil, fmt.Errorf("ceremony: realm name required")
 	}
-	// The bundled experience is on by default: the fold gives the realm a
-	// sign-in and an admin console out of the box, so `init && up` lands
-	// a person at a passkey prompt with nothing else to install. The
-	// issuer host is localhost — WebAuthn's RP-ID rule refuses a bare IP.
-	// Turn the plane off by setting planes.fold.enabled=false in config.
-	s := &State{Listen: listen, Realm: realm, MemoryEnabled: true,
-		MCPEnabled: true, MCPListen: "127.0.0.1:8080",
-		SignInEnabled: true, SignInListen: "127.0.0.1:8378",
-		SignInIssuer: "http://localhost:8378", SignInAudience: "soulstream-" + realm,
-		HelmEnabled: true, HelmListen: "127.0.0.1:8500"}
+	s := planeDefaults(realm)
+	s.Listen = listen
 
 	// 1. The operator — the trust root.
 	opKP, err := nkeys.CreateOperator()
@@ -241,26 +250,7 @@ func Generate(listen, realm string) (*State, error) {
 	realmClaims.Limits.JetStreamLimits = jwt.JetStreamLimits{
 		MemoryStorage: -1, DiskStorage: -1, Streams: -1, Consumer: -1,
 	}
-	scope := jwt.NewUserScope()
-	scope.Key = s.RealmSigningPub
-	scope.Role = "soulstream-user"
-	scope.Template = jwt.UserPermissionLimits{
-		Permissions: jwt.Permissions{
-			Pub: jwt.Permission{Allow: []string{
-				client.Segment + ".status",
-				client.Segment + ".xkey",
-				client.Segment + ".{{account-subject()}}.{{name()}}.sign.record",
-				client.Segment + ".{{account-subject()}}.{{name()}}.keys.public",
-				"SOULSTREAM.>",
-				"$JS.API.>",
-				"$KV.>",
-				"$O.>",
-				"$SYS.REQ.USER.INFO",
-			}},
-			Sub: jwt.Permission{Allow: []string{"_INBOX.>", "SOULSTREAM.>"}},
-		},
-	}
-	realmClaims.SigningKeys.AddScopedSigner(scope)
+	realmClaims.SigningKeys.AddScopedSigner(personaScope(s.RealmSigningPub))
 	if s.RealmJWT, err = realmClaims.Encode(opKP); err != nil {
 		return nil, fmt.Errorf("ceremony: realm jwt: %w", err)
 	}
@@ -298,6 +288,54 @@ func Generate(listen, realm string) (*State, error) {
 	s.SurfaceSeed, _ = surfaceKP.Seed()
 
 	return s, nil
+}
+
+// planeDefaults is the bundled experience, on by default: the fold gives
+// the realm a sign-in and an admin console out of the box, so `init && up`
+// lands a person at a passkey prompt with nothing else to install. The
+// issuer host is localhost — WebAuthn's RP-ID rule refuses a bare IP.
+// Turn a plane off by setting planes.<name>.enabled=false in config.
+// Shared by the embedded and BYO ceremonies: the planes are the same
+// planes, only the server underneath differs (design 0003 §6).
+func planeDefaults(realm string) *State {
+	return &State{Realm: realm, MemoryEnabled: true,
+		MCPEnabled: true, MCPListen: "127.0.0.1:8080",
+		SignInEnabled: true, SignInListen: "127.0.0.1:8378",
+		SignInIssuer: "http://localhost:8378", SignInAudience: "soulstream-" + realm,
+		HelmEnabled: true, HelmListen: "127.0.0.1:8500"}
+}
+
+// The persona scope (design 0001 §4 step 4): the admitted persona's
+// permission set, templated per identity. One source feeds both the
+// embedded ceremony and the BYO kit, so the two can never drift
+// (spec 010 SC-004).
+var (
+	scopePubAllow = []string{
+		client.Segment + ".status",
+		client.Segment + ".xkey",
+		client.Segment + ".{{account-subject()}}.{{name()}}.sign.record",
+		client.Segment + ".{{account-subject()}}.{{name()}}.keys.public",
+		"SOULSTREAM.>",
+		"$JS.API.>",
+		"$KV.>",
+		"$O.>",
+		"$SYS.REQ.USER.INFO",
+	}
+	scopeSubAllow = []string{"_INBOX.>", "SOULSTREAM.>"}
+)
+
+// personaScope renders the scope onto a signing key.
+func personaScope(key string) *jwt.UserScope {
+	scope := jwt.NewUserScope()
+	scope.Key = key
+	scope.Role = "soulstream-user"
+	scope.Template = jwt.UserPermissionLimits{
+		Permissions: jwt.Permissions{
+			Pub: jwt.Permission{Allow: scopePubAllow},
+			Sub: jwt.Permission{Allow: scopeSubAllow},
+		},
+	}
+	return scope
 }
 
 // userCreds mints an account-key-signed user and renders the creds file.
