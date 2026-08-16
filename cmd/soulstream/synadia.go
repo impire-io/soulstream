@@ -21,7 +21,7 @@ func synadiaAccountHalf(st *ceremony.State, dir string, errw io.Writer) error {
 	if token == "" {
 		return fmt.Errorf("SOULSTREAM_SYNADIA_TOKEN is required for the synadia-cloud flavour — mint a personal access token in Synadia Cloud and export it; it drives the account half and is never persisted")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	scopePub, scopeSub := ceremony.PersonaScopeAllows()
 	res, err := synadia.Setup(ctx, synadia.Config{
@@ -33,6 +33,22 @@ func synadiaAccountHalf(st *ceremony.State, dir string, errw io.Writer) error {
 			RealmScopedSeed: st.RealmSigningSeed,
 			WorkloadSeed:    st.WorkloadSigningSeed,
 			AuthSigningSeed: st.AuthSigningSeed,
+		},
+		// Each once-returned seed lands on disk before the driver takes
+		// another step — a mid-run tunnel cycle can never orphan a group
+		// (measured 2026-08-16).
+		OnSeed: func(group string, seed []byte) error {
+			switch group {
+			case synadia.GroupScoped:
+				st.RealmSigningSeed = seed
+			case synadia.GroupWorkload:
+				st.WorkloadSigningSeed = seed
+			case synadia.GroupAuth:
+				st.AuthSigningSeed = seed
+			default:
+				return fmt.Errorf("unknown signing-key group %q", group)
+			}
+			return st.Save(dir)
 		},
 		Log: errw,
 	}, scopePub, scopeSub)

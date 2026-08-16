@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nkeys"
 )
@@ -22,6 +23,28 @@ type cloudStub struct {
 	order    []string                // account ids in creation order
 	callouts map[string]string       // callout id → control account id
 	creates  int                     // POSTs that made something new
+
+	// The lossy channel (measured live 2026-08-16: the private-link
+	// tunnel cycling mid-request): flakes[method+" "+lastSegment]
+	// counts 500s to serve before letting that endpoint through;
+	// failGroups[name] does the same per signing-key group create.
+	flakes     map[string]int
+	failGroups map[string]int
+}
+
+// handler wraps the mux with the flake middleware.
+func (s *cloudStub) handler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
+		key := r.Method + " " + parts[len(parts)-1]
+		if s.flakes[key] > 0 {
+			s.flakes[key]--
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, `{"error":"nats: timeout"}`)
+			return
+		}
+		s.mux.ServeHTTP(w, r)
+	})
 }
 
 type stubAccount struct {
@@ -39,7 +62,8 @@ type stubUser struct{ id, name string }
 
 func newCloudStub(t *testing.T) *cloudStub {
 	t.Helper()
-	s := &cloudStub{accounts: map[string]*stubAccount{}, callouts: map[string]string{}}
+	s := &cloudStub{accounts: map[string]*stubAccount{}, callouts: map[string]string{},
+		flakes: map[string]int{}, failGroups: map[string]int{}}
 	mux := http.NewServeMux()
 	writeJSON := func(w http.ResponseWriter, v any) {
 		w.Header().Set("Content-Type", "application/json")
@@ -91,6 +115,12 @@ func newCloudStub(t *testing.T) *cloudStub {
 			Programmatic bool   `json:"programmatic"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
+		if s.failGroups[req.Name] > 0 {
+			s.failGroups[req.Name]--
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, `{"error":"nats: timeout"}`)
+			return
+		}
 		g := stubGroup{id: fmt.Sprintf("%s-g%d", a.id, len(a.groups)+1),
 			name: req.Name, programmatic: req.Programmatic}
 		a.groups = append(a.groups, g)
@@ -169,7 +199,7 @@ func (s *cloudStub) byName(name string) *stubAccount {
 // back the pubs, the once-returned seeds, and the downloaded creds.
 func TestSetupSequence(t *testing.T) {
 	stub := newCloudStub(t)
-	ts := httptest.NewServer(stub.mux)
+	ts := httptest.NewServer(stub.handler())
 	defer ts.Close()
 
 	res, err := Setup(context.Background(), Config{
@@ -210,7 +240,7 @@ func TestSetupSequence(t *testing.T) {
 // returns a programmatic seed exactly once (journey 0038, measured).
 func TestSetupIdempotence(t *testing.T) {
 	stub := newCloudStub(t)
-	ts := httptest.NewServer(stub.mux)
+	ts := httptest.NewServer(stub.handler())
 	defer ts.Close()
 	cfg := Config{BaseURL: ts.URL, Token: "uat_test", System: "dev-sys", Realm: "home"}
 
@@ -256,5 +286,94 @@ func TestSetupRefusals(t *testing.T) {
 	if _, err := Setup(context.Background(), Config{Token: "uat_x"}, nil, nil); err == nil ||
 		!strings.Contains(err.Error(), "--synadia-system") {
 		t.Fatalf("missing system: %v", err)
+	}
+}
+
+// TestSetupSurvivesFlakyChannel: the measured BYON failure mode — the
+// private-link tunnel cycling mid-request, ~50% of mutations drawing
+// 500 "nats: timeout" — must not need a babysitter: one Setup call
+// pushes through with bounded retries, and every once-returned seed
+// reaches OnSeed.
+func TestSetupSurvivesFlakyChannel(t *testing.T) {
+	old := backoffBase
+	backoffBase = time.Millisecond
+	defer func() { backoffBase = old }()
+
+	stub := newCloudStub(t)
+	stub.flakes["POST accounts"] = 1
+	stub.flakes["GET account-sk-groups"] = 1
+	stub.flakes["POST auth-callout"] = 1
+	stub.flakes["POST target-accounts"] = 1
+	stub.flakes["POST nats-users"] = 1
+	stub.flakes["POST creds"] = 2
+	stub.failGroups[GroupWorkload] = 1
+	ts := httptest.NewServer(stub.handler())
+	defer ts.Close()
+
+	seeds := map[string][]byte{}
+	res, err := Setup(context.Background(), Config{
+		BaseURL: ts.URL, Token: "uat_test", System: "dev-sys", Realm: "home",
+		OnSeed: func(group string, seed []byte) error {
+			seeds[group] = seed
+			return nil
+		},
+	}, []string{"p"}, []string{"s"})
+	if err != nil {
+		t.Fatalf("setup through the flaky channel: %v", err)
+	}
+	if len(seeds) != 3 {
+		t.Fatalf("OnSeed delivered %d seeds, want 3", len(seeds))
+	}
+	if string(seeds[GroupScoped]) != string(res.RealmScopedSeed) {
+		t.Fatal("OnSeed's scoped seed differs from the result's")
+	}
+}
+
+// TestSetupMidFailureKeepsSeed: the live 2026-08-16 incident, replayed —
+// the scoped group's seed arrives, then the channel dies for good on
+// the workload group. The seed must already be with OnSeed, and the
+// resumed run must reuse the group instead of refusing or doubling it.
+func TestSetupMidFailureKeepsSeed(t *testing.T) {
+	old := backoffBase
+	backoffBase = time.Millisecond
+	defer func() { backoffBase = old }()
+
+	stub := newCloudStub(t)
+	stub.failGroups[GroupWorkload] = 999 // permanently dead this run
+	ts := httptest.NewServer(stub.handler())
+	defer ts.Close()
+
+	seeds := map[string][]byte{}
+	cfg := Config{BaseURL: ts.URL, Token: "uat_test", System: "dev-sys", Realm: "home",
+		OnSeed: func(group string, seed []byte) error {
+			seeds[group] = seed
+			return nil
+		}}
+	_, err := Setup(context.Background(), cfg, []string{"p"}, []string{"s"})
+	if err == nil {
+		t.Fatal("setup succeeded through a dead channel")
+	}
+	if len(seeds[GroupScoped]) == 0 {
+		t.Fatal("the scoped seed did not reach OnSeed before the failure — a mid-run death loses it")
+	}
+
+	// The channel heals; the resumed run holds the persisted seed.
+	stub.failGroups[GroupWorkload] = 0
+	cfg.Existing = Existing{RealmScopedSeed: seeds[GroupScoped]}
+	res, err := Setup(context.Background(), cfg, []string{"p"}, []string{"s"})
+	if err != nil {
+		t.Fatalf("resumed run: %v", err)
+	}
+	if string(res.RealmScopedSeed) != string(seeds[GroupScoped]) {
+		t.Fatal("resumed run lost the custodied scoped seed")
+	}
+	scoped := 0
+	for _, g := range stub.byName("soulstream-home").groups {
+		if g.name == GroupScoped {
+			scoped++
+		}
+	}
+	if scoped != 1 {
+		t.Fatalf("scoped group created %d times, want exactly 1", scoped)
 	}
 }
