@@ -3,8 +3,8 @@
 **Feature Branch**: `010-byo-nats`
 **Created**: 2026-08-16
 **Status**: Implemented 2026-08-16 (self-hosted flavour measured end to end
-against a config-file operator-mode rig; synadia-cloud flavour stub-proven,
-live run = the quickstart runbook)
+against a config-file operator-mode rig; synadia-cloud flavour measured live
+2026-08-16 — the quickstart's run record)
 **Input**: Design 0003 (`soul-hq/02-DESIGN/soulstream/0003-byo-nats.md`), resolving
 composition 0001 §4's BYO [O]. Two flavours — a self-hosted operator-mode
 server whose operator speaks `nsc`, and Synadia Cloud BYON driven through the

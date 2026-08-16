@@ -52,3 +52,36 @@ part of `make test` (the Entra-lane precedent, identity spec 001).
    token admits, `soulstream-shell` reachable, a turn posts.
 6. Re-run step 2 — it must report the resources as existing and create
    nothing (idempotence on the live platform).
+
+## The live run — 2026-08-16, measured
+
+Realm `byon` founded on the Impire DEV system's BYON (agent-connected,
+nats-server 2.12.7) with the released binary + the fix stack below:
+callout ADMITTED the founding persona on Synadia's infrastructure and
+REFUSED a garbage token (audited); `up` served every plane against the
+substrate; `init` re-run reported the verified no-op (13 artifacts);
+the custody audit passed (no master material, no PAT on disk); the
+after-state diff showed the system's two pre-existing callout configs
+byte-identical and exactly one new config, two new accounts — additive,
+as designed. `sealed_requests=false`: the platform set no callout
+xkey, so the unsealed-callout caveat is now a measured fact.
+
+What first contact taught (each measured live, fixed on main, and
+replayed as a test):
+
+1. The default state dir collides with the soulstream client's config
+   dir — named refusal now (`clientdir_test.go`).
+2. `--synadia-system` must take the id as well as the name.
+3. The synadia awaiting state (no seeds yet) must load, or a founding
+   interrupted mid-account-half cannot resume.
+4. A programmatic seed must be persisted the moment it is returned
+   (`OnSeed`) — a mid-run failure orphaned a group whose seed died
+   with the process; recovery required disable-then-delete (the
+   platform refuses deleting an active group).
+5. The channel to an agent-connected BYON is lossy — the private-link
+   idle watchdog cycles the tunnel while requests are in flight
+   (~50% of mutations drew 500 "nats: timeout") — so every driver
+   mutation retries bounded through 5xx, list-first.
+6. The platform's callout surface is anti-idempotent: re-enabling and
+   re-adding a target or user draw a persistent 500 "an unexpected
+   error occurred" — enable and wiring are therefore read-first.
