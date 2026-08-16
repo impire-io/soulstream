@@ -38,7 +38,7 @@ Usage:
                                                 same binary (same five values; flags override)
   soulstream version
 
-State dir: --state, else $SOULNODE_STATE, else <user config dir>/soulstream.
+State dir: --state, else $SOULSTREAM_STATE, else <user config dir>/soulstream.
 `
 
 func main() {
@@ -82,12 +82,12 @@ func stateDir(flagVal string) (string, error) {
 	if flagVal != "" {
 		return flagVal, nil
 	}
-	if v := os.Getenv("SOULNODE_STATE"); v != "" {
+	if v := os.Getenv("SOULSTREAM_STATE"); v != "" {
 		return v, nil
 	}
 	base, err := os.UserConfigDir()
 	if err != nil {
-		return "", fmt.Errorf("no state dir: %w (set --state or SOULNODE_STATE)", err)
+		return "", fmt.Errorf("no state dir: %w (set --state or SOULSTREAM_STATE)", err)
 	}
 	return filepath.Join(base, "soulstream"), nil
 }
@@ -101,18 +101,8 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	mcpListen := fs.String("mcp-listen", "127.0.0.1:8080", "the MCP endpoint's loopback listener (written to config.json on the founding run)")
 	signinListen := fs.String("signin-listen", "127.0.0.1:8378", "the sign-in service's loopback listener (written to config.json)")
 	helmListen := fs.String("shell-listen", "127.0.0.1:8500", "the shell console's loopback listener (written to config.json)")
-	// The byname-era spellings are accepted forever; only the functional
-	// ones appear in the usage text (design 0001 §2).
-	legacyMCP := fs.String("door-listen", "", "older spelling of --mcp-listen")
-	legacySignin := fs.String("fold-listen", "", "older spelling of --signin-listen")
 	if err := fs.Parse(args); err != nil {
 		return err
-	}
-	if *legacyMCP != "" {
-		mcpListen = legacyMCP
-	}
-	if *legacySignin != "" {
-		signinListen = legacySignin
 	}
 	listenSet, realmSet := false, false
 	fs.Visit(func(f *flag.Flag) {

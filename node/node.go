@@ -342,26 +342,13 @@ func (n *Node) startFold(ctx context.Context, cfg Config) error {
 	st := cfg.State
 	n.foldErr = make(chan error, 1)
 	ready := make(chan string, 1)
-	// A founded realm's artifacts are never rewritten (design 0001 §2):
-	// the plane's state subdir and creds keep their byname-era names on
-	// realms that founded with them, and take the functional names fresh.
-	planeDir := filepath.Join(cfg.StateDir, "signin")
-	if fileExists(filepath.Join(cfg.StateDir, "fold")) {
-		planeDir = filepath.Join(cfg.StateDir, "fold")
-	}
-	planeCreds := ceremony.UserCredsPath(cfg.StateDir, "signin")
-	if !fileExists(planeCreds) {
-		if legacy := ceremony.UserCredsPath(cfg.StateDir, "fold"); fileExists(legacy) {
-			planeCreds = legacy
-		}
-	}
 	go func() {
 		n.foldErr <- foldembed.Run(ctx, foldembed.Options{
 			Issuer:        st.SignInIssuer,
 			Listen:        st.SignInListen,
-			StateDir:      planeDir,
+			StateDir:      filepath.Join(cfg.StateDir, "signin"),
 			NATSURL:       n.url,
-			NATSCreds:     planeCreds,
+			NATSCreds:     ceremony.UserCredsPath(cfg.StateDir, "signin"),
 			TokenAudience: st.SignInAudience,
 			EnableDCR:     true,
 			// The console is the standalone deployment's surface (idp
@@ -395,11 +382,6 @@ func (n *Node) startFold(ctx context.Context, cfg Config) error {
 // nothing — it reads only the public sentinel. SoulNode holds the
 // listener so a bind conflict is a named refusal and tests get real
 // ports.
-func fileExists(p string) bool {
-	_, err := os.Stat(p)
-	return err == nil
-}
-
 func (n *Node) startDoor(cfg Config) error {
 	st := cfg.State
 	l, err := net.Listen("tcp", st.MCPListen)

@@ -1,9 +1,9 @@
 package ceremony_test
 
-// A realm founded before the functional plane names keeps working
-// untouched (design 0001 §2): the byname-era config keys and creds
-// filename are read forever, and a fresh found writes only the
-// functional names.
+// Pre-v1 renames are clean breaks (design 0001 §2): one schema, one
+// code path. A fresh found writes only the functional names, and a
+// realm founded under the byname-era spellings is refused by name —
+// with the hand-migration in the refusal — never silently misread.
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 	"github.com/impire-io/soulstream/ceremony"
 )
 
-func TestLegacyNamesAreReadForever(t *testing.T) {
+func TestBynameEraShapesAreRefusedByName(t *testing.T) {
 	dir := t.TempDir()
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err != nil {
@@ -46,8 +46,8 @@ func TestLegacyNamesAreReadForever(t *testing.T) {
 		t.Fatalf("a fresh found writes no users/signin.creds: %v", err)
 	}
 
-	// Reshape the same directory to the byname era: legacy keys, legacy
-	// creds filename. Loading must see the identical realm.
+	// Reshape the directory to the byname era: loading refuses by name
+	// and says how to migrate, rather than silently dropping the plane.
 	var cfg map[string]any
 	if err := json.Unmarshal(cfgRaw, &cfg); err != nil {
 		t.Fatal(err)
@@ -64,23 +64,24 @@ func TestLegacyNamesAreReadForever(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "config.json"), legacyRaw, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := ceremony.Load(dir); err == nil ||
+		!strings.Contains(err.Error(), "byname-era") ||
+		!strings.Contains(err.Error(), "fold→signin") {
+		t.Fatalf("the byname-era shape was not refused with the migration named: %v", err)
+	}
+
+	// The refusal names the whole break, not half of it: with the config
+	// migrated but the creds file still under its old name, the missing
+	// functional file is the refusal.
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), cfgRaw, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Rename(filepath.Join(dir, "users", "signin.creds"),
 		filepath.Join(dir, "users", "fold.creds")); err != nil {
 		t.Fatal(err)
 	}
-
-	loaded, err := ceremony.Load(dir)
-	if err != nil {
-		t.Fatalf("the byname-era shape no longer loads: %v", err)
-	}
-	if !loaded.SignInEnabled || loaded.SignInListen != "127.0.0.1:8378" {
-		t.Fatalf("the legacy sign-in block loaded differently: enabled=%v listen=%q",
-			loaded.SignInEnabled, loaded.SignInListen)
-	}
-	if len(loaded.SignInCreds) == 0 {
-		t.Fatal("the legacy creds filename was not read")
-	}
-	if !loaded.MCPEnabled {
-		t.Fatal("the legacy door block did not enable the MCP plane")
+	if _, err := ceremony.Load(dir); err == nil ||
+		!strings.Contains(err.Error(), "users/signin.creds") {
+		t.Fatalf("a missing signin.creds with the plane enabled was not refused by name: %v", err)
 	}
 }

@@ -39,9 +39,6 @@ const (
 	fileArchivistCreds  = "users/archivist.creds"
 	fileRunnerCreds     = "users/runner.creds"
 	fileSignInCreds     = "users/signin.creds"
-	// fileLegacySignInCreds is the byname-era spelling, read forever: a
-	// founded realm's artifacts are never rewritten (design 0001 §2).
-	fileLegacySignInCreds = "users/fold.creds"
 )
 
 // ErrIncomplete marks a state directory whose keys exist but whose
@@ -58,21 +55,20 @@ type config struct {
 	Realm  string `json:"realm"`
 	Planes struct {
 		Memory planeConfig `json:"memory"`
-		// MCP is the assistants' endpoint, named by function; Door is the
-		// same block under its byname-era key, read forever so a founded
-		// realm's config never stops working (design 0001 §2). Both
-		// absent means enabled — the plane is on by default.
-		MCP  *planeConfig `json:"mcp,omitempty"`
-		Door *planeConfig `json:"door,omitempty"`
-		// SignIn is the bundled sign-in service, named by function; Fold
-		// is its byname-era key, read forever. Pointers on purpose: the
-		// block's absence means disabled — state dirs founded before the
-		// plane existed must not sprout one on upgrade.
+		// MCP is the assistants' endpoint, named by function. Absent
+		// means enabled — the plane is on by default.
+		MCP *planeConfig `json:"mcp,omitempty"`
+		// SignIn is the bundled sign-in service. A pointer on purpose:
+		// the block's absence means disabled.
 		SignIn *signinConfig `json:"signin,omitempty"`
-		Fold   *signinConfig `json:"fold,omitempty"`
-		// Shell is a pointer for the same reason: state dirs founded
-		// before the shell plane existed must not sprout one on upgrade.
+		// Shell is a pointer for the same reason.
 		Shell *helmConfig `json:"shell,omitempty"`
+		// Door and Fold are the byname-era keys. They are not read —
+		// pre-v1 renames are clean breaks (design 0001 §2) — but they
+		// are still *detected*, so a realm founded under them is refused
+		// by name instead of silently misread.
+		Door json.RawMessage `json:"door,omitempty"`
+		Fold json.RawMessage `json:"fold,omitempty"`
 	} `json:"planes"`
 }
 
@@ -243,11 +239,11 @@ func Load(dir string) (*State, error) {
 	}
 	s.Listen = cfg.Listen
 	s.Realm = cfg.Realm
+	if cfg.Planes.Door != nil || cfg.Planes.Fold != nil {
+		return nil, fmt.Errorf("ceremony: %s carries byname-era plane keys — pre-v1 renames are clean breaks (design 0001 §2). Migrate by hand: rename the keys (door→mcp, fold→signin), `mv users/fold.creds users/signin.creds`, `mv fold/ signin/` — or re-init a fresh realm", fileConfig)
+	}
 	s.MemoryEnabled = cfg.Planes.Memory.enabled()
 	mcpBlock := cfg.Planes.MCP
-	if mcpBlock == nil {
-		mcpBlock = cfg.Planes.Door
-	}
 	s.MCPEnabled = mcpBlock.enabled()
 	if mcpBlock != nil {
 		s.MCPListen = mcpBlock.Listen
@@ -258,11 +254,7 @@ func Load(dir string) (*State, error) {
 	if s.MCPListen == "" {
 		s.MCPListen = "127.0.0.1:8080"
 	}
-	signinBlock := cfg.Planes.SignIn
-	if signinBlock == nil {
-		signinBlock = cfg.Planes.Fold
-	}
-	if f := signinBlock; f != nil && (f.Enabled == nil || *f.Enabled) {
+	if f := cfg.Planes.SignIn; f != nil && (f.Enabled == nil || *f.Enabled) {
 		s.SignInEnabled = true
 		s.SignInListen = f.Listen
 		if s.SignInListen == "" {
@@ -381,17 +373,11 @@ func Load(dir string) (*State, error) {
 	}
 	// The sign-in plane's creds are required only when it is enabled: a
 	// state dir founded before the plane existed loads fine with it off,
-	// and enabling it there is a named refusal. The legacy filename is
-	// read forever — a founded realm's artifacts are never rewritten.
-	signinRel := fileSignInCreds
-	data, err := os.ReadFile(filepath.Join(dir, signinRel))
-	if err != nil {
-		signinRel = fileLegacySignInCreds
-		data, err = os.ReadFile(filepath.Join(dir, signinRel))
-	}
+	// and enabling it there is a named refusal.
+	data, err := os.ReadFile(filepath.Join(dir, fileSignInCreds))
 	if err == nil {
 		if _, err := jwt.ParseDecoratedJWT(data); err != nil {
-			return nil, fmt.Errorf("ceremony: damaged %s: %w", signinRel, err)
+			return nil, fmt.Errorf("ceremony: damaged %s: %w", fileSignInCreds, err)
 		}
 		s.SignInCreds = data
 	} else if s.SignInEnabled {
