@@ -199,18 +199,14 @@ func Setup(ctx context.Context, cfg Config, scopePub, scopeSub []string) (*Resul
 	}
 	res.AuthSigningSeed = authSeed
 
-	// Callout: enabled for the system with the AUTH account as control
-	// account; a non-5xx error is tolerated — re-runs must not fail on
-	// "already enabled" (journey 0038's wiring) — and the config list
-	// below is the backstop that the enable actually holds.
-	if err := d.retry("enable auth callout", func() (*http.Response, error) {
-		return client.SystemAPI.EnableAuthCallout(ctx, system.Id).
-			AuthCalloutEnableRequest(syncp.AuthCalloutEnableRequest{ControlAccount: authAcct.Id}).Execute()
-	}, true); err != nil {
-		return nil, err
-	}
+	// Callout: list-first like everything else — a config for our
+	// control account already existing means enable already happened
+	// (measured live 2026-08-16: re-enabling an enabled config draws a
+	// persistent 500 "an unexpected error occurred", not a friendly
+	// already-enabled answer, so enable runs only when the list says it
+	// must).
 	var calloutID string
-	if err := d.retry("list auth callout configs", func() (*http.Response, error) {
+	findCallout := func() (*http.Response, error) {
 		configs, resp, err := client.SystemAPI.ListAuthCalloutConfigs(ctx, system.Id).Execute()
 		if err != nil {
 			return resp, err
@@ -222,8 +218,22 @@ func Setup(ctx context.Context, cfg Config, scopePub, scopeSub []string) (*Resul
 			}
 		}
 		return resp, nil
-	}, false); err != nil {
+	}
+	if err := d.retry("list auth callout configs", findCallout, false); err != nil {
 		return nil, err
+	}
+	if calloutID == "" {
+		if err := d.retry("enable auth callout", func() (*http.Response, error) {
+			return client.SystemAPI.EnableAuthCallout(ctx, system.Id).
+				AuthCalloutEnableRequest(syncp.AuthCalloutEnableRequest{ControlAccount: authAcct.Id}).Execute()
+		}, true); err != nil {
+			return nil, err
+		}
+		if err := d.retry("list auth callout configs", findCallout, false); err != nil {
+			return nil, err
+		}
+	} else {
+		logf("auth callout already enabled for %q (config %s)", authName, calloutID)
 	}
 	if calloutID == "" {
 		return nil, fmt.Errorf("synadia: no callout config for control account %q after enabling — the platform did not wire it", authName)

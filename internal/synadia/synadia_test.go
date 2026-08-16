@@ -138,10 +138,16 @@ func newCloudStub(t *testing.T) *cloudStub {
 			ControlAccount string `json:"control_account"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
-		if len(s.callouts) == 0 {
-			s.callouts["c1"] = req.ControlAccount
-			s.creates++
+		// Re-enabling draws a persistent 500 on the real platform
+		// (measured 2026-08-16) — the driver must be list-first, never
+		// enable-first, or resumes die here.
+		if len(s.callouts) > 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, `{"error":"an unexpected error occurred"}`)
+			return
 		}
+		s.callouts["c1"] = req.ControlAccount
+		s.creates++
 		writeJSON(w, map[string]any{"id": "c1", "control_account_id": req.ControlAccount, "system_id": "s1"})
 	})
 	mux.HandleFunc("GET /api/core/beta/systems/s1/auth-callout", func(w http.ResponseWriter, _ *http.Request) {
