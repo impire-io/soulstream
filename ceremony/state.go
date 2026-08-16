@@ -112,9 +112,14 @@ type signinConfig struct {
 // helmConfig is the bundled human cockpit's block (soulstream-shell). The shell
 // has no issuer of its own: sessions sign in against the deployment's
 // AS — the bundled sign-in service by default, or planes.mcp.auth_issuer.
+// PublicURL is the origin browsers reach the console on when the
+// deployment fronts the loopback listener (the shell's OAuth callback
+// is built from it); absent means the bound address is the reachable
+// origin.
 type helmConfig struct {
-	Enabled *bool  `json:"enabled,omitempty"`
-	Listen  string `json:"listen,omitempty"`
+	Enabled   *bool  `json:"enabled,omitempty"`
+	Listen    string `json:"listen,omitempty"`
+	PublicURL string `json:"public_url,omitempty"`
 }
 
 type planeConfig struct {
@@ -224,7 +229,8 @@ func (s *State) Save(dir string) error {
 	c.Planes.SignIn = &signinConfig{Enabled: &signinEnabled, Listen: s.SignInListen,
 		Issuer: s.SignInIssuer, Audience: s.SignInAudience}
 	helmEnabled := s.HelmEnabled
-	c.Planes.Shell = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen}
+	c.Planes.Shell = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen,
+		PublicURL: s.HelmPublicURL}
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -368,6 +374,7 @@ func Load(dir string) (*State, error) {
 		if s.HelmListen == "" {
 			s.HelmListen = "127.0.0.1:8500"
 		}
+		s.HelmPublicURL = h.PublicURL
 	}
 
 	// BYO mode loads its own, smaller inventory: signing keys and curve
@@ -658,6 +665,12 @@ func Verify(dir string) (*State, error) {
 			}
 			if s.SignInEnabled && s.HelmListen == s.SignInListen {
 				return nil, fmt.Errorf("ceremony: %s planes.shell.listen and planes.signin.listen are both %q — they are separate services and need separate addresses", fileConfig, s.HelmListen)
+			}
+		}
+		if s.HelmPublicURL != "" {
+			pu, err := url.Parse(s.HelmPublicURL)
+			if err != nil || pu.Scheme == "" || pu.Host == "" {
+				return nil, fmt.Errorf("ceremony: %s planes.shell.public_url %q is not a URL", fileConfig, s.HelmPublicURL)
 			}
 		}
 		// Sessions need a sign-in issuer: the bundled fold, or an

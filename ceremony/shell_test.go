@@ -132,3 +132,36 @@ func TestAdminSurface(t *testing.T) {
 		t.Fatalf("ephemeral fold: admin surface = %q, want none", got)
 	}
 }
+
+// TestShellPublicURLRoundTrip: planes.shell.public_url survives
+// save/load, and garbage refuses by name — the shell's OAuth callback
+// is built from it when the console is fronted (shell v0.7.0's
+// PublicURL; found live when the first fronted deployment's sign-in
+// bounced to the visitor's own 127.0.0.1).
+func TestShellPublicURLRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	st.HelmPublicURL = "https://shell.example:8443"
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	got, err := ceremony.Verify(dir)
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if got.HelmPublicURL != "https://shell.example:8443" {
+		t.Fatalf("public url lost: %q", got.HelmPublicURL)
+	}
+
+	st.HelmPublicURL = "not a url"
+	dir2 := t.TempDir()
+	if err := st.Save(dir2); err != nil {
+		t.Fatalf("save 2: %v", err)
+	}
+	if _, err := ceremony.Verify(dir2); err == nil || !strings.Contains(err.Error(), "planes.shell.public_url") {
+		t.Fatalf("garbage public_url not refused by name: %v", err)
+	}
+}

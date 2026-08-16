@@ -68,8 +68,13 @@ type State struct {
 	// The shell plane (soulstream-shell — the human cockpit): a loopback HTTP
 	// surface, sessions signing in against the deployment's AS (the
 	// bundled fold by default). On by default beside the fold.
-	HelmEnabled bool
-	HelmListen  string
+	// HelmPublicURL is the origin browsers reach the console on when
+	// the deployment fronts the loopback listener — the shell's OAuth
+	// callback is built from it; empty means the bound address is the
+	// reachable origin (the bundle's default).
+	HelmEnabled   bool
+	HelmListen    string
+	HelmPublicURL string
 
 	// BYO NATS (design 0003): BYOFlavour "" is the embedded server; the
 	// two flavours found on a substrate soulstream does not run. BYOURL

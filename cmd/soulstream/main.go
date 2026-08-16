@@ -443,6 +443,9 @@ func printEndpoints(out io.Writer, n *node.Node, st *ceremony.State) {
 	}
 	if st.HelmEnabled {
 		fmt.Fprintf(out, "soulstream: shell console    %s\n", n.HelmURL())
+		if st.HelmPublicURL != "" {
+			fmt.Fprintf(out, "soulstream:   public console %s (front this to the shell port)\n", st.HelmPublicURL)
+		}
 	}
 }
 
