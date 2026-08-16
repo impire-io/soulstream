@@ -27,8 +27,8 @@ deployment. Owning your realm should cost one binary and one command.
 
 ## Status
 
-**Current pre-release: [v0.12.0-rc.1](https://github.com/impire-io/soulstream/releases)**
-(episode [0094](../soul-hq/04-JOURNEY/0094-soulstream-v0-12-0-rc-1.md)) —
+**Current pre-release: [v0.13.0-rc.1](https://github.com/impire-io/soulstream/releases)**
+(episode [0096](../soul-hq/04-JOURNEY/0096-soulstream-byo-nats-ships.md)) —
 bundling core v0.8.4, workloads v0.4.0, shell v0.6.0, idp v0.5.0,
 archivist v0.3.0. What a person on this RC can do:
 

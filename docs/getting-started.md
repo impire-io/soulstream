@@ -11,7 +11,7 @@ ecosystem's internals; that is the point of the product.
 
 Download the archive for your platform from the
 [releases page](https://github.com/impire-io/soulstream/releases)
-(current pre-release: `v0.12.0-rc.1`; macOS and Linux, amd64 and arm64),
+(current pre-release: `v0.13.0-rc.1`; macOS and Linux, amd64 and arm64),
 unpack it, and put `soulstream` on your PATH. Or build from the repo
 (Go 1.26+):
 
