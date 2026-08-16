@@ -177,34 +177,34 @@ func newCloudStub(t *testing.T) *cloudStub {
 	})
 	mux.HandleFunc("POST /api/core/beta/auth-callout/c1/target-accounts", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			AccountId string `json:"account_id"`
+			AccountID string `json:"account_id"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		// Re-adding an existing target: the persistent 500 (measured).
 		for _, id := range s.calloutTargets {
-			if id == req.AccountId {
+			if id == req.AccountID {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, `{"error":"an unexpected error occurred"}`)
 				return
 			}
 		}
-		s.calloutTargets = append(s.calloutTargets, req.AccountId)
+		s.calloutTargets = append(s.calloutTargets, req.AccountID)
 		s.creates++
 		writeJSON(w, map[string]any{})
 	})
 	mux.HandleFunc("POST /api/core/beta/auth-callout/c1/users", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			NatsUserId string `json:"nats_user_id"`
+			NatsUserID string `json:"nats_user_id"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		for _, id := range s.calloutUsers {
-			if id == req.NatsUserId {
+			if id == req.NatsUserID {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, `{"error":"an unexpected error occurred"}`)
 				return
 			}
 		}
-		s.calloutUsers = append(s.calloutUsers, req.NatsUserId)
+		s.calloutUsers = append(s.calloutUsers, req.NatsUserID)
 		s.creates++
 		writeJSON(w, map[string]any{})
 	})
