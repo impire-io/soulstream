@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -27,6 +28,7 @@ func TestHelmPlane(t *testing.T) {
 	st.SignInListen = "127.0.0.1:" + foldPort
 	st.SignInIssuer = "http://localhost:" + foldPort
 	st.HelmListen = "127.0.0.1:0"
+	st.HelmPublicURL = "https://console.example:8443"
 	if err := st.Save(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -63,6 +65,24 @@ func TestHelmPlane(t *testing.T) {
 		t.Fatalf("unauthenticated /live = %d, want 401", live.StatusCode)
 	}
 
+	// The fronted console's OAuth callback goes where a visitor's browser
+	// can actually reach — planes.shell.public_url, THROUGH the plane
+	// wiring, observable in the live /login redirect (the first landing
+	// of this feature silently missed the plane pass-through; this
+	// assertion is why it cannot happen again).
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	login, err := noRedirect.Get(n.HelmURL() + "/login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = login.Body.Close()
+	loc := login.Header.Get("Location")
+	if !strings.Contains(loc, url.QueryEscape("https://console.example:8443/callback")) {
+		t.Fatalf("/login redirect_uri is not the fronted callback: %s", loc)
+	}
+
 	// The optional surfaces this node declares are the ones it runs. Both
 	// facts are asserted the same way and from outside: a module this
 	// deployment declared answers a visitor with no session by sending them
@@ -70,9 +90,6 @@ func TestHelmPlane(t *testing.T) {
 	// 404, like any path nobody claimed. What the surfaces then do is
 	// soulstream-shell's own gate to prove; what this test holds is that the
 	// declaration crossed the seam at all.
-	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
-		return http.ErrUseLastResponse
-	}}
 	for _, path := range []string{"/agents", "/people"} {
 		resp, err := noRedirect.Get(n.HelmURL() + path)
 		if err != nil {

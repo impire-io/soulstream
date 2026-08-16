@@ -303,6 +303,7 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 	go func() {
 		n.helmErr <- helmembed.Run(ctx, helmembed.Options{
 			Listen:       st.HelmListen,
+			PublicURL:    st.HelmPublicURL,
 			NATSURL:      n.url,
 			CredsPath:    ceremony.UserCredsPath(cfg.StateDir, "ops"),
 			CredsUser:    "ops",
