@@ -238,7 +238,36 @@ func Setup(ctx context.Context, cfg Config, scopePub, scopeSub []string) (*Resul
 	if calloutID == "" {
 		return nil, fmt.Errorf("synadia: no callout config for control account %q after enabling — the platform did not wire it", authName)
 	}
-	if err := d.retry("wire target account", func() (*http.Response, error) {
+
+	// The wiring is read-first for the same measured reason as the
+	// enable: re-adding an existing target (or callout user) draws the
+	// persistent 500, so the config view decides what still needs
+	// adding.
+	var wiredTarget bool
+	wiredUsers := map[string]bool{}
+	readCallout := func() (*http.Response, error) {
+		view, resp, err := client.AuthCalloutAPI.GetAuthCallout(ctx, calloutID).Execute()
+		if err != nil {
+			return resp, err
+		}
+		wiredTarget = false
+		clear(wiredUsers)
+		for _, ta := range view.TargetAccounts {
+			if ta.TargetAccountId == realmAcct.Id {
+				wiredTarget = true
+			}
+		}
+		for _, u := range view.Users {
+			wiredUsers[u.NatsUserId] = true
+		}
+		return resp, nil
+	}
+	if err := d.retry("read auth callout config", readCallout, false); err != nil {
+		return nil, err
+	}
+	if wiredTarget {
+		logf("target account %q already wired", realmName)
+	} else if err := d.retry("wire target account", func() (*http.Response, error) {
 		return client.AuthCalloutAPI.AddAuthCalloutTargetAccount(ctx, calloutID).
 			AuthCalloutAddTargetAccountRequest(syncp.AuthCalloutAddTargetAccountRequest{
 				AccountId:               realmAcct.Id,
@@ -262,11 +291,15 @@ func Setup(ctx context.Context, cfg Config, scopePub, scopeSub []string) (*Resul
 	if err != nil {
 		return nil, err
 	}
-	if err := d.retry("register callout user", func() (*http.Response, error) {
-		return client.AuthCalloutAPI.AddAuthCalloutUser(ctx, calloutID).
-			AuthCalloutAddUserRequest(syncp.AuthCalloutAddUserRequest{NatsUserId: issuerID}).Execute()
-	}, true); err != nil {
-		return nil, err
+	if !wiredUsers[issuerID] {
+		if err := d.retry("register callout user", func() (*http.Response, error) {
+			return client.AuthCalloutAPI.AddAuthCalloutUser(ctx, calloutID).
+				AuthCalloutAddUserRequest(syncp.AuthCalloutAddUserRequest{NatsUserId: issuerID}).Execute()
+		}, true); err != nil {
+			return nil, err
+		}
+	} else {
+		logf("issuer already registered as a callout user")
 	}
 	if err := d.retry("download issuer creds", func() (*http.Response, error) {
 		creds, resp, err := client.NatsUserAPI.DownloadNatsUserCreds(ctx, issuerID).Execute()

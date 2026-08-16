@@ -24,6 +24,9 @@ type cloudStub struct {
 	callouts map[string]string       // callout id → control account id
 	creates  int                     // POSTs that made something new
 
+	calloutTargets []string // wired target account ids
+	calloutUsers   []string // registered callout nats-user ids
+
 	// The lossy channel (measured live 2026-08-16: the private-link
 	// tunnel cycling mid-request): flakes[method+" "+lastSegment]
 	// counts 500s to serve before letting that endpoint through;
@@ -157,10 +160,52 @@ func newCloudStub(t *testing.T) *cloudStub {
 		}
 		writeJSON(w, map[string]any{"items": items})
 	})
-	mux.HandleFunc("POST /api/core/beta/auth-callout/c1/target-accounts", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/core/beta/auth-callout/c1", func(w http.ResponseWriter, _ *http.Request) {
+		targets := []any{}
+		for _, id := range s.calloutTargets {
+			targets = append(targets, map[string]any{"id": "ta-" + id, "target_account_id": id,
+				"target_account_name":        s.accounts[id].name,
+				"target_account_sk_group_id": "", "target_account_sk_group_name": "",
+				"control_account_sk_group_id": "", "control_account_sk_group_name": ""})
+		}
+		users := []any{}
+		for _, id := range s.calloutUsers {
+			users = append(users, map[string]any{"id": "cu-" + id, "name": "issuer", "nats_user_id": id})
+		}
+		writeJSON(w, map[string]any{"id": "c1", "control_account_id": s.callouts["c1"],
+			"system_id": "s1", "target_accounts": targets, "users": users})
+	})
+	mux.HandleFunc("POST /api/core/beta/auth-callout/c1/target-accounts", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			AccountId string `json:"account_id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		// Re-adding an existing target: the persistent 500 (measured).
+		for _, id := range s.calloutTargets {
+			if id == req.AccountId {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(w, `{"error":"an unexpected error occurred"}`)
+				return
+			}
+		}
+		s.calloutTargets = append(s.calloutTargets, req.AccountId)
+		s.creates++
 		writeJSON(w, map[string]any{})
 	})
-	mux.HandleFunc("POST /api/core/beta/auth-callout/c1/users", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST /api/core/beta/auth-callout/c1/users", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			NatsUserId string `json:"nats_user_id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		for _, id := range s.calloutUsers {
+			if id == req.NatsUserId {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(w, `{"error":"an unexpected error occurred"}`)
+				return
+			}
+		}
+		s.calloutUsers = append(s.calloutUsers, req.NatsUserId)
+		s.creates++
 		writeJSON(w, map[string]any{})
 	})
 	mux.HandleFunc("GET /api/core/beta/accounts/{id}/nats-users", func(w http.ResponseWriter, r *http.Request) {
