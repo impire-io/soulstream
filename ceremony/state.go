@@ -387,9 +387,6 @@ func Load(dir string) (*State, error) {
 			dst   *[]byte
 			check func([]byte) error
 		}{
-			{fileAuthSigning, &s.AuthSigningSeed, kind(nkeys.PrefixByteAccount)},
-			{fileRealmSigning, &s.RealmSigningSeed, kind(nkeys.PrefixByteAccount)},
-			{fileWorkloadSigning, &s.WorkloadSigningSeed, kind(nkeys.PrefixByteAccount)},
 			{fileVaultFirst, &s.VaultFirstSeed, kind(nkeys.PrefixByteCurve)},
 			{fileSurface, &s.SurfaceSeed, kind(nkeys.PrefixByteCurve)},
 		} {
@@ -402,11 +399,20 @@ func Load(dir string) (*State, error) {
 			}
 			*sf.dst = data
 		}
+		// The signing keys are load-if-present: self-hosted generates
+		// them at phase 1 (Verify requires them there), but on Synadia
+		// Cloud they exist only after the platform returns them — the
+		// awaiting-driver state has none, and a resume after a platform
+		// timeout must load (found live, 2026-08-16: the first BYON
+		// founding hit a 500 mid-account-half and could not resume).
 		for _, of := range []struct {
 			rel   string
 			dst   *[]byte
 			check func([]byte) error
 		}{
+			{fileAuthSigning, &s.AuthSigningSeed, kind(nkeys.PrefixByteAccount)},
+			{fileRealmSigning, &s.RealmSigningSeed, kind(nkeys.PrefixByteAccount)},
+			{fileWorkloadSigning, &s.WorkloadSigningSeed, kind(nkeys.PrefixByteAccount)},
 			{fileCallout, &s.CalloutSeed, kind(nkeys.PrefixByteCurve)},
 			{fileIssuerUserSeed, &s.IssuerUserSeed, kind(nkeys.PrefixByteUser)},
 		} {
@@ -419,26 +425,36 @@ func Load(dir string) (*State, error) {
 			}
 			*of.dst = data
 		}
-		if s.AuthSigningPub, err = pubOf(s.AuthSigningSeed); err != nil {
-			return nil, fmt.Errorf("ceremony: %s: %w", fileAuthSigning, err)
-		}
-		if s.RealmSigningPub, err = pubOf(s.RealmSigningSeed); err != nil {
-			return nil, fmt.Errorf("ceremony: %s: %w", fileRealmSigning, err)
-		}
-		if s.WorkloadSigningPub, err = pubOf(s.WorkloadSigningSeed); err != nil {
-			return nil, fmt.Errorf("ceremony: %s: %w", fileWorkloadSigning, err)
-		}
-		if len(s.CalloutSeed) > 0 {
-			if s.CalloutPub, err = pubOf(s.CalloutSeed); err != nil {
-				return nil, fmt.Errorf("ceremony: %s: %w", fileCallout, err)
+		for _, p := range []struct {
+			rel  string
+			seed []byte
+			dst  *string
+		}{
+			{fileAuthSigning, s.AuthSigningSeed, &s.AuthSigningPub},
+			{fileRealmSigning, s.RealmSigningSeed, &s.RealmSigningPub},
+			{fileWorkloadSigning, s.WorkloadSigningSeed, &s.WorkloadSigningPub},
+			{fileCallout, s.CalloutSeed, &s.CalloutPub},
+			{fileIssuerUserSeed, s.IssuerUserSeed, &s.IssuerUserPub},
+		} {
+			if len(p.seed) == 0 {
+				continue
 			}
-		}
-		if len(s.IssuerUserSeed) > 0 {
-			if s.IssuerUserPub, err = pubOf(s.IssuerUserSeed); err != nil {
-				return nil, fmt.Errorf("ceremony: %s: %w", fileIssuerUserSeed, err)
+			if *p.dst, err = pubOf(p.seed); err != nil {
+				return nil, fmt.Errorf("ceremony: %s: %w", p.rel, err)
 			}
 		}
 		founded := Founded(dir)
+		if founded {
+			for rel, seed := range map[string][]byte{
+				fileAuthSigning:     s.AuthSigningSeed,
+				fileRealmSigning:    s.RealmSigningSeed,
+				fileWorkloadSigning: s.WorkloadSigningSeed,
+			} {
+				if len(seed) == 0 {
+					return nil, fmt.Errorf("ceremony: missing or unreadable %s on a founded realm", rel)
+				}
+			}
+		}
 		for _, cf := range []struct {
 			rel string
 			dst *[]byte
@@ -718,11 +734,16 @@ func (s *State) verifyBYO() error {
 		return fmt.Errorf("ceremony: %s byo.url %q is not a server URL (nats://host:port)", fileConfig, s.BYOURL)
 	}
 	if s.BYOFlavour == FlavourSelfHosted {
-		if len(s.IssuerUserSeed) == 0 {
-			return fmt.Errorf("ceremony: missing %s — the issuer user's key is phase-1 material; found no way to have lost it short of hand-deletion. Re-init a fresh state dir", fileIssuerUserSeed)
-		}
-		if len(s.CalloutSeed) == 0 {
-			return fmt.Errorf("ceremony: missing %s — the callout key is phase-1 material; re-init a fresh state dir", fileCallout)
+		for rel, seed := range map[string][]byte{
+			fileIssuerUserSeed:  s.IssuerUserSeed,
+			fileCallout:         s.CalloutSeed,
+			fileAuthSigning:     s.AuthSigningSeed,
+			fileRealmSigning:    s.RealmSigningSeed,
+			fileWorkloadSigning: s.WorkloadSigningSeed,
+		} {
+			if len(seed) == 0 {
+				return fmt.Errorf("ceremony: missing %s — self-hosted phase-1 material; re-init a fresh state dir", rel)
+			}
 		}
 	}
 	if s.BYOFlavour == FlavourSynadiaCloud && s.SynadiaSystem == "" {

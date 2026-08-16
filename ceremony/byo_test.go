@@ -204,20 +204,36 @@ func TestVerifyBYOSynadiaNeedsSystem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	// The synadia flavour's signing material arrives from the platform;
-	// give the state the on-disk shape of a driver run without a system.
-	sk1, _ := nkeys.CreateAccount()
-	st.AuthSigningSeed, _ = sk1.Seed()
-	sk2, _ := nkeys.CreateAccount()
-	st.RealmSigningSeed, _ = sk2.Seed()
-	sk3, _ := nkeys.CreateAccount()
-	st.WorkloadSigningSeed, _ = sk3.Seed()
 	if err := st.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 	_, err = Verify(dir)
 	if err == nil || !strings.Contains(err.Error(), "byo.synadia.system") {
 		t.Fatalf("missing system not refused: %v", err)
+	}
+}
+
+// TestSynadiaAwaitingStateResumes: the awaiting-driver state — before
+// the platform has returned any signing seed — must load and verify,
+// or a founding interrupted by a platform timeout can never resume
+// (found live on the first BYON run, 2026-08-16).
+func TestSynadiaAwaitingStateResumes(t *testing.T) {
+	dir := t.TempDir()
+	st, err := GenerateBYO(FlavourSynadiaCloud, "nats://byon.example:4222", "byon")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	st.SynadiaSystem = "DEV"
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save awaiting: %v", err)
+	}
+	got, err := Verify(dir)
+	if err != nil {
+		t.Fatalf("awaiting state does not resume: %v", err)
+	}
+	if got.SynadiaSystem != "DEV" || len(got.AuthSigningSeed) != 0 {
+		t.Fatalf("awaiting state loaded wrong: system %q, %d seed bytes",
+			got.SynadiaSystem, len(got.AuthSigningSeed))
 	}
 }
 
