@@ -124,61 +124,70 @@ func Start(cfg Config) (*Node, error) {
 		audit = os.Stderr
 	}
 
-	// Pre-flight the bind so a conflict is a named refusal, not a
-	// timeout (contracts/cli.md).
-	probe, err := net.Listen("tcp", st.Listen)
-	if err != nil {
-		return nil, fmt.Errorf("node: cannot listen on %s (change \"listen\" in %s): %w",
-			st.Listen, filepath.Join(cfg.StateDir, "config.json"), err)
-	}
-	_ = probe.Close()
-
-	host, portStr, err := net.SplitHostPort(st.Listen)
-	if err != nil {
-		return nil, fmt.Errorf("node: listen %q: %w", st.Listen, err)
-	}
-	var port int
-	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
-		return nil, fmt.Errorf("node: listen port %q: %w", portStr, err)
-	}
-	// Port 0 means "any free port" everywhere else in the config's
-	// vocabulary (and in the pre-flight probe above); nats-server would
-	// read 0 as its default 4222, silently disagreeing with the probe.
-	// Its own random-port spelling is -1.
-	if port == 0 {
-		port = -1
-	}
-
-	res := &natsserver.MemAccResolver{}
-	for pub, token := range map[string]string{
-		st.SysPub: st.SysJWT, st.AuthPub: st.AuthJWT, st.RealmPub: st.RealmJWT,
-	} {
-		if err := res.Store(pub, token); err != nil {
-			return nil, fmt.Errorf("node: account resolver: %w", err)
+	// BYO NATS (design 0003): the embedded server is configuration, and
+	// here it is configured away — n.url points at the substrate, and
+	// every plane's ordinary connection dials it exactly as it would
+	// dial the loopback. Nothing else in the composition branches.
+	var srv *natsserver.Server
+	nodeURL := st.BYOURL
+	if !st.BYO() {
+		// Pre-flight the bind so a conflict is a named refusal, not a
+		// timeout (contracts/cli.md).
+		probe, err := net.Listen("tcp", st.Listen)
+		if err != nil {
+			return nil, fmt.Errorf("node: cannot listen on %s (change \"listen\" in %s): %w",
+				st.Listen, filepath.Join(cfg.StateDir, "config.json"), err)
 		}
-	}
-	srv, err := natsserver.NewServer(&natsserver.Options{
-		Host:            host,
-		Port:            port,
-		JetStream:       true,
-		StoreDir:        filepath.Join(cfg.StateDir, "jetstream"),
-		TrustedKeys:     []string{st.OperatorPub},
-		SystemAccount:   st.SysPub,
-		AccountResolver: res,
-		NoLog:           true,
-		NoSigs:          true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("node: server: %w", err)
-	}
-	go srv.Start()
-	if !srv.ReadyForConnections(10 * time.Second) {
-		srv.Shutdown()
-		return nil, fmt.Errorf("node: server did not become ready on %s", st.Listen)
+		_ = probe.Close()
+
+		host, portStr, err := net.SplitHostPort(st.Listen)
+		if err != nil {
+			return nil, fmt.Errorf("node: listen %q: %w", st.Listen, err)
+		}
+		var port int
+		if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
+			return nil, fmt.Errorf("node: listen port %q: %w", portStr, err)
+		}
+		// Port 0 means "any free port" everywhere else in the config's
+		// vocabulary (and in the pre-flight probe above); nats-server would
+		// read 0 as its default 4222, silently disagreeing with the probe.
+		// Its own random-port spelling is -1.
+		if port == 0 {
+			port = -1
+		}
+
+		res := &natsserver.MemAccResolver{}
+		for pub, token := range map[string]string{
+			st.SysPub: st.SysJWT, st.AuthPub: st.AuthJWT, st.RealmPub: st.RealmJWT,
+		} {
+			if err := res.Store(pub, token); err != nil {
+				return nil, fmt.Errorf("node: account resolver: %w", err)
+			}
+		}
+		srv, err = natsserver.NewServer(&natsserver.Options{
+			Host:            host,
+			Port:            port,
+			JetStream:       true,
+			StoreDir:        filepath.Join(cfg.StateDir, "jetstream"),
+			TrustedKeys:     []string{st.OperatorPub},
+			SystemAccount:   st.SysPub,
+			AccountResolver: res,
+			NoLog:           true,
+			NoSigs:          true,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("node: server: %w", err)
+		}
+		go srv.Start()
+		if !srv.ReadyForConnections(10 * time.Second) {
+			srv.Shutdown()
+			return nil, fmt.Errorf("node: server did not become ready on %s", st.Listen)
+		}
+		nodeURL = srv.ClientURL()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	n := &Node{srv: srv, cancel: cancel, planes: make(chan error, 1), url: srv.ClientURL()}
+	n := &Node{srv: srv, cancel: cancel, planes: make(chan error, 1), url: nodeURL}
 	fail := func(err error) (*Node, error) {
 		n.Stop()
 		return nil, err
@@ -193,6 +202,7 @@ func Start(cfg Config) (*Node, error) {
 		}
 		return nc, nil
 	}
+	var err error
 	if n.ncService, err = connect("service"); err != nil {
 		return fail(err)
 	}
@@ -541,5 +551,7 @@ func (n *Node) Stop() {
 			nc.Close()
 		}
 	}
-	n.srv.Shutdown()
+	if n.srv != nil { // nil in BYO mode: the substrate is not ours to stop
+		n.srv.Shutdown()
+	}
 }

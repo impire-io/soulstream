@@ -190,13 +190,40 @@ new machine by copying it there and running `soulstream up`. Secrets are
 owner-only on disk (`0700`/`0600`) — `init` refuses filesystems that
 cannot hold that.
 
+## Bring your own NATS server
+
+If you already run a NATS server, the realm can live on it instead of
+the embedded one (design 0003). Two flavours, and operator mode is the
+requirement in both — conf-file auth servers are refused by name:
+
+- **Self-hosted** (you speak `nsc` and control the server's config):
+
+      soulstream init --byo self-hosted --url nats://your-host:4222 --realm home
+
+  That prints **the kit** — the exact `nsc` commands and config
+  fragments your server needs (public keys only; no secret ever crosses
+  in either direction). Apply it, `nsc push`, then re-run `init` with
+  the two account public keys the kit's last command prints. soulstream
+  verifies what you applied, refuses by name anything missing, and
+  finishes the founding over the wire.
+
+- **Synadia Cloud BYON** (their control plane drives the account half):
+
+      SOULSTREAM_SYNADIA_TOKEN=uat_… soulstream init --byo synadia-cloud \
+        --url nats://your-byon-host:4222 --synadia-system your-system
+
+  One command; the token is used for the setup calls and never stored.
+
+Everything else — `up`, the planes, the shell, agents — works the same;
+the state directory simply holds no server.
+
 ## What's deliberately not here yet
 
 - **Public HTTPS mode with real OAuth end-to-end** — the passkey sign-in
   and OIDC lane run locally today; the fronted public-mode story ships
   behind its own pass. Today's answer is fronting (step 9).
-- **Bring-your-own NATS and remote planes** — the configuration shape is
-  built for it; the ceremony split ships behind its own design pass.
+- **Remote planes** — the configuration shape is built for them; the
+  split ships behind its own pass.
 - **Agents woken as isolated workloads** — the wrapper runs your
   assistant where you are; running wraps behind the isolation backends
   waits on a distributable-harness story, recorded in the design.

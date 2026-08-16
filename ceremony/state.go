@@ -39,7 +39,15 @@ const (
 	fileArchivistCreds  = "users/archivist.creds"
 	fileRunnerCreds     = "users/runner.creds"
 	fileSignInCreds     = "users/signin.creds"
+
+	// BYO NATS artifacts (design 0003): the issuer user's seed (its
+	// public key rides in the kit) and the kit document itself.
+	fileIssuerUserSeed = "keys/issuer-user.nk"
+	fileKit            = "byo-kit.md"
 )
+
+// KitPath is where the generated kit lives under dir (BYO self-hosted).
+func KitPath(dir string) string { return filepath.Join(dir, fileKit) }
 
 // ErrIncomplete marks a state directory whose keys exist but whose
 // founding never finished (no sentinel): the ceremony was interrupted
@@ -51,8 +59,12 @@ var ErrIncomplete = errors.New("ceremony: incomplete state directory — foundin
 // config is contracts/config.md: listen + realm fixed at founding, plus
 // the per-plane blocks (design §2 — absent block or field means enabled).
 type config struct {
-	Listen string `json:"listen"`
+	Listen string `json:"listen,omitempty"`
 	Realm  string `json:"realm"`
+	// BYO is design 0003 §6's block: founding on a server soulstream
+	// does not run. Present ⇒ the embedded server is off and every
+	// plane dials URL. Mutually exclusive with Listen, refused by name.
+	BYO    *byoConfig `json:"byo,omitempty"`
 	Planes struct {
 		Memory planeConfig `json:"memory"`
 		// MCP is the assistants' endpoint, named by function. Absent
@@ -70,6 +82,23 @@ type config struct {
 		Door json.RawMessage `json:"door,omitempty"`
 		Fold json.RawMessage `json:"fold,omitempty"`
 	} `json:"planes"`
+}
+
+// byoConfig is the bring-your-own-server block. AuthAccount and
+// RealmAccount are the two public keys the account half hands back —
+// the only thing that crosses back, and it is public (design 0003 §4).
+type byoConfig struct {
+	Flavour      string         `json:"flavour"`
+	URL          string         `json:"url"`
+	AuthAccount  string         `json:"auth_account,omitempty"`
+	RealmAccount string         `json:"realm_account,omitempty"`
+	Synadia      *synadiaConfig `json:"synadia,omitempty"`
+}
+
+// synadiaConfig names the Synadia Cloud system; the API token arrives by
+// environment (SOULSTREAM_SYNADIA_TOKEN) and is never persisted.
+type synadiaConfig struct {
+	System string `json:"system,omitempty"`
 }
 
 // signinConfig is the bundled sign-in service's block (opt-in).
@@ -105,7 +134,34 @@ func (p *planeConfig) enabled() bool { return p == nil || p.Enabled == nil || *p
 
 // secretFiles maps relative path → the State field's bytes, for Save and
 // Load symmetry. JWTs and creds are secrets-adjacent and get 0600 too.
+// In BYO mode the inventory is smaller by construction — no operator, no
+// SYS, no account masters, no account JWTs (they live in the substrate's
+// resolver) — and grows as the phases complete, so empty entries are
+// skipped rather than written as empty files.
 func (s *State) files() map[string][]byte {
+	if s.BYO() {
+		m := map[string][]byte{}
+		for rel, data := range map[string][]byte{
+			fileAuthSigning:     s.AuthSigningSeed,
+			fileRealmSigning:    s.RealmSigningSeed,
+			fileWorkloadSigning: s.WorkloadSigningSeed,
+			fileCallout:         s.CalloutSeed,
+			fileVaultFirst:      s.VaultFirstSeed,
+			fileSurface:         s.SurfaceSeed,
+			fileIssuerUserSeed:  s.IssuerUserSeed,
+			fileServiceCreds:    s.ServiceCreds,
+			fileIssuerCreds:     s.IssuerCreds,
+			fileOpsCreds:        s.OpsCreds,
+			fileArchivistCreds:  s.ArchivistCreds,
+			fileRunnerCreds:     s.RunnerCreds,
+			fileSignInCreds:     s.SignInCreds,
+		} {
+			if len(data) > 0 {
+				m[rel] = data
+			}
+		}
+		return m
+	}
 	return map[string][]byte{
 		fileOperator:        s.OperatorSeed,
 		fileSysSeed:         s.SysSeed,
@@ -151,6 +207,13 @@ func (s *State) Save(dir string) error {
 	var c config
 	c.Listen = s.Listen
 	c.Realm = s.Realm
+	if s.BYO() {
+		c.BYO = &byoConfig{Flavour: s.BYOFlavour, URL: s.BYOURL,
+			AuthAccount: s.AuthPub, RealmAccount: s.RealmPub}
+		if s.SynadiaSystem != "" {
+			c.BYO.Synadia = &synadiaConfig{System: s.SynadiaSystem}
+		}
+	}
 	memEnabled := s.MemoryEnabled
 	c.Planes.Memory.Enabled = &memEnabled
 	mcpEnabled := s.MCPEnabled
@@ -291,6 +354,96 @@ func Load(dir string) (*State, error) {
 		}
 	}
 
+	// BYO mode loads its own, smaller inventory: signing keys and curve
+	// keys always; the issuer-user and callout seeds when the flavour
+	// generated them; creds only once minted — required the moment the
+	// realm is founded, optional in the awaiting states before it.
+	if cfg.BYO != nil {
+		s.BYOFlavour = cfg.BYO.Flavour
+		s.BYOURL = cfg.BYO.URL
+		s.AuthPub = cfg.BYO.AuthAccount
+		s.RealmPub = cfg.BYO.RealmAccount
+		if cfg.BYO.Synadia != nil {
+			s.SynadiaSystem = cfg.BYO.Synadia.System
+		}
+		for _, sf := range []struct {
+			rel   string
+			dst   *[]byte
+			check func([]byte) error
+		}{
+			{fileAuthSigning, &s.AuthSigningSeed, kind(nkeys.PrefixByteAccount)},
+			{fileRealmSigning, &s.RealmSigningSeed, kind(nkeys.PrefixByteAccount)},
+			{fileWorkloadSigning, &s.WorkloadSigningSeed, kind(nkeys.PrefixByteAccount)},
+			{fileVaultFirst, &s.VaultFirstSeed, kind(nkeys.PrefixByteCurve)},
+			{fileSurface, &s.SurfaceSeed, kind(nkeys.PrefixByteCurve)},
+		} {
+			data, err := read(sf.rel)
+			if err != nil {
+				return nil, err
+			}
+			if err := sf.check(data); err != nil {
+				return nil, fmt.Errorf("ceremony: damaged %s: %w", sf.rel, err)
+			}
+			*sf.dst = data
+		}
+		for _, of := range []struct {
+			rel   string
+			dst   *[]byte
+			check func([]byte) error
+		}{
+			{fileCallout, &s.CalloutSeed, kind(nkeys.PrefixByteCurve)},
+			{fileIssuerUserSeed, &s.IssuerUserSeed, kind(nkeys.PrefixByteUser)},
+		} {
+			data, err := os.ReadFile(filepath.Join(dir, of.rel))
+			if err != nil {
+				continue
+			}
+			if err := of.check(data); err != nil {
+				return nil, fmt.Errorf("ceremony: damaged %s: %w", of.rel, err)
+			}
+			*of.dst = data
+		}
+		if s.AuthSigningPub, err = pubOf(s.AuthSigningSeed); err != nil {
+			return nil, fmt.Errorf("ceremony: %s: %w", fileAuthSigning, err)
+		}
+		if s.RealmSigningPub, err = pubOf(s.RealmSigningSeed); err != nil {
+			return nil, fmt.Errorf("ceremony: %s: %w", fileRealmSigning, err)
+		}
+		if s.WorkloadSigningPub, err = pubOf(s.WorkloadSigningSeed); err != nil {
+			return nil, fmt.Errorf("ceremony: %s: %w", fileWorkloadSigning, err)
+		}
+		if len(s.CalloutSeed) > 0 {
+			if s.CalloutPub, err = pubOf(s.CalloutSeed); err != nil {
+				return nil, fmt.Errorf("ceremony: %s: %w", fileCallout, err)
+			}
+		}
+		if len(s.IssuerUserSeed) > 0 {
+			if s.IssuerUserPub, err = pubOf(s.IssuerUserSeed); err != nil {
+				return nil, fmt.Errorf("ceremony: %s: %w", fileIssuerUserSeed, err)
+			}
+		}
+		founded := Founded(dir)
+		for _, cf := range []struct {
+			rel string
+			dst *[]byte
+		}{{fileServiceCreds, &s.ServiceCreds}, {fileIssuerCreds, &s.IssuerCreds},
+			{fileOpsCreds, &s.OpsCreds}, {fileArchivistCreds, &s.ArchivistCreds},
+			{fileRunnerCreds, &s.RunnerCreds}, {fileSignInCreds, &s.SignInCreds}} {
+			data, err := os.ReadFile(filepath.Join(dir, cf.rel))
+			if err != nil {
+				if founded {
+					return nil, fmt.Errorf("ceremony: missing or unreadable %s: %w", cf.rel, err)
+				}
+				continue
+			}
+			if _, err := jwt.ParseDecoratedJWT(data); err != nil {
+				return nil, fmt.Errorf("ceremony: damaged %s: %w", cf.rel, err)
+			}
+			*cf.dst = data
+		}
+		return s, nil
+	}
+
 	seeds := []struct {
 		rel   string
 		dst   *[]byte
@@ -395,41 +548,14 @@ func Verify(dir string) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	sys, err := jwt.DecodeAccountClaims(s.SysJWT)
-	if err != nil || sys.Subject != s.SysPub {
-		return nil, fmt.Errorf("ceremony: %s does not match %s (subject %s, key %s)", fileSysJWT, fileSysSeed, subjectOf(sys, err), s.SysPub)
-	}
-	auth, err := jwt.DecodeAccountClaims(s.AuthJWT)
-	if err != nil || auth.Subject != s.AuthPub {
-		return nil, fmt.Errorf("ceremony: %s does not match %s", fileAuthJWT, fileAuthSeed)
-	}
-	if len(auth.Authorization.AuthUsers) == 0 {
-		return nil, fmt.Errorf("ceremony: %s lacks external authorization", fileAuthJWT)
-	}
-	if auth.Authorization.XKey != s.CalloutPub {
-		return nil, fmt.Errorf("ceremony: %s callout xkey does not match %s", fileAuthJWT, fileCallout)
-	}
-	if !auth.SigningKeys.Contains(s.AuthSigningPub) {
-		return nil, fmt.Errorf("ceremony: %s does not endorse %s", fileAuthJWT, fileAuthSigning)
-	}
-	realm, err := jwt.DecodeAccountClaims(s.RealmJWT)
-	if err != nil || realm.Subject != s.RealmPub {
-		return nil, fmt.Errorf("ceremony: %s does not match %s", fileRealmJWT, fileRealmSeed)
-	}
-	if scope, ok := realm.SigningKeys.GetScope(s.RealmSigningPub); !ok || scope == nil {
-		return nil, fmt.Errorf("ceremony: %s lacks the scoped signing key %s", fileRealmJWT, fileRealmSigning)
-	}
-	// The workload minting key must be endorsed PLAIN (nil scope): a
-	// scoped key would reject the minter's carried permissions (R1).
-	if scope, ok := realm.SigningKeys.GetScope(s.WorkloadSigningPub); !ok || scope != nil {
-		return nil, fmt.Errorf("ceremony: %s does not endorse %s as a plain signing key", fileRealmJWT, fileWorkloadSigning)
-	}
-	host, _, err := net.SplitHostPort(s.Listen)
-	if err != nil {
-		return nil, fmt.Errorf("ceremony: damaged %s: listen %q: %w", fileConfig, s.Listen, err)
-	}
-	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
-		return nil, fmt.Errorf("ceremony: %s listen %q is not loopback", fileConfig, s.Listen)
+	if s.BYO() {
+		if err := s.verifyBYO(); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.verifyEmbedded(); err != nil {
+			return nil, err
+		}
 	}
 	if s.Realm == "" {
 		return nil, fmt.Errorf("ceremony: damaged %s: realm name missing", fileConfig)
@@ -511,10 +637,100 @@ func Verify(dir string) (*State, error) {
 	return s, nil
 }
 
+// verifyEmbedded is the embedded server's cross-checks: JWT subjects
+// match their seeds, the AUTH JWT carries the admission machinery wired
+// to the persisted callout key, the realm JWT carries the scoped signing
+// key, and the listener is loopback.
+func (s *State) verifyEmbedded() error {
+	sys, err := jwt.DecodeAccountClaims(s.SysJWT)
+	if err != nil || sys.Subject != s.SysPub {
+		return fmt.Errorf("ceremony: %s does not match %s (subject %s, key %s)", fileSysJWT, fileSysSeed, subjectOf(sys, err), s.SysPub)
+	}
+	auth, err := jwt.DecodeAccountClaims(s.AuthJWT)
+	if err != nil || auth.Subject != s.AuthPub {
+		return fmt.Errorf("ceremony: %s does not match %s", fileAuthJWT, fileAuthSeed)
+	}
+	if len(auth.Authorization.AuthUsers) == 0 {
+		return fmt.Errorf("ceremony: %s lacks external authorization", fileAuthJWT)
+	}
+	if auth.Authorization.XKey != s.CalloutPub {
+		return fmt.Errorf("ceremony: %s callout xkey does not match %s", fileAuthJWT, fileCallout)
+	}
+	if !auth.SigningKeys.Contains(s.AuthSigningPub) {
+		return fmt.Errorf("ceremony: %s does not endorse %s", fileAuthJWT, fileAuthSigning)
+	}
+	realm, err := jwt.DecodeAccountClaims(s.RealmJWT)
+	if err != nil || realm.Subject != s.RealmPub {
+		return fmt.Errorf("ceremony: %s does not match %s", fileRealmJWT, fileRealmSeed)
+	}
+	if scope, ok := realm.SigningKeys.GetScope(s.RealmSigningPub); !ok || scope == nil {
+		return fmt.Errorf("ceremony: %s lacks the scoped signing key %s", fileRealmJWT, fileRealmSigning)
+	}
+	// The workload minting key must be endorsed PLAIN (nil scope): a
+	// scoped key would reject the minter's carried permissions (R1).
+	if scope, ok := realm.SigningKeys.GetScope(s.WorkloadSigningPub); !ok || scope != nil {
+		return fmt.Errorf("ceremony: %s does not endorse %s as a plain signing key", fileRealmJWT, fileWorkloadSigning)
+	}
+	host, _, err := net.SplitHostPort(s.Listen)
+	if err != nil {
+		return fmt.Errorf("ceremony: damaged %s: listen %q: %w", fileConfig, s.Listen, err)
+	}
+	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
+		return fmt.Errorf("ceremony: %s listen %q is not loopback", fileConfig, s.Listen)
+	}
+	return nil
+}
+
+// verifyBYO is the bring-your-own-server cross-checks (design 0003 §6):
+// the flavour is one of the two, the substrate URL parses, the embedded
+// listener is absent, and the handed-back account keys — when present —
+// are two distinct account public keys. What the substrate itself
+// carries is verified behaviourally at founding (node.ProbeSubstrate),
+// never from here: this state holds no account JWTs to check.
+func (s *State) verifyBYO() error {
+	switch s.BYOFlavour {
+	case FlavourSelfHosted, FlavourSynadiaCloud:
+	default:
+		return fmt.Errorf("ceremony: %s byo.flavour %q is not a flavour — the two flavours are %q and %q (design 0003 §1)",
+			fileConfig, s.BYOFlavour, FlavourSelfHosted, FlavourSynadiaCloud)
+	}
+	if s.Listen != "" {
+		return fmt.Errorf("ceremony: %s carries both listen and byo — the embedded listener and a bring-your-own server are mutually exclusive; remove one", fileConfig)
+	}
+	u, err := url.Parse(s.BYOURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("ceremony: %s byo.url %q is not a server URL (nats://host:port)", fileConfig, s.BYOURL)
+	}
+	if s.BYOFlavour == FlavourSelfHosted {
+		if len(s.IssuerUserSeed) == 0 {
+			return fmt.Errorf("ceremony: missing %s — the issuer user's key is phase-1 material; found no way to have lost it short of hand-deletion. Re-init a fresh state dir", fileIssuerUserSeed)
+		}
+		if len(s.CalloutSeed) == 0 {
+			return fmt.Errorf("ceremony: missing %s — the callout key is phase-1 material; re-init a fresh state dir", fileCallout)
+		}
+	}
+	if s.BYOFlavour == FlavourSynadiaCloud && s.SynadiaSystem == "" {
+		return fmt.Errorf("ceremony: %s byo.synadia.system is required for the synadia-cloud flavour", fileConfig)
+	}
+	for _, k := range []struct{ name, pub string }{
+		{"byo.auth_account", s.AuthPub}, {"byo.realm_account", s.RealmPub},
+	} {
+		if k.pub != "" && !nkeys.IsValidPublicAccountKey(k.pub) {
+			return fmt.Errorf("ceremony: %s %s %q is not an account public key", fileConfig, k.name, k.pub)
+		}
+	}
+	if s.AuthPub != "" && s.AuthPub == s.RealmPub {
+		return fmt.Errorf("ceremony: %s byo.auth_account and byo.realm_account are the same key — the AUTH account and the realm account are two accounts (design 0003 §2)", fileConfig)
+	}
+	return nil
+}
+
 // ArtifactCount is the number of persisted founding artifacts a complete
 // state directory carries (config + keys + users + sentinel) — the number
-// init's verify report cites.
-func ArtifactCount() int { return 19 + 1 + 1 } // files() + config + sentinel
+// init's verify report cites. The BYO inventory is smaller by
+// construction: no operator, SYS, or account master material exists on
+// this side of the boundary.
+func (s *State) ArtifactCount() int { return len(s.files()) + 1 + 1 } // + config + sentinel
 
 func requireMode(path string, isDir bool) error {
 	info, err := os.Stat(path)

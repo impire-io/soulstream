@@ -14,6 +14,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.14.4
 	github.com/nats-io/nats.go v1.52.0
 	github.com/nats-io/nkeys v0.4.16
+	github.com/synadia-io/control-plane-sdk-go v0.9.0
 )
 
 require (
