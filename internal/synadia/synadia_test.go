@@ -214,9 +214,12 @@ func TestSetupIdempotence(t *testing.T) {
 	defer ts.Close()
 	cfg := Config{BaseURL: ts.URL, Token: "uat_test", System: "dev-sys", Realm: "home"}
 
+	// The system resolves by id as well as by name — an operator pasting
+	// the id from the console must not be refused.
+	cfg.System = "s1"
 	first, err := Setup(context.Background(), cfg, []string{"p"}, []string{"s"})
 	if err != nil {
-		t.Fatalf("first run: %v", err)
+		t.Fatalf("first run (system by id): %v", err)
 	}
 	creates := stub.creates
 

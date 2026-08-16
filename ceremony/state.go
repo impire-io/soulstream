@@ -302,6 +302,22 @@ func Load(dir string) (*State, error) {
 	}
 	s.Listen = cfg.Listen
 	s.Realm = cfg.Realm
+	// The soulstream *client* tooling historically keeps its own
+	// config.json (context/persona, ed25519 persona keys) under the
+	// same default path this state dir resolves to. A realm must never
+	// squat on it, and reading it as a ceremony is a named refusal —
+	// not a missing-file error (first hit: a machine that used the
+	// component CLI before the product, 2026-08-16).
+	if cfg.Listen == "" && cfg.BYO == nil {
+		var clientCfg struct {
+			Context string `json:"context"`
+			Persona string `json:"persona"`
+		}
+		if json.Unmarshal(cfgData, &clientCfg) == nil &&
+			(clientCfg.Context != "" || clientCfg.Persona != "") {
+			return nil, fmt.Errorf("ceremony: this directory holds the soulstream client's configuration (context %q, persona %q), not a realm — the realm needs its own directory: pass --state DIR or set SOULSTREAM_STATE", clientCfg.Context, clientCfg.Persona)
+		}
+	}
 	if cfg.Planes.Door != nil || cfg.Planes.Fold != nil {
 		return nil, fmt.Errorf("ceremony: %s carries byname-era plane keys — pre-v1 renames are clean breaks (design 0001 §2). Migrate by hand: rename the keys (door→mcp, fold→signin), `mv users/fold.creds users/signin.creds`, `mv fold/ signin/` — or re-init a fresh realm", fileConfig)
 	}

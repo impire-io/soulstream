@@ -112,7 +112,7 @@ func cmdInit(args []string, out, errw io.Writer) error {
 	byoURL := fs.String("url", "", "the BYO server's client URL (nats://host:port)")
 	authAccount := fs.String("auth-account", "", "BYO hand-back: the AUTH account's public key (from the kit's §3)")
 	realmAccount := fs.String("realm-account", "", "BYO hand-back: the realm account's public key (from the kit's §3)")
-	synadiaSystem := fs.String("synadia-system", "", "synadia-cloud: the Synadia Cloud system name")
+	synadiaSystem := fs.String("synadia-system", "", "synadia-cloud: the Synadia Cloud system (name or id)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

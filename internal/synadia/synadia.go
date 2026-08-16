@@ -105,13 +105,13 @@ func Setup(ctx context.Context, cfg Config, scopePub, scopeSub []string) (*Resul
 			return nil, apiErr("list systems for team "+team.Name, err)
 		}
 		for i, s := range systems.Items {
-			if strings.EqualFold(s.Name, cfg.System) {
+			if strings.EqualFold(s.Name, cfg.System) || s.Id == cfg.System {
 				system = &systems.Items[i]
 			}
 		}
 	}
 	if system == nil {
-		return nil, fmt.Errorf("synadia: no system named %q on this token's teams", cfg.System)
+		return nil, fmt.Errorf("synadia: no system named %q on this token's teams (the name or the system id)", cfg.System)
 	}
 	logf("system %q (id %s)", system.Name, system.Id)
 
