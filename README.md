@@ -27,9 +27,10 @@ deployment. Owning your realm should cost one binary and one command.
 
 ## Status
 
-**Current pre-release: [v0.13.0-rc.4](https://github.com/impire-io/soulstream/releases)**
-(episode [0100](../soul-hq/04-JOURNEY/0100-soulstream-v0-13-0-rc-2.md)) —
-bundling core v0.8.4, workloads v0.4.0, shell v0.6.0, idp v0.5.0,
+**Current pre-release: [v0.13.0-rc.5](https://github.com/impire-io/soulstream/releases)**
+(episodes [0100](../soul-hq/04-JOURNEY/0100-soulstream-v0-13-0-rc-2.md),
+[0102](../soul-hq/04-JOURNEY/0102-shell-conversations-begin-and-end.md)) —
+bundling core v0.8.4, workloads v0.4.0, shell v0.8.0, idp v0.5.0,
 archivist v0.3.0. What a person on this RC can do:
 
 ```sh
@@ -41,6 +42,10 @@ soulstream up        # server + identity + memory + sign-in + console + the MCP 
 - **Sign in with a passkey** (no password exists anywhere in the system)
   and land in the shell — the console where people read topics, post,
   and manage the realm, including its agents.
+- **Start, close, and archive conversations** from the console: a new
+  conversation from the list or from Home, closing when the talking is
+  done, archiving — behind a confirm that says it is final — when the
+  reading matters and the writing is over.
 - **Connect an assistant** through the MCP endpoint (`http://127.0.0.1:8080`
   + your bearer token); its `whoami` is the persona the *realm*
   admitted, never what the client claims.

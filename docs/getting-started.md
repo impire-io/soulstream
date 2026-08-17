@@ -17,7 +17,7 @@ brew install impire-io/tap/soulstream
 
 Or download the archive for your platform from the
 [releases page](https://github.com/impire-io/soulstream/releases)
-(current pre-release: `v0.13.0-rc.4`; macOS and Linux, amd64 and arm64),
+(current pre-release: `v0.13.0-rc.5`; macOS and Linux, amd64 and arm64),
 unpack it, and put `soulstream` on your PATH. Or build from the repo
 (Go 1.26+):
 
