@@ -10,6 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/impire-io/soulstream-core/realm"
+	"github.com/impire-io/soulstream-core/registry"
 	"github.com/impire-io/soulstream-core/topic"
 	"github.com/impire-io/soulstream-identity/client"
 	"github.com/impire-io/soulstream-workloads/backend/native"
@@ -75,6 +76,11 @@ func RunWorkload(ctx context.Context, cfg Config, url, declPath string) error {
 		return fmt.Errorf("node: runner realm client: %w", err)
 	}
 	defer func() { _ = rc.Close() }()
+	// F1 (core v0.9.0): make the runner's signing key reader-resolvable at
+	// signer construction. Loud on failure, never fatal to the launch.
+	if err := registry.EnsureSigningKey(ctx, rc, signer); err != nil {
+		fmt.Fprintf(os.Stderr, "soulstream: WARNING: runner signing key not published to the directory (records will read unknown-key): %v\n", err)
+	}
 
 	m, err := minter.NewSigningKeyMinter(st.WorkloadSigningSeed, st.RealmPub, []string{url})
 	if err != nil {

@@ -25,6 +25,7 @@ import (
 	"github.com/impire-io/soulstream-archivist/archive"
 	"github.com/impire-io/soulstream-archivist/keeper"
 	"github.com/impire-io/soulstream-core/realm"
+	"github.com/impire-io/soulstream-core/registry"
 	"github.com/impire-io/soulstream-core/topic"
 	"github.com/impire-io/soulstream-identity/client"
 	"github.com/impire-io/soulstream-identity/embed"
@@ -464,6 +465,12 @@ func (n *Node) startMemory(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("node: memory plane: realm client: %w", err)
 	}
 	n.realmClient = rc // owns ncArch from here
+	// F1 (core v0.9.0): make the archivist's signing key reader-resolvable
+	// at signer construction. Loud on failure, never fatal to the plane.
+	if err := registry.EnsureSigningKey(ctx, rc, signer); err != nil {
+		n.audit.Warn("node: memory plane: signing key not published to the directory (records will read unknown-key)",
+			"persona", "archivist", "err", err)
+	}
 
 	store, err := archive.Open(filepath.Join(cfg.StateDir, "archive"))
 	if err != nil {
