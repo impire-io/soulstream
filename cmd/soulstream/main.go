@@ -43,6 +43,10 @@ Usage:
                                                 Agents screen's block; needs nothing else.
   soulstream mcp                                the stdio MCP server wrap launches from this
                                                 same binary (same five values; flags override)
+  soulstream adopt [--state DIR] [--force]
+                                                adopt a realm founded before the canonical
+                                                v2 break (hq 0112) — refuses when the realm
+                                                already holds v1-signed records
   soulstream version
 
 State dir: --state, else $SOULSTREAM_STATE, else <user config dir>/soulstream.
@@ -69,6 +73,8 @@ func run(args []string, out, errw io.Writer) int {
 		err = cmdWrap(args[1:], errw)
 	case "mcp":
 		err = cmdMCP(args[1:], errw)
+	case "adopt":
+		err = cmdAdopt(args[1:], out, errw)
 	case "version":
 		fmt.Fprintln(out, version.Version)
 	case "help", "-h", "--help":

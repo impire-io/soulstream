@@ -838,3 +838,81 @@ func subjectOf(c *jwt.AccountClaims, err error) string {
 	}
 	return c.Subject
 }
+
+// RecordVersion is the canonical record version this build writes —
+// what a state directory must declare to be adoptable (hq 0112).
+func RecordVersion() int { return record.Version }
+
+// PreV2 reports whether a state directory predates the canonical-form
+// break: a config that declares no version, or an older one. A
+// directory this build already wrote answers false.
+func PreV2(dir string) (bool, error) {
+	data, err := os.ReadFile(filepath.Join(dir, fileConfig))
+	if err != nil {
+		return false, fmt.Errorf("ceremony: %w", err)
+	}
+	var cfg config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return false, fmt.Errorf("ceremony: damaged %s: %w", fileConfig, err)
+	}
+	return cfg.RecordVersion != record.Version, nil
+}
+
+// AdoptV2 stamps the canonical version onto a pre-break state
+// directory, leaving every other field exactly as founding wrote it.
+// It is the ONLY writer of that field outside founding, and it decides
+// nothing: `soulstream adopt` weighs whether adoption is safe.
+func AdoptV2(dir string) error {
+	path := filepath.Join(dir, fileConfig)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("ceremony: %w", err)
+	}
+	// Round-trip through a generic map so nothing this build does not
+	// know about is dropped from a directory it did not write.
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("ceremony: damaged %s: %w", fileConfig, err)
+	}
+	raw["record_version"] = record.Version
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return fmt.Errorf("ceremony: %w", err)
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return fmt.Errorf("ceremony: %w", err)
+	}
+	return nil
+}
+
+// OpsConnection is how a maintenance act reaches the realm's own
+// server: the URL the realm runs on (the BYO server's, or the
+// configured loopback listener) and the ops credential founding left
+// behind. The creds path is empty where the realm needs none.
+func OpsConnection(dir string) (url, creds string, err error) {
+	data, rerr := os.ReadFile(filepath.Join(dir, fileConfig))
+	if rerr != nil {
+		return "", "", fmt.Errorf("ceremony: %w", rerr)
+	}
+	var cfg config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return "", "", fmt.Errorf("ceremony: damaged %s: %w", fileConfig, err)
+	}
+	switch {
+	case cfg.BYO != nil && cfg.BYO.URL != "":
+		url = cfg.BYO.URL
+	case cfg.Listen != "":
+		url = "nats://" + cfg.Listen
+	default:
+		return "", "", errors.New("ceremony: the config names neither a BYO url nor a listener")
+	}
+	if p := UserCredsPath(dir, "ops"); fileExists(p) {
+		creds = p
+	}
+	return url, creds, nil
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
