@@ -138,7 +138,7 @@ func TestDamageMatrix(t *testing.T) {
 		}, "keys/sys.jwt"},
 		{"non-loopback-listen", func(t *testing.T, dir string) {
 			t.Helper()
-			if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"listen":"0.0.0.0:4222"}`+"\n"), 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"listen":"0.0.0.0:4222","record_version":2}`+"\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}, "not loopback"},

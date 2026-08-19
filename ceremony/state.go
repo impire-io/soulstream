@@ -11,6 +11,8 @@ import (
 
 	"github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nkeys"
+
+	"github.com/impire-io/soulstream-core/record"
 )
 
 // The state-directory layout (contracts/state-dir.md). Paths are relative
@@ -61,6 +63,12 @@ var ErrIncomplete = errors.New("ceremony: incomplete state directory — foundin
 type config struct {
 	Listen string `json:"listen,omitempty"`
 	Realm  string `json:"realm"`
+	// RecordVersion is the canonical record version this realm was
+	// founded under. Absent means pre-v2 (hq episode 0112's clean
+	// break): refused by name with the re-founding migration, never
+	// silently mixed — a v2 signature binds the realm key and names the
+	// acting credential, and old history cannot be re-signed.
+	RecordVersion int `json:"record_version,omitempty"`
 	// BYO is design 0003 §6's block: founding on a server soulstream
 	// does not run. Present ⇒ the embedded server is off and every
 	// plane dials URL. Mutually exclusive with Listen, refused by name.
@@ -212,6 +220,9 @@ func (s *State) Save(dir string) error {
 	var c config
 	c.Listen = s.Listen
 	c.Realm = s.Realm
+	// The canonical version this realm is founded under (hq 0112): an
+	// older build's realm is refused by name at load, never mixed.
+	c.RecordVersion = record.Version
 	if s.BYO() {
 		c.BYO = &byoConfig{Flavour: s.BYOFlavour, URL: s.BYOURL,
 			AuthAccount: s.AuthPub, RealmAccount: s.RealmPub}
@@ -323,6 +334,9 @@ func Load(dir string) (*State, error) {
 			(clientCfg.Context != "" || clientCfg.Persona != "") {
 			return nil, fmt.Errorf("ceremony: this directory holds the soulstream client's configuration (context %q, persona %q), not a realm — the realm needs its own directory: pass --state DIR or set SOULSTREAM_STATE", clientCfg.Context, clientCfg.Persona)
 		}
+	}
+	if cfg.RecordVersion != record.Version {
+		return nil, fmt.Errorf("ceremony: this realm was founded under canonical record v%d and this build writes v%d — pre-v1 breaks are clean (hq episode 0112: signatures now bind the realm key, and every record names its acting credential). Existing signed history cannot be re-signed; re-found a fresh realm (`soulstream init --state DIR`) and keep the old directory for reading with the matching older build", cfg.RecordVersion, record.Version)
 	}
 	if cfg.Planes.Door != nil || cfg.Planes.Fold != nil {
 		return nil, fmt.Errorf("ceremony: %s carries byname-era plane keys — pre-v1 renames are clean breaks (design 0001 §2). Migrate by hand: rename the keys (door→mcp, fold→signin), `mv users/fold.creds users/signin.creds`, `mv fold/ signin/` — or re-init a fresh realm", fileConfig)

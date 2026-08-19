@@ -85,3 +85,43 @@ func TestBynameEraShapesAreRefusedByName(t *testing.T) {
 		t.Fatalf("a missing signin.creds with the plane enabled was not refused by name: %v", err)
 	}
 }
+
+// TestPreV2RealmIsRefused (hq episode 0112): a realm founded before the
+// canonical-form break is refused by name with the re-founding
+// migration — never silently mixed, because a v2 signature binds the
+// realm key and old history cannot be re-signed.
+func TestPreV2RealmIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	// Strip the version marker: the pre-v2 shape exactly.
+	path := filepath.Join(dir, "config.json")
+	raw, rerr := os.ReadFile(path)
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	delete(cfg, "record_version")
+	out, _ := json.Marshal(cfg)
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ceremony.Load(dir)
+	if err == nil {
+		t.Fatal("a pre-v2 realm loaded clean")
+	}
+	for _, want := range []string{"canonical record v0", "re-found", "acting credential"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the refusal does not name %q: %v", want, err)
+		}
+	}
+}
