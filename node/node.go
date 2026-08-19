@@ -440,7 +440,7 @@ func (n *Node) startMemory(ctx context.Context, cfg Config) error {
 	}
 	provCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	if _, err := realm.ProvisionOn(provCtx, js); err != nil {
+	if _, err := realm.ProvisionOn(realm.WithConn(provCtx, n.ncOps), js); err != nil {
 		return fmt.Errorf("node: memory plane: realm substrate: %w", err)
 	}
 

@@ -30,7 +30,7 @@ func Found(n *Node, st *ceremony.State, stateDir string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if _, err := realm.ProvisionOn(ctx, js); err != nil {
+	if _, err := realm.ProvisionOn(realm.WithConn(ctx, n.ncOps), js); err != nil {
 		return "", fmt.Errorf("node: provision realm substrate: %w", err)
 	}
 
