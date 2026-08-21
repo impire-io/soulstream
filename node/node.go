@@ -324,6 +324,11 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 			// The shell's people-and-sign-in module reads exactly this to
 			// know whether it is part of this build.
 			AdminBase: st.AdminSurface(),
+			// What this deployment declares about its guardrail: the plane
+			// above turned the evaluator on (rc.9), so the shell's
+			// approvals surface is part of this build — the same
+			// declaration pattern AdminBase and AgentsDial ride.
+			GuardrailOn: true,
 			// What this deployment declares about issuing agent
 			// credentials: the address it tells an agent to dial, which
 			// for a node serving its own machine is the address this node
