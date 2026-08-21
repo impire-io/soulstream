@@ -320,6 +320,13 @@ var (
 		client.Segment + ".xkey",
 		client.Segment + ".{{account-subject()}}.{{name()}}.sign.record",
 		client.Segment + ".{{account-subject()}}.{{name()}}.keys.public",
+		// The outbound half (grants.md D30) and the approvals loop
+		// (approvals.md D43): each persona's own tails — linking a grant
+		// is the person's own act on their own prefix, asking after their
+		// own tickets likewise. The deployment duty both designs state,
+		// paid here once for both ceremonies.
+		client.Segment + ".{{account-subject()}}.{{name()}}.grants.>",
+		client.Segment + ".{{account-subject()}}.{{name()}}.approvals.>",
 		"SOULSTREAM.>",
 		"$JS.API.>",
 		"$KV.>",
