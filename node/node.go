@@ -243,7 +243,13 @@ func Start(cfg Config) (*Node, error) {
 			// this issuer and audience.
 			OIDCIssuer:   sessionIssuer,
 			OIDCAudience: sessionAudience,
-			Logger:       logger,
+			// The guardrail stands at the chokepoint from the start
+			// (tenancy.md D37, approvals.md D42): an empty rule set
+			// allows everything, rules load live via guardrail.load, and
+			// deferral tickets ride beside it — the approvals loop has a
+			// live home in the house rather than a knob nobody turned.
+			EnableGuardrail: true,
+			Logger:          logger,
 		})
 	}()
 

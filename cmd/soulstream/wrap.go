@@ -23,20 +23,40 @@ import (
 
 	"github.com/impire-io/soulstream-core/mcpserver"
 	"github.com/impire-io/soulstream-core/realm"
+
 	"github.com/impire-io/soulstream-workloads/wrap"
+	"github.com/impire-io/soulstream/door"
 )
 
 // laneFromEnv is the whole of how an agent's identity arrives: the block
 // the Agents screen shows once, exported as environment. Flags may
 // override individual values where a verb offers them.
 func laneFromEnv() wrap.Lane {
-	return wrap.Lane{
+	lane := wrap.Lane{
 		URL:       os.Getenv("SOULSTREAM_URL"),
 		CredsFile: os.Getenv("SOULSTREAM_CREDS"),
 		Token:     os.Getenv("SOULSTREAM_TOKEN"),
 		Realm:     os.Getenv("SOULSTREAM_REALM"),
 		Persona:   os.Getenv("SOULSTREAM_PERSONA"),
 	}
+	// The door's outbound identity (external-tools.md D41), declared
+	// through the lane because wrap scrubs the harness environment on
+	// purpose: the subject a personal agent acts for, the delegation
+	// authorizing it, and the account segment when the deployment wants
+	// it explicit rather than derived.
+	extra := map[string]string{}
+	for _, key := range []string{
+		"SOULSTREAM_ACCOUNT", "SOULSTREAM_SUBJECT",
+		"SOULSTREAM_DELEGATION_PAYLOAD", "SOULSTREAM_DELEGATION_SIG",
+	} {
+		if v := os.Getenv(key); v != "" {
+			extra[key] = v
+		}
+	}
+	if len(extra) > 0 {
+		lane.MCPExtraEnv = extra
+	}
+	return lane
 }
 
 // checkLane refuses a lane that cannot connect, naming the missing piece —
@@ -170,5 +190,19 @@ func cmdMCP(args []string, errw io.Writer) error {
 	}
 	defer func() { _ = client.Close() }()
 
-	return mcpserver.NewServer(client).Run(ctx, &mcp.StdioTransport{})
+	srv := mcpserver.NewServer(client)
+	// The forwarding half (external-tools.md D41): the realm's tool
+	// catalog re-exposed beside the record's tools — endpoints only,
+	// authority fetched per call, refusals in words. A realm with no
+	// catalog leaves the door exactly as it always was; an entry that
+	// isn't serving is a stderr note, never a failed door.
+	for _, note := range door.Attach(ctx, srv, client, door.Config{
+		Account:           os.Getenv("SOULSTREAM_ACCOUNT"),
+		Subject:           os.Getenv("SOULSTREAM_SUBJECT"),
+		DelegationPayload: os.Getenv("SOULSTREAM_DELEGATION_PAYLOAD"),
+		DelegationSig:     os.Getenv("SOULSTREAM_DELEGATION_SIG"),
+	}) {
+		fmt.Fprintln(errw, "door:", note)
+	}
+	return srv.Run(ctx, &mcp.StdioTransport{})
 }
