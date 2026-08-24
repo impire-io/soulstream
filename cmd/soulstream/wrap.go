@@ -133,6 +133,14 @@ func cmdWrap(args []string, errw io.Writer) error {
 	}
 	defer func() { _ = client.Close() }()
 
+	log := slog.New(slog.NewTextHandler(errw, nil))
+	// The agent announces itself and lights its lamp (upstream ask #3,
+	// episode 0124): a directory floor into absence only, and the
+	// presence lease held beside the run loop. Both advisory — the run
+	// loop never waits on them, and their failures are log lines.
+	ensureProfile(ctx, client, log)
+	farewell := holdPresence(ctx, client, log)
+
 	w := &wrap.Wrapper{
 		Config: wrap.Config{
 			Persona:    lane.Persona,
@@ -143,10 +151,14 @@ func cmdWrap(args []string, errw io.Writer) error {
 			InboxLimit: *inboxLimit,
 		},
 		Client: client,
-		Log:    slog.New(slog.NewTextHandler(errw, nil)),
+		Log:    log,
 	}
-	if err := w.Run(ctx); err != nil && err != context.Canceled {
-		return err
+	runErr := w.Run(ctx)
+	// The goodbye lands before the deferred Close tears the connection
+	// down — Hold writes it on its own short context once ctx ends.
+	farewell()
+	if runErr != nil && runErr != context.Canceled {
+		return runErr
 	}
 	return nil
 }
