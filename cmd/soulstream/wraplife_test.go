@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net"
 	"testing"
 	"time"
 
@@ -24,12 +25,32 @@ import (
 // as `in` and farewells as `gone`; and the op-log never sees any of it.
 func TestWrapLifeAgainstFoundedRealm(t *testing.T) {
 	dir := t.TempDir()
+	// Ephemeral ports like every sibling rig: the fixed plane defaults
+	// (8080/8378/8500) collide across packages under `go test ./...`.
+	// The fold's issuer must be named at config time: reserve its port
+	// (the foldplane rig's pattern), and let the cleared issuer derive.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	foldAddr := ln.Addr().String()
+	_ = ln.Close()
+
 	st, err := ceremony.Generate("127.0.0.1:0", "home")
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
+	st.MCPListen = "127.0.0.1:0"
+	st.HelmListen = "127.0.0.1:0"
+	st.SignInListen = foldAddr
+	st.SignInIssuer = ""
+	st.SignInAudience = ""
 	if err := st.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
+	}
+	st, err = ceremony.Load(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
 	}
 	n, err := node.Start(node.Config{StateDir: dir, State: st, AuditWriter: io.Discard})
 	if err != nil {
