@@ -24,6 +24,7 @@ import (
 	"github.com/impire-io/soulstream-core/mcpserver"
 	"github.com/impire-io/soulstream-core/realm"
 
+	"github.com/impire-io/soulstream-workloads/declaration"
 	"github.com/impire-io/soulstream-workloads/wrap"
 	"github.com/impire-io/soulstream/door"
 )
@@ -87,6 +88,7 @@ func cmdWrap(args []string, errw io.Writer) error {
 	runTimeout := fs.Duration("run-timeout", 150*time.Second, "harness time budget per attempt")
 	retries := fs.Int("retries", 2, "harness attempts per wake before the self-report")
 	inboxLimit := fs.Int("inbox-limit", 0, "catch-up depth (0 = the default of 50)")
+	declFile := fs.String("declaration", "", "agent declaration file — its wake entries drive the engine (mention-only without it)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -141,15 +143,34 @@ func cmdWrap(args []string, errw io.Writer) error {
 	ensureProfile(ctx, client, log)
 	farewell := holdPresence(ctx, client, log)
 
+	cfg := wrap.Config{
+		Persona:    lane.Persona,
+		Template:   tpl,
+		Scratch:    root,
+		RunTimeout: *runTimeout,
+		Retries:    *retries,
+		InboxLimit: *inboxLimit,
+	}
+	if *declFile != "" {
+		// Declaration-driven operation (workloads design 0005): the
+		// record's wake vocabulary drives the engine. The declaration's
+		// persona must be the credential's persona — the connection is
+		// the authority.
+		raw, err := os.ReadFile(*declFile)
+		if err != nil {
+			return fmt.Errorf("read declaration: %w", err)
+		}
+		d, err := declaration.Parse(raw)
+		if err != nil {
+			return err
+		}
+		cfg, err = wrap.DeclaredConfig(cfg, d, client)
+		if err != nil {
+			return err
+		}
+	}
 	w := &wrap.Wrapper{
-		Config: wrap.Config{
-			Persona:    lane.Persona,
-			Template:   tpl,
-			Scratch:    root,
-			RunTimeout: *runTimeout,
-			Retries:    *retries,
-			InboxLimit: *inboxLimit,
-		},
+		Config: cfg,
 		Client: client,
 		Log:    log,
 	}

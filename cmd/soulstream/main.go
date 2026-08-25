@@ -38,9 +38,11 @@ Usage:
   soulstream workload start <declaration.json> [--state DIR]
                                                 run one declared workload (node must be up)
   soulstream wrap --harness claude|codex | --template FILE
-                                                run your agent here: mentions become answers.
+                  [--declaration FILE]          run your agent here: mentions become answers.
                                                 Reads the five SOULSTREAM_* values from the
                                                 Agents screen's block; needs nothing else.
+                                                With --declaration, the file's wake entries
+                                                drive the engine (topic/schedule/subject too).
   soulstream mcp                                the stdio MCP server wrap launches from this
                                                 same binary (same five values; flags override)
   soulstream adopt [--state DIR] [--force]
