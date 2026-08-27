@@ -32,15 +32,20 @@ const (
 	fileRealmJWT        = "keys/realm.jwt"
 	fileRealmSigning    = "keys/realm-signing.nk"
 	fileWorkloadSigning = "keys/workload-signing.nk"
-	fileCallout         = "keys/callout.xk"
-	fileVaultFirst      = "keys/vault-first.xk"
-	fileSurface         = "keys/surface.xk"
-	fileServiceCreds    = "users/service.creds"
-	fileIssuerCreds     = "users/issuer.creds"
-	fileOpsCreds        = "users/ops.creds"
-	fileArchivistCreds  = "users/archivist.creds"
-	fileRunnerCreds     = "users/runner.creds"
-	fileSignInCreds     = "users/signin.creds"
+	fileAgentSigning    = "keys/agent-signing.nk"
+	// AgentSigningFile is fileAgentSigning's exported name: launch
+	// refusals cite it so the operator sees exactly what the realm lacks
+	// (specs/013).
+	AgentSigningFile   = fileAgentSigning
+	fileCallout        = "keys/callout.xk"
+	fileVaultFirst     = "keys/vault-first.xk"
+	fileSurface        = "keys/surface.xk"
+	fileServiceCreds   = "users/service.creds"
+	fileIssuerCreds    = "users/issuer.creds"
+	fileOpsCreds       = "users/ops.creds"
+	fileArchivistCreds = "users/archivist.creds"
+	fileRunnerCreds    = "users/runner.creds"
+	fileSignInCreds    = "users/signin.creds"
 
 	// BYO NATS artifacts (design 0003): the issuer user's seed (its
 	// public key rides in the kit) and the kit document itself.
@@ -158,6 +163,7 @@ func (s *State) files() map[string][]byte {
 			fileAuthSigning:     s.AuthSigningSeed,
 			fileRealmSigning:    s.RealmSigningSeed,
 			fileWorkloadSigning: s.WorkloadSigningSeed,
+			fileAgentSigning:    s.AgentSigningSeed,
 			fileCallout:         s.CalloutSeed,
 			fileVaultFirst:      s.VaultFirstSeed,
 			fileSurface:         s.SurfaceSeed,
@@ -175,7 +181,7 @@ func (s *State) files() map[string][]byte {
 		}
 		return m
 	}
-	return map[string][]byte{
+	m := map[string][]byte{
 		fileOperator:        s.OperatorSeed,
 		fileSysSeed:         s.SysSeed,
 		fileSysJWT:          []byte(s.SysJWT),
@@ -196,6 +202,13 @@ func (s *State) files() map[string][]byte {
 		fileRunnerCreds:     s.RunnerCreds,
 		fileSignInCreds:     s.SignInCreds,
 	}
+	// The agent capability key is founding-optional (specs/013): a state
+	// loaded from a pre-capability realm has none, and re-saving it must
+	// not write an empty seed file.
+	if len(s.AgentSigningSeed) > 0 {
+		m[fileAgentSigning] = s.AgentSigningSeed
+	}
+	return m
 }
 
 // Save persists the ceremony into dir: directories 0700, files 0600, and
@@ -434,6 +447,7 @@ func Load(dir string) (*State, error) {
 			{fileAuthSigning, &s.AuthSigningSeed, kind(nkeys.PrefixByteAccount)},
 			{fileRealmSigning, &s.RealmSigningSeed, kind(nkeys.PrefixByteAccount)},
 			{fileWorkloadSigning, &s.WorkloadSigningSeed, kind(nkeys.PrefixByteAccount)},
+			{fileAgentSigning, &s.AgentSigningSeed, kind(nkeys.PrefixByteAccount)},
 			{fileCallout, &s.CalloutSeed, kind(nkeys.PrefixByteCurve)},
 			{fileIssuerUserSeed, &s.IssuerUserSeed, kind(nkeys.PrefixByteUser)},
 		} {
@@ -454,6 +468,7 @@ func Load(dir string) (*State, error) {
 			{fileAuthSigning, s.AuthSigningSeed, &s.AuthSigningPub},
 			{fileRealmSigning, s.RealmSigningSeed, &s.RealmSigningPub},
 			{fileWorkloadSigning, s.WorkloadSigningSeed, &s.WorkloadSigningPub},
+			{fileAgentSigning, s.AgentSigningSeed, &s.AgentSigningPub},
 			{fileCallout, s.CalloutSeed, &s.CalloutPub},
 			{fileIssuerUserSeed, s.IssuerUserSeed, &s.IssuerUserPub},
 		} {
@@ -543,6 +558,18 @@ func Load(dir string) (*State, error) {
 	}
 	if s.WorkloadSigningPub, err = pubOf(s.WorkloadSigningSeed); err != nil {
 		return nil, fmt.Errorf("ceremony: %s: %w", fileWorkloadSigning, err)
+	}
+	// The agent capability key is load-if-present (specs/013): realms
+	// founded before capability-minting lack it and stay valid — a
+	// capability-bearing declaration there refuses by name at launch.
+	if data, err := os.ReadFile(filepath.Join(dir, fileAgentSigning)); err == nil {
+		if err := kind(nkeys.PrefixByteAccount)(data); err != nil {
+			return nil, fmt.Errorf("ceremony: damaged %s: %w", fileAgentSigning, err)
+		}
+		s.AgentSigningSeed = data
+		if s.AgentSigningPub, err = pubOf(data); err != nil {
+			return nil, fmt.Errorf("ceremony: %s: %w", fileAgentSigning, err)
+		}
 	}
 	if s.CalloutPub, err = pubOf(s.CalloutSeed); err != nil {
 		return nil, fmt.Errorf("ceremony: %s: %w", fileCallout, err)
@@ -729,6 +756,14 @@ func (s *State) verifyEmbedded() error {
 	// scoped key would reject the minter's carried permissions (R1).
 	if scope, ok := realm.SigningKeys.GetScope(s.WorkloadSigningPub); !ok || scope != nil {
 		return fmt.Errorf("ceremony: %s does not endorse %s as a plain signing key", fileRealmJWT, fileWorkloadSigning)
+	}
+	// The agent capability key, when present, must be endorsed SCOPED:
+	// its template is the entire policy for capability-minted users
+	// (specs/013).
+	if len(s.AgentSigningSeed) > 0 {
+		if scope, ok := realm.SigningKeys.GetScope(s.AgentSigningPub); !ok || scope == nil {
+			return fmt.Errorf("ceremony: %s does not endorse %s as a scoped signing key", fileRealmJWT, fileAgentSigning)
+		}
 	}
 	host, _, err := net.SplitHostPort(s.Listen)
 	if err != nil {

@@ -52,6 +52,17 @@ func RunWorkload(ctx context.Context, cfg Config, url, declPath string) error {
 	if _, err := os.Stat(artifact); err != nil {
 		return fmt.Errorf("node: declaration artifact %s: %w", artifact, err)
 	}
+	// Capability preflight (specs/013): both refusals are named, and both
+	// fire before any connection or op — a refused declaration publishes
+	// nothing.
+	if d.Capabilities != nil {
+		if len(st.AgentSigningSeed) == 0 {
+			return fmt.Errorf("node: this realm has no agent capability key (%s) — it was founded before capability-minting, or on a substrate whose account half does not carry the agent scope yet; declarations with capabilities need it. Re-init a fresh realm (pre-v1 clean break) or drop the capabilities block", ceremony.AgentSigningFile)
+		}
+		if d.Capabilities.Role != ceremony.AgentRole {
+			return fmt.Errorf("node: capability role %q is not declared in this realm — the founding declares one capability role, %q", d.Capabilities.Role, ceremony.AgentRole)
+		}
+	}
 
 	nc, err := nats.Connect(url,
 		nats.UserCredentials(ceremony.UserCredsPath(cfg.StateDir, "runner")),
@@ -82,9 +93,17 @@ func RunWorkload(ctx context.Context, cfg Config, url, declPath string) error {
 		fmt.Fprintf(os.Stderr, "soulstream: WARNING: runner signing key not published to the directory (records will read unknown-key): %v\n", err)
 	}
 
-	m, err := minter.NewSigningKeyMinter(st.WorkloadSigningSeed, st.RealmPub, []string{url})
+	plain, err := minter.NewSigningKeyMinter(st.WorkloadSigningSeed, st.RealmPub, []string{url})
 	if err != nil {
 		return fmt.Errorf("node: workload minter: %w", err)
+	}
+	var m minter.Minter = plain
+	if len(st.AgentSigningSeed) > 0 {
+		scoped, err := minter.NewScopedSigningKeyMinter(st.AgentSigningSeed, st.RealmPub, []string{url})
+		if err != nil {
+			return fmt.Errorf("node: agent capability minter: %w", err)
+		}
+		m = &capabilityMinter{scoped: scoped, plain: plain}
 	}
 	r := &runner.Runner{
 		Minter:      m,
