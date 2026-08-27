@@ -97,9 +97,9 @@ func TestBYORoundTrip(t *testing.T) {
 	if len(final.OpsCreds) == 0 || len(final.IssuerCreds) == 0 || len(final.SignInCreds) == 0 {
 		t.Fatal("founded load lost the minted creds")
 	}
-	// 7 keys + 6 creds + config + sentinel.
-	if n := final.ArtifactCount(); n != 15 {
-		t.Fatalf("BYO artifact count = %d, want 15", n)
+	// 8 keys (the agent capability key since specs/013) + 6 creds + config + sentinel.
+	if n := final.ArtifactCount(); n != 16 {
+		t.Fatalf("BYO artifact count = %d, want 16", n)
 	}
 }
 

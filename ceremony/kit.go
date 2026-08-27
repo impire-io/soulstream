@@ -3,6 +3,8 @@ package ceremony
 import (
 	"fmt"
 	"strings"
+
+	"github.com/impire-io/soulstream-identity/client"
 )
 
 // PersonaScopeAllows exposes the persona scope's allow lists to the
@@ -11,6 +13,14 @@ import (
 // embedded one (spec 010 SC-004).
 func PersonaScopeAllows() (pub, sub []string) {
 	return append([]string(nil), scopePubAllow...), append([]string(nil), scopeSubAllow...)
+}
+
+// AgentScopeAllows exposes the agent capability scope's allow lists to
+// the same account-half drivers (specs/013): the kit renders them today;
+// the Synadia driver's fourth signing-key group is a named follow-on
+// (it lands with a live BYON measurement, not before).
+func AgentScopeAllows() (pub, sub []string) {
+	return client.AgentScopePubAllow(""), client.AgentScopeSubAllow("")
 }
 
 // Kit renders the self-hosted account half as a document the substrate's
@@ -42,10 +52,13 @@ func Kit(s *State, dir string) string {
 	w("")
 	w("    nsc add account %s", realmAcct)
 	w("    nsc edit account %s --js-mem-storage -1 --js-disk-storage -1 --js-streams -1 --js-consumer -1", realmAcct)
-	w("    nsc edit account %s --sk %s --sk %s", realmAcct, s.WorkloadSigningPub, s.RealmSigningPub)
+	w("    nsc edit account %s --sk %s --sk %s --sk %s", realmAcct, s.WorkloadSigningPub, s.RealmSigningPub, s.AgentSigningPub)
 	w("    nsc edit signing-key --account %s --sk %s --role soulstream-user \\", realmAcct, s.RealmSigningPub)
 	w("      --allow-pub '%s' \\", strings.Join(scopePubAllow, ","))
 	w("      --allow-sub '%s'", strings.Join(scopeSubAllow, ","))
+	w("    nsc edit signing-key --account %s --sk %s --role %s \\", realmAcct, s.AgentSigningPub, client.AgentScopeRole)
+	w("      --allow-pub '%s' \\", strings.Join(client.AgentScopePubAllow(""), ","))
+	w("      --allow-sub '%s'", strings.Join(client.AgentScopeSubAllow(""), ","))
 	w("    nsc add account %s", authAcct)
 	w("    nsc edit account %s --sk %s", authAcct, s.AuthSigningPub)
 	w("    nsc edit authcallout --account %s --auth-user %s \\", authAcct, s.IssuerUserPub)
@@ -56,7 +69,12 @@ func Kit(s *State, dir string) string {
 	w("what this server offers — the realm needs enough for its stream,")
 	w("object store, and buckets. The first key on %s stays PLAIN", realmAcct)
 	w("(no role): it mints workload users whose permissions ride in their")
-	w("own JWTs, and a scoped key would reject them.")
+	w("own JWTs, and a scoped key would reject them. The %s key is", client.AgentScopeRole)
+	w("the opposite lane: capability-minted agents carry NO permissions of")
+	w("their own — its template, expanded with each mint's tags, is the")
+	w("entire policy. The {{tag(...)}}/{{name()}} tokens above are the")
+	w("server's scoped-signer template functions; nsc passes them through")
+	w("verbatim.")
 	w("")
 	w("## 2. Server configuration (only when converting to operator mode)")
 	w("")

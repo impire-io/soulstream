@@ -119,6 +119,16 @@ type State struct {
 	WorkloadSigningSeed []byte
 	WorkloadSigningPub  string
 
+	// The agent capability key: a SCOPED signing key beside the plain
+	// workload key (specs/013) — capability-minted workload users carry
+	// no permissions of their own; this key's agent scope template on the
+	// realm account, expanded with the mint's tags, is the entire policy
+	// (hq design 0005 §5). Load-if-present: realms founded before
+	// capability-minting lack it, and a capability declaration there
+	// refuses by name.
+	AgentSigningSeed []byte
+	AgentSigningPub  string
+
 	// Curve seeds: callout (public half rides in AuthJWT), the vault
 	// first key, and the service surface key.
 	CalloutSeed    []byte
@@ -142,6 +152,14 @@ type State struct {
 // the human who ran init. A richer naming story arrives when a consumer
 // chafes on it, not before.
 const FoundingPersona = "owner"
+
+// AgentRole is the one capability role a founding declares: the name a
+// declaration's capabilities block selects (`capabilities.role: "agent"`).
+// It is NOT an identity-vault entry — a second vault role on the realm
+// account would trip the binding-resolved ambiguity refusal and break the
+// token lane (specs/013, the RoleForAccount finding); the runtime resolves
+// it to the state-held agent capability key instead.
+const AgentRole = "agent"
 
 // SessionIssuer resolves the OIDC authorization server the identity
 // plane's callout lane validates and the shell sends sign-ins to: an
@@ -241,14 +259,18 @@ func Generate(listen, realm string) (*State, error) {
 		return nil, fmt.Errorf("ceremony: auth jwt: %w", err)
 	}
 
-	// 4. The realm account: JetStream, the persona scope, and the
-	// workload minting key (plain — R1).
+	// 4. The realm account: JetStream, the persona scope, the workload
+	// minting key (plain — R1), and the agent capability key (scoped —
+	// specs/013).
 	realmSK, _ := nkeys.CreateAccount()
 	s.RealmSigningSeed, _ = realmSK.Seed()
 	s.RealmSigningPub, _ = realmSK.PublicKey()
 	workloadSK, _ := nkeys.CreateAccount()
 	s.WorkloadSigningSeed, _ = workloadSK.Seed()
 	s.WorkloadSigningPub, _ = workloadSK.PublicKey()
+	agentSK, _ := nkeys.CreateAccount()
+	s.AgentSigningSeed, _ = agentSK.Seed()
+	s.AgentSigningPub, _ = agentSK.PublicKey()
 	realmClaims := jwt.NewAccountClaims(s.RealmPub)
 	realmClaims.Name = "REALM"
 	realmClaims.SigningKeys.Add(s.WorkloadSigningPub)
@@ -256,6 +278,7 @@ func Generate(listen, realm string) (*State, error) {
 		MemoryStorage: -1, DiskStorage: -1, Streams: -1, Consumer: -1,
 	}
 	realmClaims.SigningKeys.AddScopedSigner(personaScope(s.RealmSigningPub))
+	realmClaims.SigningKeys.AddScopedSigner(agentScope(s.AgentSigningPub))
 	if s.RealmJWT, err = realmClaims.Encode(opKP); err != nil {
 		return nil, fmt.Errorf("ceremony: realm jwt: %w", err)
 	}
@@ -311,29 +334,13 @@ func planeDefaults(realm string) *State {
 }
 
 // The persona scope (design 0001 §4 step 4): the admitted persona's
-// permission set, templated per identity. One source feeds both the
-// embedded ceremony and the BYO kit, so the two can never drift
-// (spec 010 SC-004).
+// permission set, templated per identity. Rendered from the identity
+// plane's one exported source (D47 — the adoption its landing promised),
+// so the embedded ceremony, the BYO kit, and the tenancy authority can
+// never drift (spec 010 SC-004).
 var (
-	scopePubAllow = []string{
-		client.Segment + ".status",
-		client.Segment + ".xkey",
-		client.Segment + ".{{account-subject()}}.{{name()}}.sign.record",
-		client.Segment + ".{{account-subject()}}.{{name()}}.keys.public",
-		// The outbound half (grants.md D30) and the approvals loop
-		// (approvals.md D43): each persona's own tails — linking a grant
-		// is the person's own act on their own prefix, asking after their
-		// own tickets likewise. The deployment duty both designs state,
-		// paid here once for both ceremonies.
-		client.Segment + ".{{account-subject()}}.{{name()}}.grants.>",
-		client.Segment + ".{{account-subject()}}.{{name()}}.approvals.>",
-		"SOULSTREAM.>",
-		"$JS.API.>",
-		"$KV.>",
-		"$O.>",
-		"$SYS.REQ.USER.INFO",
-	}
-	scopeSubAllow = []string{"_INBOX.>", "SOULSTREAM.>"}
+	scopePubAllow = client.PersonaScopePubAllow("")
+	scopeSubAllow = client.PersonaScopeSubAllow("")
 )
 
 // personaScope renders the scope onto a signing key.
@@ -345,6 +352,23 @@ func personaScope(key string) *jwt.UserScope {
 		Permissions: jwt.Permissions{
 			Pub: jwt.Permission{Allow: scopePubAllow},
 			Sub: jwt.Permission{Allow: scopeSubAllow},
+		},
+	}
+	return scope
+}
+
+// agentScope renders the canonical agent capability scope (specs/013,
+// hq design 0005 §5) onto the agent signing key: the same one-source
+// discipline — client.AgentScope* is the template every founding carries,
+// and the workloads runtime's tag vocabulary is its measured counterpart.
+func agentScope(key string) *jwt.UserScope {
+	scope := jwt.NewUserScope()
+	scope.Key = key
+	scope.Role = client.AgentScopeRole
+	scope.Template = jwt.UserPermissionLimits{
+		Permissions: jwt.Permissions{
+			Pub: jwt.Permission{Allow: client.AgentScopePubAllow("")},
+			Sub: jwt.Permission{Allow: client.AgentScopeSubAllow("")},
 		},
 	}
 	return scope

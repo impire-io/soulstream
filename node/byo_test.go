@@ -222,8 +222,8 @@ func TestBYOFounding(t *testing.T) {
 	if !ceremony.Founded(dir) {
 		t.Fatal("sentinel missing — founding did not complete")
 	}
-	if n := got.ArtifactCount(); n != 15 {
-		t.Fatalf("artifact count = %d, want 15", n)
+	if n := got.ArtifactCount(); n != 16 {
+		t.Fatalf("artifact count = %d, want 16", n)
 	}
 	n2, err := Start(Config{StateDir: dir, State: got, AuditWriter: audit})
 	if err != nil {
