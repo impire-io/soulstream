@@ -65,7 +65,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.20.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
-	github.com/impire-io/soulstream-identity v0.11.0
+	github.com/impire-io/soulstream-identity v0.11.1-0.20260827091117-95a8d9e0433e
 	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect

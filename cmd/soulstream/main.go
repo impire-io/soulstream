@@ -45,6 +45,11 @@ Usage:
                                                 drive the engine (topic/schedule/subject too).
   soulstream mcp                                the stdio MCP server wrap launches from this
                                                 same binary (same five values; flags override)
+  soulstream account create <name> [--state DIR]
+                                                create an isolated account on this realm's
+                                                server — its people and agents see only it
+  soulstream account list|show <name>|suspend <name>|resume <name>
+                                                manage the accounts (node must be up)
   soulstream adopt [--state DIR] [--force]
                                                 adopt a realm founded before the canonical
                                                 v2 break (hq 0112) — refuses when the realm
@@ -75,6 +80,8 @@ func run(args []string, out, errw io.Writer) int {
 		err = cmdWrap(args[1:], errw)
 	case "mcp":
 		err = cmdMCP(args[1:], errw)
+	case "account":
+		err = cmdAccount(args[1:], out, errw)
 	case "adopt":
 		err = cmdAdopt(args[1:], out, errw)
 	case "version":

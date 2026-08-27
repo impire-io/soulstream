@@ -18,9 +18,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/nats-io/jwt/v2"
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/nats-io/nkeys"
 
 	"github.com/impire-io/soulstream-archivist/archive"
 	"github.com/impire-io/soulstream-archivist/keeper"
@@ -57,6 +59,10 @@ type Node struct {
 	ncService *nats.Conn
 	ncIssuer  *nats.Conn
 	ncOps     *nats.Conn
+	// ncSys is the system-account connection carrying the tenancy ops'
+	// resolver pushes (D35/D47); nil on BYO, where no operator or SYS
+	// material exists on this side of the boundary (design 0003).
+	ncSys *nats.Conn
 
 	// The memory plane (nil when disabled): the realm client owns the
 	// archivist connection; the two loops report into memErr.
@@ -157,24 +163,53 @@ func Start(cfg Config) (*Node, error) {
 			port = -1
 		}
 
-		res := &natsserver.MemAccResolver{}
+		// The resolver is a dir resolver under the state directory
+		// (design 0001 §3 as amended by the platform topology, hq
+		// episode 0133): tenants born at runtime through `accounts.*`
+		// land here and survive a restart — the founding JWTs seed it
+		// idempotently on every start. MemAccResolver held this seat
+		// until tenancy needed persistence; a memory resolver would
+		// forget every tenant at shutdown.
+		resolverDir := filepath.Join(cfg.StateDir, "resolver")
+		if err := os.MkdirAll(resolverDir, 0o700); err != nil {
+			return nil, fmt.Errorf("node: resolver dir: %w", err)
+		}
+		res, err := natsserver.NewDirAccResolver(resolverDir, 1000, 2*time.Minute, natsserver.NoDelete)
+		if err != nil {
+			return nil, fmt.Errorf("node: account resolver: %w", err)
+		}
+		// Seed create-if-absent, never overwrite: the running system
+		// amends stored JWTs (accounts.create teaches AUTH each tenant,
+		// D47) and re-seeding the founding shapes over those amendments
+		// would silently unlearn every tenant at restart.
 		for pub, token := range map[string]string{
 			st.SysPub: st.SysJWT, st.AuthPub: st.AuthJWT, st.RealmPub: st.RealmJWT,
 		} {
+			if _, err := res.Fetch(pub); err == nil {
+				continue
+			}
 			if err := res.Store(pub, token); err != nil {
 				return nil, fmt.Errorf("node: account resolver: %w", err)
 			}
 		}
+		// The dir resolver refuses to start on bare TrustedKeys — it
+		// wants the operator's claims. They are synthesized in memory
+		// from the ceremony's operator seed, exactly as the SYS user
+		// is: no new artifact on disk.
+		trusted, err := trustedOperator(st)
+		if err != nil {
+			return nil, err
+		}
 		srv, err = natsserver.NewServer(&natsserver.Options{
-			Host:            host,
-			Port:            port,
-			JetStream:       true,
-			StoreDir:        filepath.Join(cfg.StateDir, "jetstream"),
-			TrustedKeys:     []string{st.OperatorPub},
-			SystemAccount:   st.SysPub,
-			AccountResolver: res,
-			NoLog:           true,
-			NoSigs:          true,
+			Host:             host,
+			Port:             port,
+			JetStream:        true,
+			StoreDir:         filepath.Join(cfg.StateDir, "jetstream"),
+			TrustedOperators: trusted,
+			SystemAccount:    st.SysPub,
+			AccountResolver:  res,
+			NoLog:            true,
+			NoSigs:           true,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("node: server: %w", err)
@@ -213,6 +248,16 @@ func Start(cfg Config) (*Node, error) {
 	if n.ncOps, err = connect("ops"); err != nil {
 		return fail(err)
 	}
+	// The system-account connection enables the tenancy ops (D35): a
+	// SYS user minted in memory from the ceremony's SYS account key —
+	// no new artifact on disk, and nothing to migrate for realms
+	// founded before tenancy. BYO holds no SYS material (design 0003),
+	// so the ops stay off there and the service says so when asked.
+	if !st.BYO() {
+		if n.ncSys, err = connectSys(n.url, st); err != nil {
+			return fail(err)
+		}
+	}
 
 	logger := newAuditLogger(audit)
 	n.audit = logger
@@ -233,6 +278,7 @@ func Start(cfg Config) (*Node, error) {
 		n.planes <- embed.Run(ctx, embed.Options{
 			Conn:        n.ncService,
 			CalloutConn: n.ncIssuer,
+			SystemConn:  n.ncSys, // nil on BYO: tenancy ops disabled, honestly
 			FirstKey:    string(st.VaultFirstSeed),
 			SurfaceKey:  string(st.SurfaceSeed),
 			CalloutKey:  string(st.CalloutSeed),
@@ -271,6 +317,32 @@ func Start(cfg Config) (*Node, error) {
 		}
 	}
 
+	// The tenancy authority's pen: ensure the operator key is in the
+	// vault (name "operator/root", the embed default). An ensure, not a
+	// founding-only act, so realms founded before tenancy gain the key
+	// on their next start — the EnsureSigningKey posture (F1), applied
+	// to the operator key. Import refuses overwrite, so present means
+	// done; the Keys read keeps the common path write-free.
+	if n.ncSys != nil {
+		keys, err := n.ops.Keys()
+		if err != nil {
+			return fail(fmt.Errorf("node: list vault keys: %w", err))
+		}
+		present := false
+		for _, k := range keys {
+			if k.Name == "operator/root" {
+				present = true
+				break
+			}
+		}
+		if !present {
+			if _, err := n.ops.ImportKey("operator/root", client.KindNATSOperatorKey,
+				string(st.OperatorSeed), "", ""); err != nil {
+				return fail(fmt.Errorf("node: import operator key: %w", err))
+			}
+		}
+	}
+
 	if st.MemoryEnabled {
 		if err := n.startMemory(ctx, cfg); err != nil {
 			return fail(err)
@@ -295,6 +367,64 @@ func Start(cfg Config) (*Node, error) {
 // plane's OIDC lane (which the ceremony wires whenever the shell is on).
 // It starts last: it discovers the sign-in issuer at startup, so the
 // fold (or external AS) must already answer.
+// trustedOperator synthesizes the operator claims the dir resolver
+// requires, in memory, from the ceremony's operator seed — the same
+// no-new-artifact posture as connectSys.
+func trustedOperator(st *ceremony.State) ([]*jwt.OperatorClaims, error) {
+	opKP, err := nkeys.FromSeed(st.OperatorSeed)
+	if err != nil {
+		return nil, fmt.Errorf("node: operator seed: %w", err)
+	}
+	oc := jwt.NewOperatorClaims(st.OperatorPub)
+	oc.Name = "soulstream"
+	oc.SystemAccount = st.SysPub
+	token, err := oc.Encode(opKP)
+	if err != nil {
+		return nil, fmt.Errorf("node: operator claims: %w", err)
+	}
+	trusted, err := jwt.DecodeOperatorClaims(token)
+	if err != nil {
+		return nil, fmt.Errorf("node: operator claims decode: %w", err)
+	}
+	return []*jwt.OperatorClaims{trusted}, nil
+}
+
+// connectSys dials the system account with a user minted in memory from
+// the ceremony's SYS account key: the JWT and seed exist only in this
+// process, nothing lands on disk, and realms founded before tenancy
+// need no new artifact — the ceremony already persists the SYS seed.
+func connectSys(url string, st *ceremony.State) (*nats.Conn, error) {
+	sysKP, err := nkeys.FromSeed(st.SysSeed)
+	if err != nil {
+		return nil, fmt.Errorf("node: sys account seed: %w", err)
+	}
+	userKP, err := nkeys.CreateUser()
+	if err != nil {
+		return nil, fmt.Errorf("node: sys user key: %w", err)
+	}
+	userPub, err := userKP.PublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("node: sys user public key: %w", err)
+	}
+	userSeed, err := userKP.Seed()
+	if err != nil {
+		return nil, fmt.Errorf("node: sys user seed: %w", err)
+	}
+	uc := jwt.NewUserClaims(userPub)
+	uc.Name = "soulstream-sys"
+	token, err := uc.Encode(sysKP)
+	if err != nil {
+		return nil, fmt.Errorf("node: sys user jwt: %w", err)
+	}
+	nc, err := nats.Connect(url,
+		nats.UserJWTAndSeed(token, string(userSeed)),
+		nats.Name("soulstream-sys"))
+	if err != nil {
+		return nil, fmt.Errorf("node: sys connection: %w", err)
+	}
+	return nc, nil
+}
+
 func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 	st := cfg.State
 	helmIssuer, _ := st.SessionIssuer()
@@ -565,7 +695,7 @@ func (n *Node) Stop() {
 	if n.realmClient != nil {
 		_ = n.realmClient.Close()
 	}
-	for _, nc := range []*nats.Conn{n.ncOps, n.ncIssuer, n.ncService} {
+	for _, nc := range []*nats.Conn{n.ncOps, n.ncIssuer, n.ncSys, n.ncService} {
 		if nc != nil {
 			nc.Close()
 		}
