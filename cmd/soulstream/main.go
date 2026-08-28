@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/nats-io/nats.go"
+
 	"github.com/impire-io/soulstream/ceremony"
 	"github.com/impire-io/soulstream/internal/version"
 	"github.com/impire-io/soulstream/node"
@@ -45,6 +47,15 @@ Usage:
                                                 drive the engine (topic/schedule/subject too).
   soulstream mcp                                the stdio MCP server wrap launches from this
                                                 same binary (same five values; flags override)
+  soulstream agent submit <declaration.json> [--state DIR]
+                                                place a declared agent on this deployment —
+                                                a dispatcher node serves it from then on
+  soulstream model set <name> [--pin MODEL] [--capability chat]
+  soulstream model ls                           name the models agents think through; the
+                                                name is what declarations carry, never a route
+  soulstream provider set <name> [--state DIR]
+                                                load a provider key into the inference plane's
+                                                custody (reads SOULSTREAM_PROVIDER_KEY)
   soulstream account create <name> [--state DIR]
                                                 create an isolated account on this realm's
                                                 server — its people and agents see only it
@@ -80,6 +91,12 @@ func run(args []string, out, errw io.Writer) int {
 		err = cmdWrap(args[1:], errw)
 	case "mcp":
 		err = cmdMCP(args[1:], errw)
+	case "agent":
+		err = cmdAgent(args[1:], out, errw)
+	case "model":
+		err = cmdModel(args[1:], out, errw)
+	case "provider":
+		err = cmdProvider(args[1:], out, errw)
 	case "account":
 		err = cmdAccount(args[1:], out, errw)
 	case "adopt":
@@ -112,6 +129,41 @@ func stateDir(flagVal string) (string, error) {
 		return "", fmt.Errorf("no state dir: %w (set --state or SOULSTREAM_STATE)", err)
 	}
 	return filepath.Join(base, "soulstream"), nil
+}
+
+// realmState verifies a state directory and reports where its realm
+// answers — the three lines every verb that talks to a RUNNING node
+// opens with.
+func realmState(flagVal string) (dir string, st *ceremony.State, url string, err error) {
+	dir, err = stateDir(flagVal)
+	if err != nil {
+		return "", nil, "", err
+	}
+	st, err = ceremony.Verify(dir)
+	if err != nil {
+		return "", nil, "", err
+	}
+	if !ceremony.Founded(dir) {
+		return "", nil, "", notFounded(st, dir)
+	}
+	url = "nats://" + st.Listen
+	if st.BYO() {
+		url = st.BYOURL
+	}
+	return dir, st, url, nil
+}
+
+// dialOps opens the operator's own connection to the running realm — the
+// creds the founding left behind, named so the server's logs say which
+// verb is asking.
+func dialOps(dir, url, name string) (*nats.Conn, error) {
+	nc, err := nats.Connect(url,
+		nats.UserCredentials(ceremony.UserCredsPath(dir, "ops")),
+		nats.Name("soulstream-"+name))
+	if err != nil {
+		return nil, fmt.Errorf("connect to the running realm at %s (is `soulstream up` running?): %w", url, err)
+	}
+	return nc, nil
 }
 
 func cmdInit(args []string, out, errw io.Writer) error {
@@ -421,6 +473,9 @@ func cmdUp(args []string, out, errw io.Writer) error {
 	if st.MemoryEnabled {
 		fmt.Fprintln(out, "soulstream: memory plane serving")
 	}
+	if st.DispatcherEnabled {
+		fmt.Fprintf(out, "soulstream: dispatcher plane serving (placements %s)\n", n.Placements())
+	}
 	printEndpoints(out, n, st)
 	if st.SignInEnabled {
 		if invite := n.FoldInvite(); invite != "" {
@@ -455,6 +510,9 @@ func printEndpoints(out io.Writer, n *node.Node, st *ceremony.State) {
 		if st.MCPPublicURL != "" {
 			fmt.Fprintf(out, "soulstream:   public sign-in %s (a DISTINCT route from the MCP URL)\n", st.SignInIssuer)
 		}
+	}
+	if st.InferenceEnabled {
+		fmt.Fprintf(out, "soulstream: thinking (agents) %s\n", n.InferenceURL())
 	}
 	if st.HelmEnabled {
 		fmt.Fprintf(out, "soulstream: shell console    %s\n", n.HelmURL())
