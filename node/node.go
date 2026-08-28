@@ -409,6 +409,17 @@ func (n *Node) connectPlane(cfg Config, persona string) (*nats.Conn, error) {
 	return nc, nil
 }
 
+// declaredPlacements is the fact the shell's declare lane reads: the
+// placement topic's NAME when this deployment runs the dispatcher plane,
+// "" when it does not — the shell resolves the name against the board
+// itself, and reading must not write.
+func declaredPlacements(st *ceremony.State) string {
+	if !st.DispatcherEnabled {
+		return ""
+	}
+	return st.DispatcherPlacements
+}
+
 // startHelm runs the human cockpit (soulstream-shell's public embed seam) —
 // composition, not invention: the shell reads through the node's ops
 // lane, and every session opens its own admission through the identity
@@ -518,7 +529,15 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 			// no such standing, declares nothing here, and runs no agents
 			// surface at all.
 			AgentsDial: n.url,
-			Ready:      func(addr string) { ready <- addr },
+			// What this deployment declares about DECLARED agents (hq
+			// shell design 0009): the placement topic's name when the
+			// dispatcher plane is on — the shell's declare lane reads
+			// exactly this to know whether it is part of this build — and
+			// the capability role name a declaration's tools select. Both
+			// facts, no probes.
+			PlacementsTopic: declaredPlacements(st),
+			CapabilityRole:  ceremony.AgentRole,
+			Ready:           func(addr string) { ready <- addr },
 		})
 	}()
 	select {
