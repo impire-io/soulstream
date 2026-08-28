@@ -76,6 +76,25 @@ type State struct {
 	HelmListen    string
 	HelmPublicURL string
 
+	// The dispatcher plane (workloads design 0007, opt-in): the house
+	// serves declared agents as infrastructure — nobody's laptop. Absent
+	// block means absent plane. DispatcherPlacements is the NAME of the
+	// topic submissions land on (resolved to a path against the board,
+	// started only in its absence); Harness names a wrap preset and
+	// Template a template file, exactly as `soulstream wrap` reads them,
+	// and the template wins where both are set.
+	DispatcherEnabled    bool
+	DispatcherPlacements string
+	DispatcherHarness    string
+	DispatcherTemplate   string
+
+	// The inference plane (inference design 0001, opt-in): the door
+	// harnesses think through, plus the instances that serve them, in
+	// this process. InferenceListen is the door's loopback listener.
+	InferenceEnabled   bool
+	InferenceListen    string
+	InferenceInstances []InferenceInstance
+
 	// BYO NATS (design 0003): BYOFlavour "" is the embedded server; the
 	// two flavours found on a substrate soulstream does not run. BYOURL
 	// is the substrate's client URL — the one URL every plane dials. In
@@ -147,6 +166,42 @@ type State struct {
 	RunnerCreds    []byte
 	SignInCreds    []byte
 }
+
+// InferenceInstance is one configured plane member: an adapter wrapping
+// one model on one capability. Secret names the adapter's provider
+// credential in the plane principal's own D36 tree (`providers/<name>` by
+// convention) — the value never appears here, in config.json, or anywhere
+// an agent can read.
+type InferenceInstance struct {
+	Adapter    string
+	Model      string
+	Capability string
+	Tags       string
+	Secret     string
+}
+
+// The adapters the house knows how to construct. A configured name
+// outside this set is refused at verify — the house wires adapters, it
+// does not discover them.
+const (
+	AdapterStandin   = "standin"
+	AdapterAnthropic = "anthropic"
+)
+
+// The two plane personas. Both identities are minted at runtime
+// (MintPlaneUser) rather than founded, so a realm founded before these
+// planes existed runs them with nothing to migrate. The inference
+// persona is also the custody principal its instances resolve provider
+// credentials from (inference design 0001 §4: the credential lives with
+// the instance).
+const (
+	DispatcherPersona = "dispatcher"
+	InferencePersona  = "inference"
+)
+
+// DefaultPlacements is the placement topic's name when the dispatcher
+// block does not choose one.
+const DefaultPlacements = "placements"
 
 // FoundingPersona is the persona name the first access token represents:
 // the human who ran init. A richer naming story arrives when a consumer
@@ -372,6 +427,44 @@ func agentScope(key string) *jwt.UserScope {
 		},
 	}
 	return scope
+}
+
+// MintPlaneUser mints one plane's own connection identity in memory: a
+// user signed by the PLAIN workload signing key, naming its account (the
+// protocol fact a non-master issuer forces) and carrying no permissions
+// of its own, so the realm account's defaults apply — byte-identical to
+// the users the BYO founding mints onto disk.
+//
+// Nothing is persisted. A plane identity lives exactly as long as the
+// process, which is why enabling a plane on a realm founded before it
+// existed needs no migration: the material this signs with is on every
+// founded realm, both flavours.
+func (s *State) MintPlaneUser(name string) (userJWT string, userSeed []byte, err error) {
+	if len(s.WorkloadSigningSeed) == 0 {
+		return "", nil, fmt.Errorf("ceremony: this realm has no workload signing key (%s) — it cannot mint a plane identity", fileWorkloadSigning)
+	}
+	if s.RealmPub == "" {
+		return "", nil, fmt.Errorf("ceremony: this realm has no account key — it cannot mint a plane identity")
+	}
+	signer, err := nkeys.FromSeed(s.WorkloadSigningSeed)
+	if err != nil {
+		return "", nil, fmt.Errorf("ceremony: workload signing key: %w", err)
+	}
+	ukp, err := nkeys.CreateUser()
+	if err != nil {
+		return "", nil, fmt.Errorf("ceremony: plane user %s: %w", name, err)
+	}
+	upub, _ := ukp.PublicKey()
+	useed, _ := ukp.Seed()
+	uc := jwt.NewUserClaims(upub)
+	uc.Name = name
+	uc.IssuedAt = time.Now().Unix()
+	uc.IssuerAccount = s.RealmPub
+	token, err := uc.Encode(signer)
+	if err != nil {
+		return "", nil, fmt.Errorf("ceremony: plane user %s: %w", name, err)
+	}
+	return token, useed, nil
 }
 
 // userCreds mints an account-key-signed user and renders the creds file.
