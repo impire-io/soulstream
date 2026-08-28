@@ -129,6 +129,39 @@ func askDoor(ctx context.Context, base, key, model, prompt string) (string, erro
 	return out.Content[0].Text, nil
 }
 
+// listModels asks the door what it can think with — the enumeration a
+// harness runs before it picks a model.
+func listModels(ctx context.Context, t *testing.T, base, key string) []string {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/v1/models", nil)
+	if err != nil {
+		t.Fatalf("models request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("models: %v", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(res.Body)
+		t.Fatalf("models answered %d: %s", res.StatusCode, raw)
+	}
+	var out struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("models decode: %v", err)
+	}
+	names := make([]string, 0, len(out.Data))
+	for _, d := range out.Data {
+		names = append(names, d.ID)
+	}
+	return names
+}
+
 // TestM15ThinkingHouse (specs/014 SC-001, SC-002): the whole composition
 // as one run. A realm founds, its inference plane resolves a provider key
 // from custody and serves a stand-in beside it, its dispatcher plane
@@ -311,6 +344,13 @@ func TestM15ThinkingHouse(t *testing.T) {
 		if strings.Contains(exhibit, providerSentinel) {
 			t.Fatalf("provider material found in %s", name)
 		}
+	}
+
+	// What the door says it can think with is the catalogue itself: the
+	// listing and the routing read the same names, so a harness that
+	// enumerates is told the truth rather than an empty list.
+	if names := listModels(ctx, t, n.InferenceURL(), thinkerKey); len(names) != 1 || names[0] != "realm-default" {
+		t.Fatalf("the door advertises %v, want the catalogue's own names", names)
 	}
 
 	// A key nobody issued opens nothing, and the plane never hears about

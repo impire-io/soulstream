@@ -60,8 +60,8 @@ github.com/impire-io/soulstream-identity v0.12.0 h1:/LfGQhZY7qWlRtYpCDLrk2JbpkE8
 github.com/impire-io/soulstream-identity v0.12.0/go.mod h1:Lz5cia9xUKGy0kdAHg7R2Tz4C+ZAGJufXk49oRlJ6ok=
 github.com/impire-io/soulstream-idp v0.8.1 h1:CI0i2V2NvJ97E+hjv4jEQw9yPLMC3RZrg1g7/BF/Htw=
 github.com/impire-io/soulstream-idp v0.8.1/go.mod h1:58Vm9h3x9/I/elhaiVMKLhD4Yrzr7hL8xBmwh34WJIY=
-github.com/impire-io/soulstream-inference v0.0.0-20260828125134-e020740bd99d h1:H0fKDBGJTMiWEpioelnstmTxALh9zRrrSL4Iye68GDI=
-github.com/impire-io/soulstream-inference v0.0.0-20260828125134-e020740bd99d/go.mod h1:S2pF86IVu9LfpBK4ouZNfK/LEpFi+GABJTW3OtYDHwI=
+github.com/impire-io/soulstream-inference v0.0.0-20260828132144-aa4d318e4fc5 h1:H+uIqqLLhhh3j+Nm1Fnmmi5z6w8oqWUk5Y4+6YhfEKA=
+github.com/impire-io/soulstream-inference v0.0.0-20260828132144-aa4d318e4fc5/go.mod h1:S2pF86IVu9LfpBK4ouZNfK/LEpFi+GABJTW3OtYDHwI=
 github.com/impire-io/soulstream-mcp v0.1.0 h1:mRiva+bhSertb1VKevhuec6WPKHPQbur83KIEss3Gwc=
 github.com/impire-io/soulstream-mcp v0.1.0/go.mod h1:7NzUwvEhPC2DUxoL7HOvrPRtr8joSiqiblsJixvseFI=
 github.com/impire-io/soulstream-shell v0.11.0-rc.3 h1:NecA7Bkbbm/jOdRTdfbOPOCIvjpDtlv2/wpbyNV8qtM=

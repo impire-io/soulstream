@@ -6,7 +6,7 @@ require (
 	github.com/impire-io/soulstream-archivist v0.4.1
 	github.com/impire-io/soulstream-core v0.14.0-rc.1
 	github.com/impire-io/soulstream-idp v0.8.1
-	github.com/impire-io/soulstream-inference v0.0.0-20260828125134-e020740bd99d
+	github.com/impire-io/soulstream-inference v0.0.0-20260828132144-aa4d318e4fc5
 	github.com/impire-io/soulstream-mcp v0.1.0
 	github.com/impire-io/soulstream-shell v0.11.0-rc.3
 	github.com/impire-io/soulstream-workloads v0.8.0-rc.2.0.20260828124734-67a75e2fcdb4

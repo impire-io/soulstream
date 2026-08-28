@@ -167,7 +167,7 @@ func (n *Node) startInference(cfg Config) error {
 		return fmt.Errorf("node: the inference door cannot listen on %s (change planes.inference.listen in %s): %w",
 			st.InferenceListen, filepath.Join(cfg.StateDir, "config.json"), err)
 	}
-	d := &door.Door{Conn: nc, Authorize: p.keys.allows, Route: p.route}
+	d := &door.Door{Conn: nc, Authorize: p.keys.allows, Route: p.route, Models: p.models}
 	h, err := d.Handler()
 	if err != nil {
 		_ = l.Close()
@@ -218,6 +218,25 @@ func (p *inferencePlane) route(model string) (string, error) {
 		return inferclient.AnycastSubject("chat"), nil
 	}
 	return entry.Descriptor().Route(p.nc, resolveWindow)
+}
+
+// models is what the door advertises when a harness asks what it can
+// think with: the catalogue's names, read the same way and at the same
+// moment Route reads them, so the list and the routing cannot disagree.
+// A read that fails lists nothing rather than inventing names — an
+// enumeration is a convenience, and a wrong one is worse than none.
+func (p *inferencePlane) models() []string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	named, err := CatalogueList(ctx, p.js)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(named))
+	for _, n := range named {
+		out = append(out, n.Name)
+	}
+	return out
 }
 
 // stop ends the plane: the door first (no new requests while the
