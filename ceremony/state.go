@@ -88,6 +88,11 @@ type config struct {
 		SignIn *signinConfig `json:"signin,omitempty"`
 		// Shell is a pointer for the same reason.
 		Shell *helmConfig `json:"shell,omitempty"`
+		// Dispatcher and Inference are the thinking house (specs/014),
+		// both opt-in: an absent block is an absent plane, and a realm
+		// that names neither runs exactly as it ran before they existed.
+		Dispatcher *dispatcherConfig `json:"dispatcher,omitempty"`
+		Inference  *inferenceConfig  `json:"inference,omitempty"`
 		// Door and Fold are the byname-era keys. They are not read —
 		// pre-v1 renames are clean breaks (design 0001 §2) — but they
 		// are still *detected*, so a realm founded under them is refused
@@ -133,6 +138,40 @@ type helmConfig struct {
 	Enabled   *bool  `json:"enabled,omitempty"`
 	Listen    string `json:"listen,omitempty"`
 	PublicURL string `json:"public_url,omitempty"`
+}
+
+// dispatcherConfig is the standing serve arm's block (workloads design
+// 0007). Placements is a topic NAME, not a path: the plane resolves it
+// against the realm's board and starts the topic only in its absence, so
+// the same config names the same topic across restarts. Harness and
+// Template are the wrap lane's own two ways of saying which assistant
+// runs — a preset name, or a template file that overrides it.
+type dispatcherConfig struct {
+	Enabled    *bool  `json:"enabled,omitempty"`
+	Placements string `json:"placements,omitempty"`
+	Harness    string `json:"harness,omitempty"`
+	Template   string `json:"template,omitempty"`
+}
+
+// inferenceConfig is the plane the realm's agents think through
+// (inference design 0001): the door on a loopback listener, and the
+// instances this process serves.
+type inferenceConfig struct {
+	Enabled   *bool            `json:"enabled,omitempty"`
+	Listen    string           `json:"listen,omitempty"`
+	Instances []instanceConfig `json:"instances,omitempty"`
+}
+
+// instanceConfig declares one instance: one adapter, one model, one
+// capability pool. Secret names the provider credential's path in the
+// plane principal's D36 tree — a path, never a value; a credential in
+// config.json is refused by the shape of this struct.
+type instanceConfig struct {
+	Adapter    string `json:"adapter"`
+	Model      string `json:"model"`
+	Capability string `json:"capability,omitempty"`
+	Tags       string `json:"tags,omitempty"`
+	Secret     string `json:"secret,omitempty"`
 }
 
 type planeConfig struct {
@@ -255,6 +294,22 @@ func (s *State) Save(dir string) error {
 	helmEnabled := s.HelmEnabled
 	c.Planes.Shell = &helmConfig{Enabled: &helmEnabled, Listen: s.HelmListen,
 		PublicURL: s.HelmPublicURL}
+	// The thinking house's two blocks are written only when they are on.
+	// Founding never turns them on, and an absent block must stay absent:
+	// writing `enabled: false` would make every fresh realm carry planes
+	// it does not have.
+	if s.DispatcherEnabled {
+		on := true
+		c.Planes.Dispatcher = &dispatcherConfig{Enabled: &on, Placements: s.DispatcherPlacements,
+			Harness: s.DispatcherHarness, Template: s.DispatcherTemplate}
+	}
+	if s.InferenceEnabled {
+		on := true
+		c.Planes.Inference = &inferenceConfig{Enabled: &on, Listen: s.InferenceListen}
+		for _, in := range s.InferenceInstances {
+			c.Planes.Inference.Instances = append(c.Planes.Inference.Instances, instanceConfig(in))
+		}
+	}
 	cfg, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("ceremony: config: %w", err)
@@ -402,6 +457,31 @@ func Load(dir string) (*State, error) {
 			s.HelmListen = "127.0.0.1:8500"
 		}
 		s.HelmPublicURL = h.PublicURL
+	}
+	if d := cfg.Planes.Dispatcher; d != nil && (d.Enabled == nil || *d.Enabled) {
+		s.DispatcherEnabled = true
+		s.DispatcherPlacements = d.Placements
+		if s.DispatcherPlacements == "" {
+			s.DispatcherPlacements = DefaultPlacements
+		}
+		s.DispatcherHarness = d.Harness
+		s.DispatcherTemplate = d.Template
+	}
+	if i := cfg.Planes.Inference; i != nil && (i.Enabled == nil || *i.Enabled) {
+		s.InferenceEnabled = true
+		s.InferenceListen = i.Listen
+		if s.InferenceListen == "" {
+			s.InferenceListen = "127.0.0.1:8600"
+		}
+		for _, in := range i.Instances {
+			capability := in.Capability
+			if capability == "" {
+				capability = "chat"
+			}
+			s.InferenceInstances = append(s.InferenceInstances, InferenceInstance{
+				Adapter: in.Adapter, Model: in.Model, Capability: capability,
+				Tags: in.Tags, Secret: in.Secret})
+		}
 	}
 
 	// BYO mode loads its own, smaller inventory: signing keys and curve
@@ -720,7 +800,77 @@ func Verify(dir string) (*State, error) {
 			return nil, fmt.Errorf("ceremony: %s enables the shell plane with no sign-in issuer — enable planes.signin or set planes.mcp.auth_issuer", fileConfig)
 		}
 	}
+	if err := s.verifyThinking(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// verifyThinking is the thinking house's configuration cross-checks
+// (specs/014): a dispatcher that names no assistant would refuse every
+// placement it won, and an instance the house cannot construct would
+// fail at the first request instead of at startup. Both are refused here,
+// before anything runs.
+func (s *State) verifyThinking() error {
+	if s.DispatcherEnabled && s.DispatcherHarness == "" && s.DispatcherTemplate == "" {
+		return fmt.Errorf("ceremony: %s enables the dispatcher plane but names no assistant — set planes.dispatcher.harness (a preset) or planes.dispatcher.template (a template file)", fileConfig)
+	}
+	if !s.InferenceEnabled {
+		return nil
+	}
+	host, port, err := net.SplitHostPort(s.InferenceListen)
+	if err != nil {
+		return fmt.Errorf("ceremony: damaged %s: inference listen %q: %w", fileConfig, s.InferenceListen, err)
+	}
+	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
+		return fmt.Errorf("ceremony: %s inference listen %q is not loopback", fileConfig, s.InferenceListen)
+	}
+	if port != "0" {
+		for _, other := range []struct{ name, listen string }{
+			{"planes.mcp.listen", listenIf(s.MCPEnabled, s.MCPListen)},
+			{"planes.signin.listen", listenIf(s.SignInEnabled, s.SignInListen)},
+			{"planes.shell.listen", listenIf(s.HelmEnabled, s.HelmListen)},
+		} {
+			if other.listen == s.InferenceListen {
+				return fmt.Errorf("ceremony: %s planes.inference.listen and %s are both %q — they are separate services and need separate addresses", fileConfig, other.name, s.InferenceListen)
+			}
+		}
+	}
+	models := map[string]bool{}
+	for i, in := range s.InferenceInstances {
+		where := fmt.Sprintf("planes.inference.instances[%d]", i)
+		if in.Model == "" {
+			return fmt.Errorf("ceremony: %s %s names no model — an instance wraps exactly one", fileConfig, where)
+		}
+		if models[in.Model] {
+			return fmt.Errorf("ceremony: %s declares model %q twice — a pinned name would resolve to whichever instance answered first; give each instance its own model", fileConfig, in.Model)
+		}
+		models[in.Model] = true
+		switch in.Adapter {
+		case AdapterStandin:
+			if in.Secret != "" {
+				return fmt.Errorf("ceremony: %s %s is the stand-in adapter and holds no provider credential — remove its secret", fileConfig, where)
+			}
+		case AdapterAnthropic:
+			if in.Secret == "" {
+				return fmt.Errorf("ceremony: %s %s needs a secret — the path in this plane's own store where its provider key rests (`soulstream provider set anthropic` writes it)", fileConfig, where)
+			}
+		case "":
+			return fmt.Errorf("ceremony: %s %s names no adapter — the house wires %q and %q", fileConfig, where, AdapterStandin, AdapterAnthropic)
+		default:
+			return fmt.Errorf("ceremony: %s %s adapter %q is not one the house wires (%q, %q)", fileConfig, where, in.Adapter, AdapterStandin, AdapterAnthropic)
+		}
+	}
+	return nil
+}
+
+// listenIf yields a plane's listener only when that plane is on — a
+// disabled plane's address is not a collision.
+func listenIf(enabled bool, listen string) string {
+	if !enabled {
+		return ""
+	}
+	return listen
 }
 
 // verifyEmbedded is the embedded server's cross-checks: JWT subjects
