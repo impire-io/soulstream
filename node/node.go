@@ -34,6 +34,7 @@ import (
 	foldembed "github.com/impire-io/soulstream-idp/embed"
 	door "github.com/impire-io/soulstream-mcp"
 	helmembed "github.com/impire-io/soulstream-shell/embed"
+	"github.com/impire-io/soulstream-workloads/wrap"
 
 	"github.com/impire-io/soulstream/ceremony"
 )
@@ -48,6 +49,16 @@ type Config struct {
 	// (slog text, includes the `callout REFUSED` lines). Default:
 	// os.Stderr — the daemon convention.
 	AuditWriter io.Writer
+
+	// HarnessInvoke replaces the harness the dispatcher plane's engines
+	// run — the same seam wrap offers, surfaced here so the house's own
+	// gates can serve a scripted assistant. Nil is the real harness.
+	HarnessInvoke wrap.Invoker
+
+	// DispatcherReclaim overrides the placement reclaim bound. Zero is
+	// upstream's default; the gates shorten it so a failover is a test
+	// rather than a wait.
+	DispatcherReclaim time.Duration
 }
 
 // Node is a running composition.
@@ -92,6 +103,12 @@ type Node struct {
 	// the deployment's AS through the identity plane's OIDC lane.
 	helmErr chan error
 	helmURL string
+
+	// The thinking house (specs/014), both nil when disabled: the
+	// inference plane serves the door and its instances, the dispatcher
+	// plane serves declared agents and hands them the lane to it.
+	inference *inferencePlane
+	dispatch  *dispatcherPlane
 
 	ops *client.Client
 	url string
@@ -358,7 +375,38 @@ func Start(cfg Config) (*Node, error) {
 			return fail(err)
 		}
 	}
+	// The inference plane starts before the dispatcher: the dispatcher
+	// hands served agents the door's address and a key from its registry,
+	// so the door must already exist when the first placement is won.
+	if st.InferenceEnabled {
+		if err := n.startInference(cfg); err != nil {
+			return fail(err)
+		}
+	}
+	if st.DispatcherEnabled {
+		if err := n.startDispatcher(ctx, cfg); err != nil {
+			return fail(err)
+		}
+	}
 	return n, nil
+}
+
+// connectPlane opens one plane's own connection on a runtime-minted
+// identity (ceremony.MintPlaneUser): nothing lands on disk, and a realm
+// founded before these planes existed needs no new artifact to run them —
+// the same posture connectSys takes for the system account.
+func (n *Node) connectPlane(cfg Config, persona string) (*nats.Conn, error) {
+	token, seed, err := cfg.State.MintPlaneUser(persona)
+	if err != nil {
+		return nil, fmt.Errorf("node: %s plane: %w", persona, err)
+	}
+	nc, err := nats.Connect(n.url,
+		nats.UserJWTAndSeed(token, string(seed)),
+		nats.Name("soulstream-"+persona))
+	if err != nil {
+		return nil, fmt.Errorf("node: %s plane: connection: %w", persona, err)
+	}
+	return nc, nil
 }
 
 // startHelm runs the human cockpit (soulstream-shell's public embed seam) —
@@ -639,6 +687,13 @@ func (n *Node) startMemory(ctx context.Context, cfg Config) error {
 // Stop drains the planes, closes the node's connections, and shuts the
 // server down. The state directory remains valid for the next Start.
 func (n *Node) Stop() {
+	// The dispatcher drains before anything else stops (design 0007 §6):
+	// its engines cancel and are waited on, so an in-flight harness's
+	// failure lands as the agent's own self-report — which is a SIGNED
+	// record, and therefore needs the identity plane still answering.
+	if n.dispatch != nil {
+		n.dispatch.drain()
+	}
 	// The door goes first: no new sessions while the planes drain, and
 	// its pool closes before the connections underneath it do.
 	if n.doorSrv != nil {
@@ -691,6 +746,16 @@ func (n *Node) Stop() {
 			case <-time.After(10 * time.Second):
 			}
 		}
+	}
+	if n.dispatch != nil {
+		n.dispatch.stop()
+	}
+	// The inference plane closes last of the two: a draining engine's
+	// harness may still be mid-thought, and a door taken away under it
+	// would turn an ordinary drain into a provider error.
+	if n.inference != nil {
+		n.inference.stop(n.audit)
+		n.inference.nc.Close()
 	}
 	if n.realmClient != nil {
 		_ = n.realmClient.Close()
