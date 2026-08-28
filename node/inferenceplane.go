@@ -224,7 +224,7 @@ func (p *inferencePlane) route(model string) (string, error) {
 // instances are still there to answer the ones in flight), then every
 // key, then the instances. The connection is closed by Node.Stop with
 // the others.
-func (p *inferencePlane) stop(audit interface{ Error(string, ...any) }) {
+func (p *inferencePlane) stop(audit auditLog) {
 	if p.srv != nil {
 		shCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_ = p.srv.Shutdown(shCtx)

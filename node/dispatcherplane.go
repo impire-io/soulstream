@@ -422,17 +422,18 @@ func (p *dispatcherPlane) credsFor(persona string) (string, error) {
 // an in-flight harness's failure lands as the agent's own self-report
 // before the process ends.
 func (p *dispatcherPlane) stop() {
-	if p.err == nil {
-		return
-	}
-	select {
-	case err := <-p.err:
-		if err != nil && !errors.Is(err, context.Canceled) {
-			p.audit.Error("dispatcher plane exited", "err", err)
+	if p.err != nil {
+		select {
+		case err := <-p.err:
+			if err != nil && !errors.Is(err, context.Canceled) {
+				p.audit.Error("dispatcher plane exited", "err", err)
+			}
+		case <-time.After(90 * time.Second):
+			p.audit.Error("dispatcher plane did not drain in time")
 		}
-	case <-time.After(90 * time.Second):
-		p.audit.Error("dispatcher plane did not drain in time")
 	}
+	// Unconditional: a start that failed after the client existed but
+	// before the loop ran still owns a connection.
 	if p.client != nil {
 		_ = p.client.Close()
 	}
