@@ -8,7 +8,7 @@ require (
 	github.com/impire-io/soulstream-idp v0.8.2
 	github.com/impire-io/soulstream-inference v0.2.0
 	github.com/impire-io/soulstream-mcp v0.1.0
-	github.com/impire-io/soulstream-shell v0.11.0-rc.6
+	github.com/impire-io/soulstream-shell v0.11.0-rc.7
 	github.com/impire-io/soulstream-workloads v0.8.0-rc.4
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/nats-io/jwt/v2 v2.8.2
