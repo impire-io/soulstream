@@ -172,6 +172,7 @@ type instanceConfig struct {
 	Capability string `json:"capability,omitempty"`
 	Tags       string `json:"tags,omitempty"`
 	Secret     string `json:"secret,omitempty"`
+	BaseURL    string `json:"base_url,omitempty"`
 }
 
 type planeConfig struct {
@@ -480,7 +481,7 @@ func Load(dir string) (*State, error) {
 			}
 			s.InferenceInstances = append(s.InferenceInstances, InferenceInstance{
 				Adapter: in.Adapter, Model: in.Model, Capability: capability,
-				Tags: in.Tags, Secret: in.Secret})
+				Tags: in.Tags, Secret: in.Secret, BaseURL: in.BaseURL})
 		}
 	}
 
@@ -851,14 +852,24 @@ func (s *State) verifyThinking() error {
 			if in.Secret != "" {
 				return fmt.Errorf("ceremony: %s %s is the stand-in adapter and holds no provider credential — remove its secret", fileConfig, where)
 			}
+			if in.BaseURL != "" {
+				return fmt.Errorf("ceremony: %s %s is the stand-in adapter and calls nothing — remove its base_url", fileConfig, where)
+			}
 		case AdapterAnthropic:
 			if in.Secret == "" {
 				return fmt.Errorf("ceremony: %s %s needs a secret — the path in this plane's own store where its provider key rests (`soulstream provider set anthropic` writes it)", fileConfig, where)
 			}
+			if in.BaseURL != "" {
+				return fmt.Errorf("ceremony: %s %s sets base_url, which the anthropic adapter does not take — remove it, or use the openai adapter for a runtime of your own", fileConfig, where)
+			}
+		case AdapterOpenAI:
+			if in.Secret == "" && in.BaseURL == "" {
+				return fmt.Errorf("ceremony: %s %s needs a secret or a base_url — a keyless instance serves a runtime of the deployment's own (set base_url), the public API needs a key (`soulstream provider set openai` writes it)", fileConfig, where)
+			}
 		case "":
-			return fmt.Errorf("ceremony: %s %s names no adapter — the house wires %q and %q", fileConfig, where, AdapterStandin, AdapterAnthropic)
+			return fmt.Errorf("ceremony: %s %s names no adapter — the house wires %q, %q and %q", fileConfig, where, AdapterStandin, AdapterAnthropic, AdapterOpenAI)
 		default:
-			return fmt.Errorf("ceremony: %s %s adapter %q is not one the house wires (%q, %q)", fileConfig, where, in.Adapter, AdapterStandin, AdapterAnthropic)
+			return fmt.Errorf("ceremony: %s %s adapter %q is not one the house wires (%q, %q, %q)", fileConfig, where, in.Adapter, AdapterStandin, AdapterAnthropic, AdapterOpenAI)
 		}
 	}
 	return nil

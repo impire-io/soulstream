@@ -17,6 +17,7 @@ import (
 
 	siclient "github.com/impire-io/soulstream-identity/client"
 	"github.com/impire-io/soulstream-inference/adapter/anthropic"
+	"github.com/impire-io/soulstream-inference/adapter/openai"
 	"github.com/impire-io/soulstream-inference/adapter/standin"
 	inferclient "github.com/impire-io/soulstream-inference/client"
 	"github.com/impire-io/soulstream-inference/door"
@@ -197,6 +198,22 @@ func buildAdapter(ident *siclient.Client, in ceremony.InferenceInstance) (instan
 			return nil, fmt.Errorf("the provider key at %q is empty", in.Secret)
 		}
 		return anthropic.New(anthropic.Config{APIKey: string(secret.Value), Model: in.Model})
+	case ceremony.AdapterOpenAI:
+		// Keyless with an explicit base URL is the adapter's own contract:
+		// a runtime of the deployment's own authenticates nobody. A secret,
+		// when named, resolves from this plane's custody like any other.
+		cfg := openai.Config{Model: in.Model, BaseURL: in.BaseURL}
+		if in.Secret != "" {
+			secret, err := ident.SecretGet(in.Secret)
+			if err != nil {
+				return nil, fmt.Errorf("the provider key at %q does not resolve — write it with `soulstream provider set openai`, or take the instance out of the config; a plane never half-serves: %w", in.Secret, err)
+			}
+			if len(secret.Value) == 0 {
+				return nil, fmt.Errorf("the provider key at %q is empty", in.Secret)
+			}
+			cfg.APIKey = string(secret.Value)
+		}
+		return openai.New(cfg)
 	default:
 		return nil, fmt.Errorf("adapter %q is not one the house wires", in.Adapter)
 	}

@@ -178,6 +178,10 @@ type InferenceInstance struct {
 	Capability string
 	Tags       string
 	Secret     string
+	// BaseURL points the openai adapter at a runtime of the deployment's
+	// own (a local server speaking Chat Completions); with it set the
+	// instance may be keyless — a local runtime authenticates nobody.
+	BaseURL string
 }
 
 // The adapters the house knows how to construct. A configured name
@@ -186,6 +190,7 @@ type InferenceInstance struct {
 const (
 	AdapterStandin   = "standin"
 	AdapterAnthropic = "anthropic"
+	AdapterOpenAI    = "openai"
 )
 
 // The two plane personas. Both identities are minted at runtime

@@ -487,6 +487,21 @@ func TestThinkingConfigRefusals(t *testing.T) {
 				s.InferenceInstances = []ceremony.InferenceInstance{{Adapter: ceremony.AdapterAnthropic, Model: "m"}}
 			},
 			"needs a secret"},
+		{"an openai instance with neither key nor base URL",
+			func(s *ceremony.State) {
+				s.InferenceEnabled, s.InferenceListen = true, "127.0.0.1:8600"
+				s.InferenceInstances = []ceremony.InferenceInstance{
+					{Adapter: ceremony.AdapterOpenAI, Model: "m"}}
+			},
+			"needs a secret or a base_url"},
+		{"a base URL on the adapter that does not take one",
+			func(s *ceremony.State) {
+				s.InferenceEnabled, s.InferenceListen = true, "127.0.0.1:8600"
+				s.InferenceInstances = []ceremony.InferenceInstance{
+					{Adapter: ceremony.AdapterAnthropic, Model: "m",
+						Secret: "providers/anthropic", BaseURL: "http://127.0.0.1:1"}}
+			},
+			"does not take"},
 		{"a stand-in carrying a credential",
 			func(s *ceremony.State) {
 				s.InferenceEnabled, s.InferenceListen = true, "127.0.0.1:8600"
@@ -520,6 +535,37 @@ func TestThinkingConfigRefusals(t *testing.T) {
 				t.Fatalf("Verify() = %v, want an error containing %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// TestKeylessOpenAIInstanceVerifies: the legal shape the refusals bracket —
+// an openai instance pointing at a runtime of the deployment's own, no
+// secret anywhere — round-trips config.json and verifies, base URL intact.
+func TestKeylessOpenAIInstanceVerifies(t *testing.T) {
+	dir := t.TempDir()
+	st, err := ceremony.Generate("127.0.0.1:0", "home")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	st.MemoryEnabled, st.MCPEnabled, st.SignInEnabled, st.HelmEnabled = false, false, false, false
+	st.DispatcherPlacements = ceremony.DefaultPlacements
+	st.InferenceEnabled, st.InferenceListen = true, "127.0.0.1:8600"
+	st.InferenceInstances = []ceremony.InferenceInstance{{
+		Adapter: ceremony.AdapterOpenAI, Model: "GLM-4.7-Flash-GGUF",
+		Capability: "chat", BaseURL: "http://192.0.2.1:13305",
+	}}
+	if err := st.Save(dir); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	back, err := ceremony.Verify(dir)
+	if err != nil {
+		t.Fatalf("a keyless openai instance with a base URL must verify: %v", err)
+	}
+	if len(back.InferenceInstances) != 1 || back.InferenceInstances[0].BaseURL != "http://192.0.2.1:13305" {
+		t.Fatalf("the base URL did not survive the round trip: %+v", back.InferenceInstances)
+	}
+	if back.InferenceInstances[0].Secret != "" {
+		t.Fatalf("a secret appeared from nowhere: %+v", back.InferenceInstances[0])
 	}
 }
 
