@@ -2,159 +2,90 @@ package node
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/impire-io/soulstream-core/identity"
-	inferclient "github.com/impire-io/soulstream-inference/client"
+	infercat "github.com/impire-io/soulstream-inference/catalogue"
 )
 
 // The catalogue is where a virtual model name lives (soulstream-inference
-// design 0001 §5, whose [O] this feature closes): a realm KV bucket, one
-// key per name, the value a route descriptor. Re-pointing a name moves
-// traffic — and the defaults that ride with it — without a single
-// declaration changing, because a declaration names and never routes.
+// design 0001 §5): a realm KV bucket, one key per name, the value a route
+// descriptor. Re-pointing a name moves traffic — and the defaults that
+// ride with it — without a single declaration changing, because a
+// declaration names and never routes.
+//
+// The stored shape, the bucket's name and its codec are the thinking
+// plane's published contract (soulstream-inference/catalogue) — one
+// definition every hand consumes, this binary's verbs and the shell's
+// sheet alike (hq shell design 0010, upstream ask #1). What stays here is
+// the house's own posture: provisioning create-or-report, absence as an
+// ordinary answer, and the record's name grammar applied at the hand —
+// the plane deliberately does not know the record.
 //
 // Resolvers read the bucket fresh on every resolution. A watch is the
 // obvious next step and a named [O] — a cache here would make
 // re-pointing a name a promise the plane quietly breaks.
 
-// CatalogueBucket is the realm KV the names live in. It is a realm
-// artefact like the persona directory: created create-or-report by
-// whichever plane starts first, and by the `model` verb, so an operator
-// can seed names before anything serves them.
-const CatalogueBucket = "soulstream-inference-catalogue"
-
-// ModelEntry is one virtual name's route descriptor as the bucket stores
-// it. Capability names the pool; ModelPin, when set, resolves to the one
-// instance wrapping exactly that model; Tags narrow candidates;
-// DefaultParams fill gaps the request leaves — how hard to try is a
-// parameter a name may default, never a route.
-type ModelEntry struct {
-	Capability    string            `json:"capability"`
-	ModelPin      string            `json:"model_pin,omitempty"`
-	Tags          map[string]string `json:"tags,omitempty"`
-	DefaultParams map[string]any    `json:"default_params,omitempty"`
-}
-
-// Descriptor is the entry as the inference client's resolver reads it.
-func (e ModelEntry) Descriptor() inferclient.Descriptor {
-	return inferclient.Descriptor{
-		Capability:    e.Capability,
-		ModelPin:      e.ModelPin,
-		Tags:          e.Tags,
-		DefaultParams: e.DefaultParams,
-	}
-}
-
 // EnsureCatalogue brings the catalogue bucket into existence
 // create-or-report: it creates only what is missing and never touches an
 // existing bucket's settings — the realm-provisioning posture, applied to
-// one more artefact.
+// one more artefact. The bucket's canonical shape is the contract's.
 func EnsureCatalogue(ctx context.Context, js jetstream.JetStream) (jetstream.KeyValue, error) {
-	kv, err := js.KeyValue(ctx, CatalogueBucket)
+	kv, err := js.KeyValue(ctx, infercat.Bucket)
 	switch {
 	case err == nil:
 		return kv, nil
 	case errors.Is(err, jetstream.ErrBucketNotFound):
-		kv, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
-			Bucket:      CatalogueBucket,
-			Description: "virtual model names for the inference plane",
-			History:     1,
-		})
+		kv, err = js.CreateKeyValue(ctx, infercat.Config())
 		if err != nil {
-			return nil, fmt.Errorf("node: create the model catalogue %q: %w", CatalogueBucket, err)
+			return nil, fmt.Errorf("node: create the model catalogue %q: %w", infercat.Bucket, err)
 		}
 		return kv, nil
 	default:
-		return nil, fmt.Errorf("node: look up the model catalogue %q: %w", CatalogueBucket, err)
+		return nil, fmt.Errorf("node: look up the model catalogue %q: %w", infercat.Bucket, err)
 	}
 }
 
-// CatalogueSet points a virtual name at a descriptor, creating the bucket
-// if this is the first name the realm ever gave.
-func CatalogueSet(ctx context.Context, js jetstream.JetStream, name string, e ModelEntry) error {
+// CatalogueSet points a virtual name at an entry, creating the bucket if
+// this is the first name the realm ever gave — an operator can seed names
+// before anything serves them. The name grammar is the record's, checked
+// here at the hand; the entry's own refusals are the codec's.
+func CatalogueSet(ctx context.Context, js jetstream.JetStream, name string, e infercat.Entry) error {
 	if err := identity.CheckName(name); err != nil {
 		return fmt.Errorf("node: %q is not a model name: %w", name, err)
-	}
-	if e.Capability == "" {
-		return errors.New("node: a model name needs a capability — the pool it resolves into")
 	}
 	kv, err := EnsureCatalogue(ctx, js)
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(e)
-	if err != nil {
-		return fmt.Errorf("node: encode the entry for %q: %w", name, err)
-	}
-	if _, err := kv.Put(ctx, name, body); err != nil {
-		return fmt.Errorf("node: write %q to the model catalogue: %w", name, err)
-	}
-	return nil
+	return infercat.Set(ctx, kv, name, e)
 }
 
 // CatalogueGet reads one name, reporting absence rather than erroring on
 // it: a name nobody has pointed anywhere is an ordinary answer.
-func CatalogueGet(ctx context.Context, js jetstream.JetStream, name string) (ModelEntry, bool, error) {
-	kv, err := js.KeyValue(ctx, CatalogueBucket)
+func CatalogueGet(ctx context.Context, js jetstream.JetStream, name string) (infercat.Entry, bool, error) {
+	kv, err := js.KeyValue(ctx, infercat.Bucket)
 	if errors.Is(err, jetstream.ErrBucketNotFound) {
-		return ModelEntry{}, false, nil
+		return infercat.Entry{}, false, nil
 	}
 	if err != nil {
-		return ModelEntry{}, false, fmt.Errorf("node: look up the model catalogue: %w", err)
+		return infercat.Entry{}, false, fmt.Errorf("node: look up the model catalogue: %w", err)
 	}
-	entry, err := kv.Get(ctx, name)
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return ModelEntry{}, false, nil
-	}
-	if err != nil {
-		return ModelEntry{}, false, fmt.Errorf("node: read %q from the model catalogue: %w", name, err)
-	}
-	var e ModelEntry
-	if err := json.Unmarshal(entry.Value(), &e); err != nil {
-		return ModelEntry{}, false, fmt.Errorf("node: the catalogue entry for %q does not decode: %w", name, err)
-	}
-	return e, true, nil
-}
-
-// CatalogueNames is one entry as a listing shows it.
-type CatalogueNames struct {
-	Name  string
-	Entry ModelEntry
+	return infercat.Get(ctx, kv, name)
 }
 
 // CatalogueList reads every name, sorted. An absent bucket lists nothing
 // — a realm that has named no models is not an error.
-func CatalogueList(ctx context.Context, js jetstream.JetStream) ([]CatalogueNames, error) {
-	kv, err := js.KeyValue(ctx, CatalogueBucket)
+func CatalogueList(ctx context.Context, js jetstream.JetStream) ([]infercat.Named, error) {
+	kv, err := js.KeyValue(ctx, infercat.Bucket)
 	if errors.Is(err, jetstream.ErrBucketNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("node: look up the model catalogue: %w", err)
 	}
-	keys, err := kv.Keys(ctx)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("node: list the model catalogue: %w", err)
-	}
-	sort.Strings(keys)
-	out := make([]CatalogueNames, 0, len(keys))
-	for _, k := range keys {
-		e, found, err := CatalogueGet(ctx, js, k)
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			out = append(out, CatalogueNames{Name: k, Entry: e})
-		}
-	}
-	return out, nil
+	return infercat.List(ctx, kv)
 }

@@ -8,6 +8,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	infercat "github.com/impire-io/soulstream-inference/catalogue"
+
 	"github.com/impire-io/soulstream/node"
 )
 
@@ -61,7 +63,7 @@ func cmdModel(args []string, out, errw io.Writer) error {
 
 	if sub == "set" {
 		name := fs.Arg(0)
-		if err := node.CatalogueSet(ctx, js, name, node.ModelEntry{
+		if err := node.CatalogueSet(ctx, js, name, infercat.Entry{
 			Capability: *capability, ModelPin: *pin,
 		}); err != nil {
 			return err

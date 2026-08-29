@@ -21,6 +21,7 @@ import (
 	"github.com/impire-io/soulstream-core/realm"
 	"github.com/impire-io/soulstream-core/topic"
 	siclient "github.com/impire-io/soulstream-identity/client"
+	infercat "github.com/impire-io/soulstream-inference/catalogue"
 	inferclient "github.com/impire-io/soulstream-inference/client"
 	"github.com/impire-io/soulstream-workloads/wrap"
 
@@ -258,7 +259,7 @@ func TestM15ThinkingHouse(t *testing.T) {
 
 	// A name for the thinking, pointed at the stand-in. The declaration
 	// will carry this name and nothing else — no model, no provider.
-	if err := CatalogueSet(ctx, owner.JetStream(), "realm-default", ModelEntry{
+	if err := CatalogueSet(ctx, owner.JetStream(), "realm-default", infercat.Entry{
 		Capability: "chat", ModelPin: "standin-1",
 	}); err != nil {
 		t.Fatalf("model set: %v", err)
@@ -433,7 +434,7 @@ func TestThinkingHouseAbsent(t *testing.T) {
 	ctx := context.Background()
 	owner, _ := ownerClient(ctx, t, n.URL(), dir, st, token)
 	defer func() { _ = owner.Close() }()
-	if _, err := owner.JetStream().KeyValue(ctx, CatalogueBucket); err == nil {
+	if _, err := owner.JetStream().KeyValue(ctx, infercat.Bucket); err == nil {
 		t.Fatal("the catalogue bucket exists on a realm that named no models")
 	}
 	board, err := topic.Board(ctx, owner)

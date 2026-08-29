@@ -537,7 +537,13 @@ func (n *Node) startHelm(ctx context.Context, cfg Config) error {
 			// facts, no probes.
 			PlacementsTopic: declaredPlacements(st),
 			CapabilityRole:  ceremony.AgentRole,
-			Ready:           func(addr string) { ready <- addr },
+			// What this deployment declares about serving models itself (hq
+			// shell design 0010): the config's own word, read before the
+			// inference plane starts — the fact is the configuration's,
+			// exactly the ordering declaredPlacements rides. It shapes the
+			// models screen's words only; what serves is discovered.
+			InferenceOn: st.InferenceEnabled,
+			Ready:       func(addr string) { ready <- addr },
 		})
 	}()
 	select {
