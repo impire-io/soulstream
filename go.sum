@@ -64,8 +64,8 @@ github.com/impire-io/soulstream-inference v0.2.0 h1:25eh9ZmqBmKZpWm/AA5LWIZQVcus
 github.com/impire-io/soulstream-inference v0.2.0/go.mod h1:S2pF86IVu9LfpBK4ouZNfK/LEpFi+GABJTW3OtYDHwI=
 github.com/impire-io/soulstream-mcp v0.1.0 h1:mRiva+bhSertb1VKevhuec6WPKHPQbur83KIEss3Gwc=
 github.com/impire-io/soulstream-mcp v0.1.0/go.mod h1:7NzUwvEhPC2DUxoL7HOvrPRtr8joSiqiblsJixvseFI=
-github.com/impire-io/soulstream-shell v0.11.0-rc.7 h1:W2P695qoB/1W2ZtG8IxwmVsBHxVFz67CQkfwF869QUM=
-github.com/impire-io/soulstream-shell v0.11.0-rc.7/go.mod h1:nQBnYPbVxd5PotGhsygeuGfWOxhxQB/yhh4C4srBeAM=
+github.com/impire-io/soulstream-shell v0.11.0-rc.8 h1:rKSY3ogQvMUnqOdpq0/+tMuur7kLb7AkUT73G88E9kQ=
+github.com/impire-io/soulstream-shell v0.11.0-rc.8/go.mod h1:xnz0s+w1SCTplKxoqe2htX1pghcn51VyFOtuojnHOaw=
 github.com/impire-io/soulstream-workloads v0.8.0-rc.4 h1:rH501YkzY2SzKCsyp42BXVKHmikxLbO4srYFucZ/pTU=
 github.com/impire-io/soulstream-workloads v0.8.0-rc.4/go.mod h1:oESbt8ZQQAcoPs8wf1XT9DBPaVFw6HxSuBllRK3Xhpw=
 github.com/klauspost/compress v1.19.2 h1:hMRETovs/pu/dVWN7zIT1PGG8t509MwT6bO7XSi26R8=
